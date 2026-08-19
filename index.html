@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JI Gear Synth</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-sidebar: #1e293b;
+      --bg-card: #334155;
+      --accent-main: #f59e0b;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #475569;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    #app-container {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* SIDEBAR */
+    #sidebar {
+      width: 360px;
+      min-width: 360px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.3);
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      background-color: rgba(0,0,0,0.2);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-header h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--accent-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sidebar-header p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .sidebar-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sidebar-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .sidebar-scroll::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 3px;
+    }
+
+    .panel-box {
+      background-color: var(--bg-card);
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .panel-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--accent-cyan);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-group {
+      margin-bottom: 12px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    label span.val {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    input[type="number"], input[type="text"], select {
+      width: 100%;
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    input[type="number"]:focus, input[type="text"]:focus, select:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-cyan);
+      cursor: pointer;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    button {
+      background: var(--border-color);
+      color: var(--text-main);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    button:hover {
+      filter: brightness(1.15);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.btn-primary {
+      background: var(--accent-cyan);
+      color: #000;
+    }
+
+    button.btn-main {
+      background: var(--accent-main);
+      color: #000;
+      width: 100%;
+      padding: 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    button.btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+    }
+
+    .preset-grid button {
+      padding: 6px 4px;
+      font-size: 0.75rem;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border-color);
+    }
+
+    .preset-grid button:hover {
+      background: var(--border-color);
+    }
+
+    /* GEAR LIST */
+    .gear-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .gear-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0,0,0,0.25);
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .gear-item.selected {
+      background: rgba(6, 182, 212, 0.15);
+      border-color: var(--accent-cyan);
+    }
+
+    .gear-item-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .gear-item-title {
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .gear-item-sub {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+
+    .gear-item-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .gear-item-controls button {
+      padding: 2px 6px;
+      font-size: 0.65rem;
+    }
+
+    /* MAIN CANVAS AREA */
+    #canvas-container {
+      flex: 1;
+      position: relative;
+      background-color: var(--bg-dark);
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    /* HUD OVERLAYS */
+    .hud-panel {
+      position: absolute;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.8rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      pointer-events: auto;
+    }
+
+    #hud-top-right {
+      top: 16px;
+      right: 16px;
+      width: 280px;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+    }
+
+    #hud-bottom-left {
+      bottom: 16px;
+      left: 16px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .hud-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+
+    .hud-table th, .hud-table td {
+      text-align: left;
+      padding: 4px 6px;
+      font-size: 0.75rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .hud-table th {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+    }
+
+    .badge-ultrasonic {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+
+    #loop-conflict-warning {
+      display: none;
+      background: rgba(239, 68, 68, 0.9);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app-container">
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <h1>⚙️ JI Gear Synth</h1>
+        <p>Mechanical Just-Intonation Synthesizer</p>
+      </div>
+
+      <div class="sidebar-scroll">
+        <!-- AUDIO MASTER CONTROL -->
+        <div class="panel-box">
+          <button id="btn-toggle-audio" class="btn-main">▶ START AUDIO</button>
+          <div class="control-group" style="margin-top: 12px;">
+            <label>Master Volume <span id="val-master-vol" class="val">30%</span></label>
+            <input type="range" id="input-master-vol" min="0" max="1" step="0.01" value="0.3">
+          </div>
+          <div class="control-group">
+            <label>Waveform</label>
+            <select id="select-waveform">
+              <option value="sine">Sine Wave (Pure Harmonic)</option>
+              <option value="triangle">Triangle</option>
+              <option value="sawtooth" selected>Sawtooth</option>
+              <option value="square">Square</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- MAIN GEAR / FUNDAMENTAL CONTROLS -->
+        <div class="panel-box">
+          <div class="panel-title">Main Drive Gear</div>
+          
+          <div class="control-group">
+            <label>Fundamental Frequency <span id="val-fundamental" class="val">1.0 Hz</span></label>
+            <!-- Slider (Logarithmic 0.1 Hz to Nyquist ~24 kHz) -->
+            <input type="range" id="slider-fundamental" min="-1" max="4.38" step="0.005" value="0">
+            <!-- Precise Number Input -->
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 6px;">
+              <input type="number" id="input-fundamental" min="0.1" max="24000" step="0.1" value="1.0">
+              <span style="font-size: 0.8rem; color: var(--text-muted);">Hz</span>
+            </div>
+            <!-- Quick Fundamental Presets -->
+            <div class="btn-group" style="margin-top: 8px;">
+              <button class="btn-freq-preset" data-freq="0.5" style="flex:1; padding:3px 4px; font-size:0.7rem;">0.5Hz</button>
+              <button class="btn-freq-preset" data-freq="1.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">1Hz</button>
+              <button class="btn-freq-preset" data-freq="10.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">10Hz</button>
+              <button class="btn-freq-preset" data-freq="100.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">100Hz</button>
+              <button class="btn-freq-preset" data-freq="1000.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">1kHz</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label>Main Gear Teeth (1 - 15015) <span id="val-main-teeth" class="val">120</span></label>
+            <input type="number" id="input-main-teeth" min="1" max="15015" value="120">
+          </div>
+        </div>
+
+        <!-- ADD GEAR / RATIO CALCULATOR -->
+        <div class="panel-box">
+          <div class="panel-title">Add Gear / Ratio Tool</div>
+          <div class="control-group">
+            <label>Secondary Gear Teeth (1 - 15015)</label>
+            <div class="btn-group">
+              <input type="number" id="input-add-teeth" min="1" max="15015" value="60">
+              <button id="btn-add-gear" class="btn-primary">Add Gear</button>
+            </div>
+          </div>
+          <div class="control-group" style="margin-top: 8px;">
+            <label>Specify Ratio Relative to Main (e.g. 11:7)</label>
+            <div class="btn-group">
+              <input type="text" id="input-ratio-calc" placeholder="11:7">
+              <button id="btn-calc-ratio">Calculate</button>
+            </div>
+            <div id="ratio-calc-result" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;"></div>
+          </div>
+        </div>
+
+        <!-- PRESETS -->
+        <div class="panel-box">
+          <div class="panel-title">Ratio & Harmonic Presets</div>
+          <div class="preset-grid">
+            <button data-ratio="2:1">2:1</button>
+            <button data-ratio="3:2">3:2</button>
+            <button data-ratio="4:3">4:3</button>
+            <button data-ratio="5:4">5:4</button>
+            <button data-ratio="6:5">6:5</button>
+            <button data-ratio="7:4">7:4</button>
+            <button data-ratio="7:5">7:5</button>
+            <button data-ratio="7:6">7:6</button>
+            <button data-ratio="9:7">9:7</button>
+            <button data-ratio="11:7">11:7</button>
+            <button data-ratio="13:8">13:8</button>
+            <button data-ratio="17:12">17:12</button>
+          </div>
+          <div class="panel-title" style="margin-top: 10px;">Macro Systems</div>
+          <div class="btn-group" style="flex-wrap: wrap;">
+            <button id="preset-ji-456" style="flex:1;">JI 4:5:6 Triad</button>
+            <button id="preset-7limit" style="flex:1;">7-Limit Set</button>
+            <button id="preset-prime" style="flex:1;">Prime Harmonics</button>
+            <button id="preset-chain" style="width:100%; margin-top: 4px;">Linear Chain Test</button>
+          </div>
+        </div>
+
+        <!-- ACTIVE GEAR NETWORK LIST -->
+        <div class="panel-box">
+          <div class="panel-title">
+            <span>Gear Network (<span id="gear-count">1</span>)</span>
+            <button id="btn-clear-all" style="padding:2px 6px; font-size:0.65rem;" class="btn-danger">Clear Extra</button>
+          </div>
+          <div id="gear-list-container" class="gear-list"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CANVAS -->
+    <main id="canvas-container">
+      <canvas id="synthCanvas"></canvas>
+
+      <!-- HUD BOTTOM LEFT: CONTROLS -->
+      <div id="hud-bottom-left" class="hud-panel">
+        <button id="btn-reset-view">Reset View</button>
+        <button id="btn-realign-layout">Auto Align Layout</button>
+      </div>
+
+      <!-- HUD TOP RIGHT: NETWORK INFORMATION -->
+      <div id="hud-top-right" class="hud-panel">
+        <div id="loop-conflict-warning">⚠️ Gear loop ratio conflict! Loop motion is locked or invalid.</div>
+        <div class="panel-title">Harmonic Network Overview</div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;">
+          <span>Fundamental:</span> <strong id="hud-fundamental">1.000 Hz</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;">
+          <span>Active Gears:</span> <strong id="hud-active-count">1</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 8px;">
+          <span>Highest Freq:</span> <strong id="hud-highest-freq">1.000 Hz</strong>
+        </div>
+
+        <div class="panel-title" style="margin-top: 10px; font-size: 0.7rem;">Harmonic Set Table</div>
+        <table class="hud-table">
+          <thead>
+            <tr>
+              <th>Gear</th>
+              <th>Ratio</th>
+              <th>Freq</th>
+            </tr>
+          </thead>
+          <tbody id="hud-harmonic-table-body">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+
+        <!-- INSPECTOR PANEL FOR SELECTED GEAR -->
+        <div id="inspector-panel" style="margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 8px; display: none;">
+          <div class="panel-title" style="color: var(--accent-main); font-size: 0.75rem;">Selected Gear Detail</div>
+          <div id="inspector-content" style="font-size: 0.72rem; display: flex; flex-direction: column; gap: 3px;"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // MATH & HARMONIC UTILITIES
+    const GCD = (a, b) => b ? GCD(b, a % b) : a;
+
+    function simplifyRatio(num, den) {
+      num = Math.round(num);
+      den = Math.round(den);
+      if (den === 0) return { num: 0, den: 1 };
+      const g = GCD(Math.abs(num), Math.abs(den));
+      return { num: num / g, den: den / g };
+    }
+
+    function floatToFraction(val, maxDenom = 15015) {
+      if (isNaN(val) || !isFinite(val)) return '0:1';
+      const sign = val < 0 ? '-' : '';
+      val = Math.abs(val);
+      let bestNum = 1, bestDen = 1, minErr = Math.abs(val - 1);
+
+      for (let den = 1; den <= 512; den++) {
+        let num = Math.round(val * den);
+        let err = Math.abs(val - num / den);
+        if (err < minErr) {
+          minErr = err;
+          bestNum = num;
+          bestDen = den;
+          if (err < 1e-6) break;
+        }
+      }
+      const simp = simplifyRatio(bestNum, bestDen);
+      return `${sign}${simp.num}:${simp.den}`;
+    }
+
+    const COLOR_PALETTE = [
+      '#06b6d4', '#10b981', '#8b5cf6', '#f43f5e', '#f97316', 
+      '#6366f1', '#14b8a6', '#ec4899', '#3b82f6', '#a855f7'
+    ];
+
+    function getNyquist() {
+      return state.audioCtx ? state.audioCtx.sampleRate / 2 : 22050;
+    }
+
+    // GLOBAL APP STATE
+    const state = {
+      audioCtx: null,
+      masterGain: null,
+      audioRunning: false,
+      waveform: 'sawtooth',
+      masterVolume: 0.3,
+      fundamentalFreq: 1.0,
+      mainTeeth: 120,
+      gears: [],
+      gearMap: new Map(),
+      nextGearId: 1,
+      selectedGearId: null,
+      hoveredGearId: null,
+      camera: { x: 0, y: 0, zoom: 1.0 },
+      dragState: null,
+      pitchModule: 1.2, // Pixels per tooth multiplier for pitch radius
+      loopConflict: false
+    };
+
+    /* GEAR MODEL */
+    class Gear {
+      constructor(id, teeth, color, isMain = false) {
+        this.id = id;
+        this.teeth = parseInt(teeth);
+        this.color = color;
+        this.isMain = isMain;
+        this.x = 0;
+        this.y = 0;
+        this.angle = 0; // Visual accumulated angle in radians
+        this.ratio = isMain ? 1.0 : 0; // Global frequency multiplier relative to main drive
+        this.freq = isMain ? state.fundamentalFreq : 0;
+        this.isUltrasonic = false;
+
+        // Connections: Map of neighborGearId -> mesh info
+        this.neighbors = new Set();
+
+        // Audio node references
+        this.osc = null;
+        this.gainNode = null;
+        this.volume = 0.2;
+        this.muted = false;
+        this.solo = false;
+      }
+
+      get pitchRadius() {
+        return this.teeth * state.pitchModule * 0.5;
+      }
+
+      get outerRadius() {
+        const addendum = Math.min(6, this.pitchRadius * 0.15);
+        return this.pitchRadius + addendum;
+      }
+    }
+
+    /* WEB AUDIO ENGINE */
+    function initAudio() {
+      if (!state.audioCtx) {
+        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        state.masterGain = state.audioCtx.createGain();
+        state.masterGain.gain.setValueAtTime(state.masterVolume, state.audioCtx.currentTime);
+        state.masterGain.connect(state.audioCtx.destination);
+      }
+      if (state.audioCtx.state === 'suspended') {
+        state.audioCtx.resume();
+      }
+      state.audioRunning = true;
+      document.getElementById('btn-toggle-audio').textContent = '⏸ PAUSE AUDIO';
+      document.getElementById('btn-toggle-audio').style.background = '#10b981';
+      updateAudioNodes();
+    }
+
+    function stopAudio() {
+      if (state.audioCtx) {
+        state.audioCtx.suspend();
+      }
+      state.audioRunning = false;
+      document.getElementById('btn-toggle-audio').textContent = '▶ START AUDIO';
+      document.getElementById('btn-toggle-audio').style.background = 'var(--accent-main)';
+    }
+
+    function updateAudioNodes() {
+      if (!state.audioCtx || !state.audioRunning) return;
+
+      const now = state.audioCtx.currentTime;
+      const anySolo = state.gears.some(g => g.solo);
+
+      state.gears.forEach(gear => {
+        if (!gear.osc) {
+          gear.osc = state.audioCtx.createOscillator();
+          gear.gainNode = state.audioCtx.createGain();
+          gear.osc.type = state.waveform;
+          gear.osc.frequency.setValueAtTime(Math.max(0.001, gear.freq), now);
+          gear.gainNode.gain.setValueAtTime(0, now);
+          gear.osc.connect(gear.gainNode);
+          gear.gainNode.connect(state.masterGain);
+          gear.osc.start();
+        }
+
+        gear.osc.type = state.waveform;
+
+        // Frequency update with smooth exponential target ramp to prevent pops
+        const targetFreq = Math.max(0.001, gear.freq);
+        gear.osc.frequency.setTargetAtTime(targetFreq, now, 0.015);
+
+        // Gain/Mute evaluation
+        let targetVol = gear.volume;
+        if (gear.muted || gear.isUltrasonic || gear.freq === 0 || Math.abs(gear.ratio) === 0) {
+          targetVol = 0;
+        } else if (anySolo && !gear.solo) {
+          targetVol = 0;
+        }
+
+        gear.gainNode.gain.setTargetAtTime(targetVol, now, 0.015);
+      });
+    }
+
+    function removeGearAudio(gear) {
+      if (gear.osc) {
+        try {
+          gear.osc.stop();
+          gear.osc.disconnect();
+          gear.gainNode.disconnect();
+        } catch(e) {}
+        gear.osc = null;
+        gear.gainNode = null;
+      }
+    }
+
+    /* KINEMATIC NETWORK SOLVER */
+    function updateKinematicNetwork() {
+      // Reset all ratios except main gear
+      state.gears.forEach(g => {
+        if (!g.isMain) {
+          g.ratio = 0;
+          g.freq = 0;
+          g.isUltrasonic = false;
+        } else {
+          g.ratio = 1.0;
+          g.freq = state.fundamentalFreq;
+        }
+      });
+
+      const mainGear = state.gears.find(g => g.isMain);
+      if (!mainGear) return;
+
+      state.loopConflict = false;
+      const visited = new Set([mainGear.id]);
+      const queue = [mainGear];
+
+      while (queue.length > 0) {
+        const curr = queue.shift();
+
+        curr.neighbors.forEach(neighborId => {
+          const neighbor = state.gearMap.get(neighborId);
+          if (!neighbor) return;
+
+          // Kinematic Transmission Formula: w_child = -w_parent * (teeth_parent / teeth_child)
+          const expectedRatio = -curr.ratio * (curr.teeth / neighbor.teeth);
+
+          if (visited.has(neighbor.id)) {
+            // Closed Loop Check: check consistency
+            if (Math.abs(neighbor.ratio - expectedRatio) > 1e-4) {
+              state.loopConflict = true;
+            }
+          } else {
+            neighbor.ratio = expectedRatio;
+            neighbor.freq = Math.abs(expectedRatio) * state.fundamentalFreq;
+            neighbor.isUltrasonic = neighbor.freq > 20000 || (state.audioCtx && neighbor.freq > state.audioCtx.sampleRate / 2);
+            visited.add(neighbor.id);
+            queue.push(neighbor);
+          }
+        });
+      }
+
+      document.getElementById('loop-conflict-warning').style.display = state.loopConflict ? 'block' : 'none';
+
+      updateAudioNodes();
+      renderGearList();
+      updateHUD();
+    }
+
+    /* GEAR MESHING & OVERLAP PHYSICS */
+    function checkOverlap(gear, testX, testY, ignoreIds = []) {
+      for (const other of state.gears) {
+        if (other.id === gear.id || ignoreIds.includes(other.id)) continue;
+        const dist = Math.hypot(testX - other.x, testY - other.y);
+        const minDist = gear.pitchRadius + other.pitchRadius;
+        if (dist < minDist - 1.5) { // Physical non-overlap threshold
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function findSnapPosition(gear, testX, testY, ignoreIds = []) {
+      let bestCandidate = null;
+      let minSnapDist = Infinity;
+
+      for (const other of state.gears) {
+        if (other.id === gear.id || ignoreIds.includes(other.id)) continue;
+
+        const targetDist = gear.pitchRadius + other.pitchRadius;
+        const currentDist = Math.hypot(testX - other.x, testY - other.y);
+        const diff = Math.abs(currentDist - targetDist);
+
+        if (diff < 30) { // Generous snap tolerance
+          const angle = Math.atan2(testY - other.y, testX - other.x);
+          const snappedX = other.x + Math.cos(angle) * targetDist;
+          const snappedY = other.y + Math.sin(angle) * targetDist;
+
+          // Ensure snapped position doesn't collide with third-party gears
+          if (!checkOverlap(gear, snappedX, snappedY, [other.id, ...ignoreIds])) {
+            if (diff < minSnapDist) {
+              minSnapDist = diff;
+              bestCandidate = {
+                parent: other,
+                x: snappedX,
+                y: snappedY,
+                angle: angle
+              };
+            }
+          }
+        }
+      }
+      return bestCandidate;
+    }
+
+    function alignToothPhases(parent, child, meshAngle) {
+      const relAngle = meshAngle - parent.angle;
+      const contactTeethParent = (relAngle / (2 * Math.PI)) * parent.teeth;
+      const contactTeethChild = contactTeethParent;
+      
+      const childRelAngle = Math.PI + meshAngle - (contactTeethChild / child.teeth) * (2 * Math.PI);
+      child.angle = childRelAngle + Math.PI / child.teeth; // Interlock teeth into valley
+    }
+
+    /* CANVAS PROCEDURAL GEAR RENDERER */
+    const canvas = document.getElementById('synthCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function drawGear(gear) {
+      const rPitch = gear.pitchRadius;
+      const teeth = gear.teeth;
+      const addendum = Math.min(6, rPitch * 0.15);
+      const dedendum = Math.min(6, rPitch * 0.18);
+      const rOuter = rPitch + addendum;
+      const rInner = Math.max(2, rPitch - dedendum);
+
+      const isSelected = gear.id === state.selectedGearId;
+      const isHovered = gear.id === state.hoveredGearId;
+
+      ctx.save();
+      ctx.translate(gear.x, gear.y);
+      ctx.rotate(gear.angle);
+
+      // 1. PROCEDURAL TEETH GEOMETRY
+      ctx.fillStyle = gear.color;
+      ctx.strokeStyle = gear.isMain ? '#fef08a' : '#ffffff';
+      ctx.lineWidth = 1.5;
+
+      if (teeth > 160) {
+        // High Tooth Count Optimization
+        ctx.beginPath();
+        ctx.arc(0, 0, rOuter, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, rPitch, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (teeth <= 5) {
+        // Low Tooth Organic Profile
+        ctx.beginPath();
+        for (let i = 0; i < teeth; i++) {
+          const a1 = (i / teeth) * Math.PI * 2;
+          const a2 = ((i + 0.5) / teeth) * Math.PI * 2;
+          const a3 = ((i + 1) / teeth) * Math.PI * 2;
+          if (i === 0) ctx.moveTo(Math.cos(a1) * rOuter, Math.sin(a1) * rOuter);
+          ctx.quadraticCurveTo(
+            Math.cos(a2) * rInner * 0.4, Math.sin(a2) * rInner * 0.4,
+            Math.cos(a3) * rOuter, Math.sin(a3) * rOuter
+          );
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        // Involute Trapezoidal Tooth Geometry
+        ctx.beginPath();
+        const step = (Math.PI * 2) / teeth;
+        const toothWidth = step * 0.35;
+        for (let i = 0; i < teeth; i++) {
+          const a = i * step;
+          const a0 = a - toothWidth * 0.5;
+          const a1 = a - toothWidth * 0.3;
+          const a2 = a + toothWidth * 0.3;
+          const a3 = a + toothWidth * 0.5;
+
+          const x0 = Math.cos(a0) * rInner, y0 = Math.sin(a0) * rInner;
+          const x1 = Math.cos(a1) * rOuter, y1 = Math.sin(a1) * rOuter;
+          const x2 = Math.cos(a2) * rOuter, y2 = Math.sin(a2) * rOuter;
+          const x3 = Math.cos(a3) * rInner, y3 = Math.sin(a3) * rInner;
+
+          if (i === 0) ctx.moveTo(x0, y0);
+          else ctx.lineTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.lineTo(x3, y3);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // 2. CENTRAL HUB & SPOKES
+      const rHub = Math.min(rPitch * 0.35, 24);
+      if (rPitch > 35) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = Math.max(2, rHub * 0.25);
+        const spokeCount = teeth % 2 === 0 ? 4 : 3;
+        for (let i = 0; i < spokeCount; i++) {
+          const sa = (i / spokeCount) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(sa) * rHub, Math.sin(sa) * rHub);
+          ctx.lineTo(Math.cos(sa) * (rInner - 2), Math.sin(sa) * (rInner - 2));
+          ctx.stroke();
+        }
+      }
+
+      // Hub Body
+      ctx.fillStyle = gear.isMain ? '#b45309' : '#1e293b';
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(6, rHub), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = gear.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Shaft Center Hole
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(3, rHub * 0.35), 0, Math.PI * 2);
+      ctx.fill();
+
+      // Rotation Indicator Line
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(rPitch, 0);
+      ctx.stroke();
+
+      // Pitch Circle Outline
+      if (isSelected || isHovered) {
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(0, 0, rPitch, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      ctx.restore();
+
+      // 3. TEXT LABELS
+      ctx.save();
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = '#000000';
+      ctx.shadowBlur = 4;
+
+      const labelY = gear.y - (rOuter + 14);
+      ctx.fillText(`${gear.teeth}T`, gear.x, labelY);
+
+      if (gear.ratio !== 0) {
+        ctx.font = '10px system-ui, sans-serif';
+        if (gear.isUltrasonic) {
+          ctx.fillStyle = '#ef4444';
+          ctx.fillText('ULTRASONIC', gear.x, gear.y + (rOuter + 14));
+        } else {
+          ctx.fillStyle = '#cbd5e1';
+          const ratioStr = floatToFraction(gear.ratio);
+          ctx.fillText(`${ratioStr} (${gear.freq.toFixed(1)} Hz)`, gear.x, gear.y + (rOuter + 14));
+        }
+      } else {
+        ctx.font = '10px system-ui, sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.fillText('UNPOWERED', gear.x, gear.y + (rOuter + 14));
+      }
+      ctx.restore();
+    }
+
+    /* ANIMATION LOOP */
+    let lastTime = performance.now();
+
+    function renderLoop(now) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+
+      state.gears.forEach(gear => {
+        if (gear.ratio !== 0) {
+          const dir = Math.sign(gear.ratio);
+          const visualFreq = Math.min(gear.freq, 10.0);
+          gear.angle += dir * (2 * Math.PI * visualFreq) * dt;
+        }
+      });
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.translate(canvas.width / 2 + state.camera.x, canvas.height / 2 + state.camera.y);
+      ctx.scale(state.camera.zoom, state.camera.zoom);
+
+      // Render Network Connection Lines
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      state.gears.forEach(gear => {
+        gear.neighbors.forEach(neighborId => {
+          const neighbor = state.gearMap.get(neighborId);
+          if (neighbor && gear.id < neighbor.id) {
+            ctx.beginPath();
+            ctx.moveTo(gear.x, gear.y);
+            ctx.lineTo(neighbor.x, neighbor.y);
+            ctx.stroke();
+          }
+        });
+      });
+      ctx.setLineDash([]);
+
+      // Render Drag Snap Ghost Preview
+      if (state.dragState && state.dragState.snapTarget) {
+        const snap = state.dragState.snapTarget;
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(snap.parent.x, snap.parent.y);
+        ctx.lineTo(snap.x, snap.y);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+        ctx.beginPath();
+        ctx.arc(snap.x, snap.y, state.dragState.gear.pitchRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Draw All Gears
+      state.gears.forEach(gear => drawGear(gear));
+
+      ctx.restore();
+
+      requestAnimationFrame(renderLoop);
+    }
+    requestAnimationFrame(renderLoop);
+
+    /* PICK UP & MOVE GEAR INTERACTIONS */
+    function screenToWorld(sx, sy) {
+      const cx = canvas.width / 2 + state.camera.x;
+      const cy = canvas.height / 2 + state.camera.y;
+      return {
+        x: (sx - cx) / state.camera.zoom,
+        y: (sy - cy) / state.camera.zoom
+      };
+    }
+
+    function getGearAtPosition(wx, wy) {
+      for (let i = state.gears.length - 1; i >= 0; i--) {
+        const g = state.gears[i];
+        if (Math.hypot(wx - g.x, wy - g.y) <= g.outerRadius) {
+          return g;
+        }
+      }
+      return null;
+    }
+
+    function getBranchGears(startGear) {
+      const branch = new Set();
+      const queue = [startGear];
+      branch.add(startGear.id);
+
+      while (queue.length > 0) {
+        const curr = queue.shift();
+        curr.neighbors.forEach(nid => {
+          if (!branch.has(nid)) {
+            branch.add(nid);
+            const n = state.gearMap.get(nid);
+            if (n) queue.push(n);
+          }
+        });
+      }
+      return Array.from(branch).map(id => state.gearMap.get(id));
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      const mouse = screenToWorld(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+
+      if (e.button === 0) { // Left click
+        const clickedGear = getGearAtPosition(mouse.x, mouse.y);
+
+        if (clickedGear) {
+          state.selectedGearId = clickedGear.id;
+
+          // Drag behavior: If Main gear or holding Shift -> Move entire branch.
+          // Otherwise -> Pick up and move ONLY this individual gear!
+          const moveBranch = clickedGear.isMain || e.shiftKey;
+          const branch = moveBranch ? getBranchGears(clickedGear) : [clickedGear];
+
+          // If picking up an individual gear, temporarily break its connections so it can be re-positioned freely
+          if (!moveBranch) {
+            clickedGear.neighbors.forEach(nid => {
+              const neighbor = state.gearMap.get(nid);
+              if (neighbor) neighbor.neighbors.delete(clickedGear.id);
+            });
+            clickedGear.neighbors.clear();
+            updateKinematicNetwork();
+          }
+
+          state.dragState = {
+            mode: 'gear',
+            gear: clickedGear,
+            branch: branch,
+            moveBranch: moveBranch,
+            startX: mouse.x,
+            startY: mouse.y,
+            snapTarget: null
+          };
+        } else {
+          state.selectedGearId = null;
+          state.dragState = {
+            mode: 'pan',
+            startX: e.clientX,
+            startY: e.clientY,
+            camStartX: state.camera.x,
+            camStartY: state.camera.y
+          };
+        }
+        updateInspector();
+        renderGearList();
+      }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      const mouse = screenToWorld(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+      state.hoveredGearId = getGearAtPosition(mouse.x, mouse.y)?.id || null;
+
+      if (!state.dragState) return;
+
+      if (state.dragState.mode === 'pan') {
+        state.camera.x = state.dragState.camStartX + (e.clientX - state.dragState.startX);
+        state.camera.y = state.dragState.camStartY + (e.clientY - state.dragState.startY);
+      } else if (state.dragState.mode === 'gear') {
+        const dx = mouse.x - state.dragState.startX;
+        const dy = mouse.y - state.dragState.startY;
+
+        const gear = state.dragState.gear;
+        let testX = gear.x + dx;
+        let testY = gear.y + dy;
+
+        // Check snapping to neighboring gear pitch circle
+        const ignoreIds = state.dragState.branch.map(g => g.id);
+        const snap = findSnapPosition(gear, testX, testY, ignoreIds);
+        state.dragState.snapTarget = snap;
+
+        if (snap) {
+          testX = snap.x;
+          testY = snap.y;
+        }
+
+        const moveDx = testX - gear.x;
+        const moveDy = testY - gear.y;
+
+        state.dragState.branch.forEach(g => {
+          g.x += moveDx;
+          g.y += moveDy;
+        });
+
+        state.dragState.startX = mouse.x;
+        state.dragState.startY = mouse.y;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (state.dragState && state.dragState.mode === 'gear') {
+        const gear = state.dragState.gear;
+        const snap = state.dragState.snapTarget;
+
+        if (snap) {
+          // Snap position confirmed: Attach to new target gear hub
+          gear.x = snap.x;
+          gear.y = snap.y;
+          gear.neighbors.add(snap.parent.id);
+          snap.parent.neighbors.add(gear.id);
+          alignToothPhases(snap.parent, gear, snap.angle);
+        } else {
+          // Check if placed manually exact tangent to any existing gear
+          state.gears.forEach(other => {
+            if (other.id !== gear.id && !state.dragState.branch.includes(other)) {
+              const dist = Math.hypot(gear.x - other.x, gear.y - other.y);
+              const targetDist = gear.pitchRadius + other.pitchRadius;
+              if (Math.abs(dist - targetDist) < 4.0) {
+                gear.neighbors.add(other.id);
+                other.neighbors.add(gear.id);
+              }
+            }
+          });
+        }
+
+        updateKinematicNetwork();
+      }
+      state.dragState = null;
+    });
+
+    // Zoom Canvas via Mouse Wheel
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      state.camera.zoom = Math.min(Math.max(0.1, state.camera.zoom * zoomFactor), 5.0);
+    });
+
+    // Double click to create new gear at mouse location
+    canvas.addEventListener('dblclick', (e) => {
+      const mouse = screenToWorld(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+      const clicked = getGearAtPosition(mouse.x, mouse.y);
+      if (!clicked) {
+        addGear(60, mouse.x, mouse.y);
+      }
+    });
+
+    /* SYNTHESIZER CORE & PRESETS */
+    function addGear(teeth = 60, x = null, y = null, isMain = false) {
+      const color = isMain ? '#f59e0b' : COLOR_PALETTE[(state.gears.length - 1) % COLOR_PALETTE.length];
+      const gear = new Gear(state.nextGearId++, teeth, color, isMain);
+
+      if (isMain) {
+        gear.x = 0;
+        gear.y = 0;
+      } else {
+        const parent = state.gears.find(g => g.isMain) || state.gears[0];
+        if (x !== null && y !== null) {
+          gear.x = x;
+          gear.y = y;
+          // Check if spawned tangent to an existing gear
+          state.gears.forEach(other => {
+            const dist = Math.hypot(gear.x - other.x, gear.y - other.y);
+            const targetDist = gear.pitchRadius + other.pitchRadius;
+            if (Math.abs(dist - targetDist) < 5.0) {
+              gear.neighbors.add(other.id);
+              other.neighbors.add(gear.id);
+            }
+          });
+        } else if (parent) {
+          const angle = (state.gears.length - 1) * (Math.PI / 3);
+          const dist = parent.pitchRadius + gear.pitchRadius;
+          gear.x = parent.x + Math.cos(angle) * dist;
+          gear.y = parent.y + Math.sin(angle) * dist;
+          
+          if (!checkOverlap(gear, gear.x, gear.y)) {
+            gear.neighbors.add(parent.id);
+            parent.neighbors.add(gear.id);
+            alignToothPhases(parent, gear, angle);
+          }
+        }
+      }
+
+      state.gears.push(gear);
+      state.gearMap.set(gear.id, gear);
+
+      updateKinematicNetwork();
+      return gear;
+    }
+
+    function removeGear(id) {
+      const gear = state.gearMap.get(id);
+      if (!gear || gear.isMain) return;
+
+      gear.neighbors.forEach(nid => {
+        const n = state.gearMap.get(nid);
+        if (n) n.neighbors.delete(id);
+      });
+
+      removeGearAudio(gear);
+      state.gears = state.gears.filter(g => g.id !== id);
+      state.gearMap.delete(id);
+
+      if (state.selectedGearId === id) state.selectedGearId = null;
+
+      updateKinematicNetwork();
+    }
+
+    function clearExtraGears() {
+      const extraGears = state.gears.filter(g => !g.isMain);
+      extraGears.forEach(g => removeGear(g.id));
+    }
+
+    /* UI CONTROLLER & FUNDAMENTAL FREQUENCY SLIDER BINDINGS */
+    function setFundamentalFrequency(freq) {
+      const nyquist = getNyquist();
+      freq = Math.min(nyquist, Math.max(0.1, freq));
+      state.fundamentalFreq = freq;
+
+      // Update Slider Position (Logarithmic mapping up to Nyquist)
+      const logVal = Math.log10(freq);
+      const slider = document.getElementById('slider-fundamental');
+      slider.max = Math.log10(nyquist).toFixed(3);
+      slider.value = logVal;
+
+      // Update Number Input Box
+      const numInput = document.getElementById('input-fundamental');
+      numInput.max = nyquist;
+      numInput.value = freq >= 10 ? freq.toFixed(1) : freq.toFixed(2);
+
+      const freqLabel = freq >= 1000 ? `${(freq / 1000).toFixed(2)} kHz` : `${freq.toFixed(1)} Hz`;
+      document.getElementById('val-fundamental').textContent = freqLabel;
+
+      updateKinematicNetwork();
+    }
+
+    // Slider Event (Smooth continuous change)
+    document.getElementById('slider-fundamental').addEventListener('input', (e) => {
+      const logVal = parseFloat(e.target.value);
+      const freq = Math.pow(10, logVal);
+      setFundamentalFrequency(freq);
+    });
+
+    // Number Input Event
+    document.getElementById('input-fundamental').addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val)) setFundamentalFrequency(val);
+    });
+
+    // Quick Frequency Presets
+    document.querySelectorAll('.btn-freq-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const f = parseFloat(btn.getAttribute('data-freq'));
+        setFundamentalFrequency(f);
+      });
+    });
+
+    function renderGearList() {
+      const container = document.getElementById('gear-list-container');
+      container.innerHTML = '';
+      document.getElementById('gear-count').textContent = state.gears.length;
+
+      state.gears.forEach(gear => {
+        const item = document.createElement('div');
+        item.className = `gear-item ${gear.id === state.selectedGearId ? 'selected' : ''}`;
+        item.style.borderLeftColor = gear.color;
+
+        const ratioText = gear.isMain ? '1:1 MAIN' : floatToFraction(gear.ratio);
+
+        item.innerHTML = `
+          <div class="gear-item-info">
+            <div class="gear-item-title">${gear.teeth} Teeth ${gear.isMain ? '(MAIN)' : ''}</div>
+            <div class="gear-item-sub">Ratio: ${ratioText} | ${gear.freq.toFixed(1)} Hz</div>
+          </div>
+          <div class="gear-item-controls">
+            <button class="btn-mute" style="background:${gear.muted ? 'var(--danger)' : 'var(--border-color)'}">${gear.muted ? 'MUTED' : 'MUTE'}</button>
+            <button class="btn-solo" style="background:${gear.solo ? 'var(--accent-main)' : 'var(--border-color)'}">${gear.solo ? 'SOLO' : 'SOLO'}</button>
+            ${!gear.isMain ? '<button class="btn-remove btn-danger">✕</button>' : ''}
+          </div>
+        `;
+
+        item.addEventListener('click', (e) => {
+          if (!e.target.tagName.match(/BUTTON/i)) {
+            state.selectedGearId = gear.id;
+            renderGearList();
+            updateInspector();
+          }
+        });
+
+        item.querySelector('.btn-mute').addEventListener('click', () => {
+          gear.muted = !gear.muted;
+          updateAudioNodes();
+          renderGearList();
+        });
+
+        item.querySelector('.btn-solo').addEventListener('click', () => {
+          gear.solo = !gear.solo;
+          updateAudioNodes();
+          renderGearList();
+        });
+
+        if (!gear.isMain) {
+          item.querySelector('.btn-remove').addEventListener('click', () => removeGear(gear.id));
+        }
+
+        container.appendChild(item);
+      });
+    }
+
+    function updateHUD() {
+      document.getElementById('hud-fundamental').textContent = `${state.fundamentalFreq.toFixed(2)} Hz`;
+      document.getElementById('hud-active-count').textContent = state.gears.length;
+
+      const maxFreq = Math.max(...state.gears.map(g => g.freq));
+      document.getElementById('hud-highest-freq').textContent = `${maxFreq.toFixed(1)} Hz`;
+
+      const tbody = document.getElementById('hud-harmonic-table-body');
+      tbody.innerHTML = '';
+
+      state.gears.forEach(gear => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><span style="color:${gear.color}">●</span> ${gear.teeth}T ${gear.isMain ? 'MAIN' : ''}</td>
+          <td>${floatToFraction(gear.ratio)}</td>
+          <td>${gear.isUltrasonic ? '<span class="badge badge-ultrasonic">ULTRASONIC</span>' : gear.freq.toFixed(2) + ' Hz'}</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      updateInspector();
+    }
+
+    function updateInspector() {
+      const panel = document.getElementById('inspector-panel');
+      const content = document.getElementById('inspector-content');
+
+      const gear = state.gearMap.get(state.selectedGearId);
+      if (!gear) {
+        panel.style.display = 'none';
+        return;
+      }
+
+      panel.style.display = 'block';
+      const parents = Array.from(gear.neighbors).map(id => state.gearMap.get(id)).filter(Boolean);
+
+      content.innerHTML = `
+        <div><strong>Role:</strong> ${gear.isMain ? 'Main Drive Hub' : 'Secondary Harmonic Gear'}</div>
+        <div><strong>Teeth Count:</strong> ${gear.teeth}</div>
+        <div><strong>Absolute Ratio:</strong> ${floatToFraction(gear.ratio)} (${gear.ratio.toFixed(6)})</div>
+        <div><strong>Calculated Freq:</strong> ${gear.freq.toFixed(3)} Hz</div>
+        <div><strong>Rotation Dir:</strong> ${gear.ratio >= 0 ? 'Clockwise (+)' : 'Counter-Clockwise (-)'}</div>
+        <div><strong>Meshed With:</strong> ${parents.map(p => p.teeth + 'T').join(', ') || 'None (Unpowered)'}</div>
+      `;
+    }
+
+    // GENERAL CONTROL LISTENERS
+    document.getElementById('btn-toggle-audio').addEventListener('click', () => {
+      if (state.audioRunning) stopAudio();
+      else initAudio();
+    });
+
+    document.getElementById('input-master-vol').addEventListener('input', (e) => {
+      state.masterVolume = parseFloat(e.target.value);
+      document.getElementById('val-master-vol').textContent = `${Math.round(state.masterVolume * 100)}%`;
+      if (state.masterGain && state.audioCtx) {
+        state.masterGain.gain.setTargetAtTime(state.masterVolume, state.audioCtx.currentTime, 0.015);
+      }
+    });
+
+    document.getElementById('select-waveform').addEventListener('change', (e) => {
+      state.waveform = e.target.value;
+      updateAudioNodes();
+    });
+
+    document.getElementById('input-main-teeth').addEventListener('change', (e) => {
+      const val = Math.min(15015, Math.max(1, parseInt(e.target.value) || 120));
+      state.mainTeeth = val;
+      e.target.value = val;
+      document.getElementById('val-main-teeth').textContent = val;
+
+      const main = state.gears.find(g => g.isMain);
+      if (main) {
+        main.teeth = val;
+        updateKinematicNetwork();
+      }
+    });
+
+    document.getElementById('btn-add-gear').addEventListener('click', () => {
+      const teeth = Math.min(15015, Math.max(1, parseInt(document.getElementById('input-add-teeth').value) || 60));
+      addGear(teeth);
+    });
+
+    // Ratio Direct Calculator Tool
+    document.getElementById('btn-calc-ratio').addEventListener('click', () => {
+      const str = document.getElementById('input-ratio-calc').value.trim();
+      const parts = str.split(':').map(p => parseFloat(p));
+      const resDiv = document.getElementById('ratio-calc-result');
+
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[1] !== 0) {
+        const targetRatio = parts[0] / parts[1];
+        const idealTeeth = state.mainTeeth / targetRatio;
+        const closestTeeth = Math.round(idealTeeth);
+        const actualRatio = state.mainTeeth / closestTeeth;
+        const isExact = Math.abs(targetRatio - actualRatio) < 1e-5;
+
+        resDiv.innerHTML = `
+          Target ${str} → Secondary: <strong>${closestTeeth}T</strong><br>
+          ${isExact ? '✅ Exact integer fit!' : '⚠️ Approx (' + actualRatio.toFixed(4) + ')'}
+        `;
+
+        addGear(closestTeeth);
+      } else {
+        resDiv.textContent = 'Invalid ratio format. Use N:M (e.g. 11:7)';
+      }
+    });
+
+    // Ratio Presets
+    document.querySelectorAll('.preset-grid button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ratioStr = btn.getAttribute('data-ratio');
+        const parts = ratioStr.split(':').map(Number);
+        const targetRatio = parts[0] / parts[1];
+        const teeth = Math.round(state.mainTeeth / targetRatio);
+        addGear(teeth);
+      });
+    });
+
+    document.getElementById('btn-clear-all').addEventListener('click', clearExtraGears);
+
+    document.getElementById('btn-reset-view').addEventListener('click', () => {
+      state.camera = { x: 0, y: 0, zoom: 1.0 };
+    });
+
+    document.getElementById('btn-realign-layout').addEventListener('click', () => {
+      const main = state.gears.find(g => g.isMain);
+      if (!main) return;
+
+      const secondaries = state.gears.filter(g => !g.isMain);
+      secondaries.forEach((g, idx) => {
+        const angle = (idx / secondaries.length) * Math.PI * 2;
+        const dist = main.pitchRadius + g.pitchRadius;
+        g.x = main.x + Math.cos(angle) * dist;
+        g.y = main.y + Math.sin(angle) * dist;
+
+        g.neighbors.clear();
+        g.neighbors.add(main.id);
+        main.neighbors.add(g.id);
+        alignToothPhases(main, g, angle);
+      });
+      updateKinematicNetwork();
+    });
+
+    /* MACRO SYSTEM PRESETS */
+    document.getElementById('preset-ji-456').addEventListener('click', () => {
+      clearExtraGears();
+      addGear(60); // 2:1
+      addGear(48); // 5:2
+      addGear(40); // 3:1
+    });
+
+    document.getElementById('preset-7limit').addEventListener('click', () => {
+      clearExtraGears();
+      [120, 60, 40, 30, 24, 20, 17].forEach(t => {
+        if (t !== state.mainTeeth) addGear(t);
+      });
+    });
+
+    document.getElementById('preset-prime').addEventListener('click', () => {
+      clearExtraGears();
+      [60, 40, 24, 17, 11, 9, 7].forEach(t => addGear(t));
+    });
+
+    document.getElementById('preset-chain').addEventListener('click', () => {
+      clearExtraGears();
+      const main = state.gears.find(g => g.isMain);
+      main.teeth = 120;
+      document.getElementById('input-main-teeth').value = 120;
+      document.getElementById('val-main-teeth').textContent = 120;
+
+      const chainTeeth = [60, 30, 90, 15, 45];
+      let prevGear = main;
+      let currentAngle = 0;
+
+      chainTeeth.forEach(teeth => {
+        const gear = new Gear(state.nextGearId++, teeth, COLOR_PALETTE[state.gears.length % COLOR_PALETTE.length]);
+        const dist = prevGear.pitchRadius + gear.pitchRadius;
+        gear.x = prevGear.x + Math.cos(currentAngle) * dist;
+        gear.y = prevGear.y + Math.sin(currentAngle) * dist;
+
+        gear.neighbors.add(prevGear.id);
+        prevGear.neighbors.add(gear.id);
+        alignToothPhases(prevGear, gear, currentAngle);
+
+        state.gears.push(gear);
+        state.gearMap.set(gear.id, gear);
+
+        prevGear = gear;
+        currentAngle += 0.2;
+      });
+
+      updateKinematicNetwork();
+    });
+
+    // KEYBOARD SHORTCUTS
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName.match(/INPUT|SELECT/i)) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (state.audioRunning) stopAudio();
+        else initAudio();
+      } else if (e.code === 'Delete' || e.code === 'Backspace') {
+        if (state.selectedGearId) removeGear(state.selectedGearId);
+      } else if (e.code === 'KeyA') {
+        addGear(60);
+      } else if (e.code === 'KeyR') {
+        state.camera = { x: 0, y: 0, zoom: 1.0 };
+      }
+    });
+
+    // INITIALIZATION
+    function initApp() {
+      addGear(120, 0, 0, true);
+      addGear(60);
+      addGear(40);
+      addGear(30);
+
+      setFundamentalFrequency(1.0);
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
