@@ -282,6 +282,7 @@
       width: 100%;
       height: 100%;
       cursor: grab;
+      touch-action: none;
     }
 
     canvas:active {
@@ -1502,59 +1503,42 @@
       return Array.from(branch).map(id => state.gearMap.get(id));
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-      const mouse = screenToWorld(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+    // Pointer events unify mouse, pen, and touchscreen dragging.
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      canvas.setPointerCapture?.(e.pointerId);
+      const rect = canvas.getBoundingClientRect();
+      const mouse = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const clickedGear = getGearAtPosition(mouse.x, mouse.y);
 
-      if (e.button === 0) { // Left click
-        const clickedGear = getGearAtPosition(mouse.x, mouse.y);
-
-        if (clickedGear) {
-          state.selectedGearId = clickedGear.id;
-
-          // Drag behavior: If Main gear or holding Shift -> Move entire branch.
-          // Otherwise -> Pick up and move ONLY this individual gear!
-          const moveBranch = clickedGear.isMain || e.shiftKey;
-          const branch = moveBranch ? getBranchGears(clickedGear) : [clickedGear];
-
-          // If picking up an individual gear, temporarily break its connections so it can be re-positioned freely
-          if (!moveBranch) {
-            clickedGear.neighbors.forEach(nid => {
-              const neighbor = state.gearMap.get(nid);
-              if (neighbor) neighbor.neighbors.delete(clickedGear.id);
-            });
-            clickedGear.neighbors.clear();
-            updateKinematicNetwork();
-          }
-
-          state.dragState = {
-            mode: 'gear',
-            gear: clickedGear,
-            branch: branch,
-            moveBranch: moveBranch,
-            startX: mouse.x,
-            startY: mouse.y,
-            snapTarget: null
-          };
-        } else {
-          state.selectedGearId = null;
-          state.dragState = {
-            mode: 'pan',
-            startX: e.clientX,
-            startY: e.clientY,
-            camStartX: state.camera.x,
-            camStartY: state.camera.y
-          };
+      if (clickedGear) {
+        state.selectedGearId = clickedGear.id;
+        const moveBranch = clickedGear.isMain || e.shiftKey;
+        const branch = moveBranch ? getBranchGears(clickedGear) : [clickedGear];
+        if (!moveBranch) {
+          clickedGear.neighbors.forEach(nid => {
+            const neighbor = state.gearMap.get(nid);
+            if (neighbor) neighbor.neighbors.delete(clickedGear.id);
+          });
+          clickedGear.neighbors.clear();
+          updateKinematicNetwork();
         }
-        updateInspector();
-        renderGearList();
+        state.dragState = { mode: 'gear', gear: clickedGear, branch, moveBranch, startX: mouse.x, startY: mouse.y, snapTarget: null, pointerId: e.pointerId };
+      } else {
+        state.selectedGearId = null;
+        state.dragState = { mode: 'pan', startX: e.clientX, startY: e.clientY, camStartX: state.camera.x, camStartY: state.camera.y, pointerId: e.pointerId };
       }
+      updateInspector();
+      renderGearList();
     });
 
-    canvas.addEventListener('mousemove', (e) => {
-      const mouse = screenToWorld(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+    canvas.addEventListener('pointermove', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mouse = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
       state.hoveredGearId = getGearAtPosition(mouse.x, mouse.y)?.id || null;
-
-      if (!state.dragState) return;
+      if (!state.dragState || state.dragState.pointerId !== e.pointerId) return;
 
       if (state.dragState.mode === 'pan') {
         state.camera.x = state.dragState.camStartX + (e.clientX - state.dragState.startX);
@@ -1562,48 +1546,33 @@
       } else if (state.dragState.mode === 'gear') {
         const dx = mouse.x - state.dragState.startX;
         const dy = mouse.y - state.dragState.startY;
-
         const gear = state.dragState.gear;
         let testX = gear.x + dx;
         let testY = gear.y + dy;
-
-        // Check snapping to neighboring gear pitch circle
         const ignoreIds = state.dragState.branch.map(g => g.id);
         const snap = findSnapPosition(gear, testX, testY, ignoreIds);
         state.dragState.snapTarget = snap;
-
-        if (snap) {
-          testX = snap.x;
-          testY = snap.y;
-        }
-
+        if (snap) { testX = snap.x; testY = snap.y; }
         const moveDx = testX - gear.x;
         const moveDy = testY - gear.y;
-
-        state.dragState.branch.forEach(g => {
-          g.x += moveDx;
-          g.y += moveDy;
-        });
-
+        state.dragState.branch.forEach(g => { g.x += moveDx; g.y += moveDy; });
         state.dragState.startX = mouse.x;
         state.dragState.startY = mouse.y;
       }
     });
 
-    window.addEventListener('mouseup', () => {
-      if (state.dragState && state.dragState.mode === 'gear') {
+    const finishPointerDrag = (e) => {
+      if (!state.dragState || state.dragState.pointerId !== e.pointerId) return;
+      if (state.dragState.mode === 'gear') {
         const gear = state.dragState.gear;
         const snap = state.dragState.snapTarget;
-
         if (snap) {
-          // Snap position confirmed: Attach to new target gear hub
           gear.x = snap.x;
           gear.y = snap.y;
           gear.neighbors.add(snap.parent.id);
           snap.parent.neighbors.add(gear.id);
           alignToothPhases(snap.parent, gear, snap.angle);
         } else {
-          // Check if placed manually exact tangent to any existing gear
           state.gears.forEach(other => {
             if (other.id !== gear.id && !state.dragState.branch.includes(other)) {
               const dist = Math.hypot(gear.x - other.x, gear.y - other.y);
@@ -1615,11 +1584,15 @@
             }
           });
         }
-
         updateKinematicNetwork();
       }
+      canvas.releasePointerCapture?.(e.pointerId);
       state.dragState = null;
-    });
+    };
+
+    canvas.addEventListener('pointerup', finishPointerDrag);
+    canvas.addEventListener('pointercancel', finishPointerDrag);
+    window.addEventListener('pointerup', finishPointerDrag);
 
     // Zoom Canvas via Mouse Wheel
     canvas.addEventListener('wheel', (e) => {
@@ -1645,8 +1618,12 @@
       if (isMain) {
         gear.x = 0;
         gear.y = 0;
+        gear.angle = -Math.PI / 2; // 12 o'clock reference
       } else {
         const parent = state.gears.find(g => g.isMain) || state.gears[0];
+        const mainDriver = state.gears.find(g => g.isMain);
+        // New gears inherit the main driver's current visual angle on creation.
+        if (mainDriver) gear.angle = mainDriver.angle;
         if (x !== null && y !== null) {
           gear.x = x;
           gear.y = y;
@@ -1677,6 +1654,21 @@
       state.gearMap.set(gear.id, gear);
 
       updateKinematicNetwork();
+
+      // Preserve the requested creation phase: a newly created gear starts at the
+      // same visual angle as the main driver at the instant it is created.
+      if (!isMain) {
+        const main = state.gears.find(g => g.isMain);
+        if (main && gear.ratio !== 0) {
+          const baseVertical = -Math.PI / 2;
+          const currentComputedAngle = baseVertical + (gear.ratio * state.masterPhase);
+          gear.setPhaseOffsetDeg((main.angle - currentComputedAngle) * 180 / Math.PI);
+          updateAudioNodes();
+        } else if (main) {
+          gear.angle = main.angle;
+        }
+      }
+
       return gear;
     }
 
@@ -2018,7 +2010,14 @@
 
       content.innerHTML = `
         <div><strong>Role:</strong> ${gear.isMain ? 'Main Drive Hub (Listener Center)' : 'Secondary Harmonic Gear'}</div>
-        <div><strong>Teeth Count:</strong> ${gear.teeth}</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin:4px 0 2px;">
+          <strong>Teeth Count:</strong>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <button id="btn-inspector-teeth-down" type="button" style="padding:3px 9px; font-size:0.9rem; line-height:1;">−</button>
+            <span id="inspector-teeth-value" style="min-width:42px; text-align:center; font-weight:700; color:var(--accent-cyan);">${gear.teeth}</span>
+            <button id="btn-inspector-teeth-up" type="button" style="padding:3px 9px; font-size:0.9rem; line-height:1;">+</button>
+          </div>
+        </div>
         <div><strong>Absolute Ratio:</strong> ${floatToFraction(gear.ratio)} (${gear.ratio.toFixed(6)})</div>
         <div><strong>Calculated Freq:</strong> ${gear.freq.toFixed(3)} Hz</div>
         <div><strong>Acoustic Delay:</strong> ${delayMs >= 0 ? '+' : ''}${delayMs.toFixed(3)} ms</div>
@@ -2051,6 +2050,30 @@
           </div>
         </div>
       `;
+
+      // Bind Inspector Teeth +/- Controls
+      const teethDown = document.getElementById('btn-inspector-teeth-down');
+      const teethUp = document.getElementById('btn-inspector-teeth-up');
+
+      const changeSelectedGearTeeth = (delta) => {
+        const selected = state.gearMap.get(state.selectedGearId);
+        if (!selected) return;
+        const newTeeth = Math.min(15015, Math.max(1, selected.teeth + delta));
+        if (newTeeth === selected.teeth) return;
+        selected.teeth = newTeeth;
+        if (selected.isMain) {
+          state.mainTeeth = newTeeth;
+          document.getElementById('input-main-teeth').value = newTeeth;
+          document.getElementById('val-main-teeth').textContent = newTeeth;
+          document.getElementById('select-main-teeth-preset').value = '';
+        }
+        updateKinematicNetwork();
+        updateInspector();
+        renderGearList();
+      };
+
+      teethDown.addEventListener('click', () => changeSelectedGearTeeth(-1));
+      teethUp.addEventListener('click', () => changeSelectedGearTeeth(1));
 
       // Bind Inspector Phase Events
       const degSlider = document.getElementById('input-phase-deg-slider');
