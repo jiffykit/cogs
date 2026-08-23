@@ -383,6 +383,26 @@
       background: rgba(255,255,255,0.08);
     }
 
+    #startup-tooltip {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 20;
+      max-width: 360px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.94);
+      border: 1px solid var(--accent-cyan);
+      color: var(--text-main);
+      font-size: 0.85rem;
+      line-height: 1.35;
+      text-align: center;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+      pointer-events: none;
+    }
+
+
     /* QWERTY PIANO KEYBOARD STYLES */
     .keyboard-container {
       position: relative;
@@ -490,18 +510,35 @@
           </div>
         </div>
 
+        <!-- AUDIO DRIVER -->
+        <div class="panel-box">
+          <div class="panel-title">Audio Driver</div>
+          <div class="control-group">
+            <label>Drive main shaft from an audio file</label>
+            <input type="file" id="input-audio-driver" accept="audio/*" style="width:100%; font-size:0.75rem; color:var(--text-muted);">
+          </div>
+          <div style="font-size:0.7rem; color:var(--text-muted); line-height:1.35; margin-bottom:8px;">
+            The source file is never sent directly to the speakers. Secondary gears output only the ratio-transformed driver audio.
+          </div>
+          <div class="btn-group">
+            <button id="btn-driver-play" class="btn-primary" style="flex:1;">▶ DRIVE</button>
+            <button id="btn-driver-clear" style="flex:1;">Clear</button>
+          </div>
+          <div id="audio-driver-status" style="font-size:0.68rem; color:var(--text-muted); margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">No audio file loaded</div>
+        </div>
+
         <!-- MAIN GEAR / FUNDAMENTAL CONTROLS -->
         <div class="panel-box">
           <div class="panel-title">Main Drive Gear</div>
           
           <div class="control-group">
-            <label>Fundamental Frequency <span id="val-fundamental" class="val">1.0 Hz</span></label>
-            <!-- Slider (Logarithmic 0.1 Hz to Nyquist ~24 kHz) -->
+            <label><span id="fundamental-label">Fundamental Frequency</span> <span id="val-fundamental" class="val">1.0 Hz</span></label>
+            <!-- Logarithmic 0.1 Hz to Nyquist in synth mode; 0.1 to 20000 RPM in audio-driver mode -->
             <input type="range" id="slider-fundamental" min="-1" max="4.38" step="0.005" value="0">
             <!-- Precise Number Input -->
             <div style="display: flex; align-items: center; gap: 6px; margin-top: 6px;">
               <input type="number" id="input-fundamental" min="0.1" max="24000" step="0.1" value="1.0">
-              <span style="font-size: 0.8rem; color: var(--text-muted);">Hz</span>
+              <span id="fundamental-unit" style="font-size: 0.8rem; color: var(--text-muted);">Hz</span>
             </div>
             <!-- Quick Fundamental Presets -->
             <div class="btn-group" style="margin-top: 8px;">
@@ -632,10 +669,22 @@
             </div>
           </div>
           <div class="control-group" style="margin-top: 8px;">
-            <label>Specify Ratio Relative to Main (e.g. 11:7)</label>
-            <div class="btn-group">
-              <input type="text" id="input-ratio-calc" placeholder="11:7">
-              <button id="btn-calc-ratio">Calculate</button>
+            <label>Specify Ratio Relative to Main</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; align-items:center;">
+              <div>
+                <label style="font-size:0.68rem; margin-bottom:2px;">Numerator</label>
+                <input type="number" id="input-ratio-num" min="1" max="120" step="1" value="2">
+                <input type="range" id="slider-ratio-num" min="1" max="120" step="1" value="2" style="margin-top:4px;">
+              </div>
+              <div>
+                <label style="font-size:0.68rem; margin-bottom:2px;">Denominator</label>
+                <input type="number" id="input-ratio-den" min="1" max="120" step="1" value="1">
+                <input type="range" id="slider-ratio-den" min="1" max="120" step="1" value="1" style="margin-top:4px;">
+              </div>
+            </div>
+            <div class="btn-group" style="margin-top:6px;">
+              <div id="ratio-calc-display" style="flex:1; padding:7px 9px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-dark); font-weight:700; text-align:center;">2:1</div>
+              <button id="btn-calc-ratio">Add Ratio</button>
             </div>
             <div id="ratio-calc-result" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;"></div>
           </div>
@@ -681,6 +730,7 @@
     <!-- MAIN CANVAS -->
     <main id="canvas-container">
       <canvas id="synthCanvas"></canvas>
+      <div id="startup-tooltip">Drag the cog to the drive wheel to listen to the ratio</div>
 
       <!-- HUD BOTTOM LEFT: CONTROLS -->
       <div id="hud-bottom-left" class="hud-panel">
@@ -797,7 +847,11 @@
       pitchModule: 1.2, // Pixels per tooth multiplier for pitch radius
       loopConflict: false,
       masterPhase: 0, // Global fundamental phase angle [0, 2pi)
-      isSlidingFreq: false // Instant pitch feedback mode during slider drag
+      isSlidingFreq: false, // Instant pitch feedback mode during slider drag
+      audioDriver: {
+        buffer: null, fileName: '', playing: false, elapsed: 0, detectedFreq: 1, visualShape: 'sine', driverRate: 1, driverRPM: 33.3, driverRPMBase: 33.3, driverNominalRPM: 33.3,
+        sources: new Map()
+      }
     };
 
     /* GEAR MODEL */
@@ -820,6 +874,7 @@
 
         // Audio node references
         this.osc = null;
+        this.driverSource = null;
         this.delayNode = null; // High-precision Web Audio DelayNode for physical cog phase alignment
         this.pannerNode = null; // 3D Binaural HRTF Panner Node
         this.gainNode = null;
@@ -854,6 +909,99 @@
         const addendum = Math.min(6, this.pitchRadius * 0.15);
         return this.pitchRadius + addendum;
       }
+    }
+
+    /* AUDIO DRIVER ENGINE */
+    function stopAudioDriverSources() {
+      state.audioDriver.sources.forEach(source => { try { source.stop(); } catch(e) {} try { source.disconnect(); } catch(e) {} });
+      state.audioDriver.sources.clear();
+      state.gears.forEach(g => g.driverSource = null);
+    }
+
+    function createDriverSourceForGear(gear) {
+      if (!state.audioDriver.buffer || !state.audioRunning || !state.audioDriver.playing || gear.isMain || gear.ratio === 0) return;
+      if (state.audioDriver.sources.has(gear.id)) return;
+      const source = state.audioCtx.createBufferSource();
+      source.buffer = state.audioDriver.buffer;
+      source.loop = true;
+      source.playbackRate.value = Math.max(0.000001, Math.abs(gear.ratio) * state.audioDriver.driverRate);
+      source.connect(gear.delayNode);
+      const offset = state.audioDriver.buffer.duration ? (state.audioDriver.elapsed % state.audioDriver.buffer.duration) : 0;
+      source.start(0, offset);
+      gear.driverSource = source;
+      state.audioDriver.sources.set(gear.id, source);
+    }
+
+    function estimateDriverFrequency(buffer, position) {
+      const data = buffer.getChannelData(0), sr = buffer.sampleRate;
+      const n = Math.min(data.length, Math.max(2048, Math.floor(sr * 0.25)));
+      const start = Math.max(0, Math.min(data.length - n, Math.floor(position - n / 2)));
+      let prev = data[start] >= 0, last = -1, periods = [];
+      for (let i = start + 1; i < start + n; i++) {
+        const sign = data[i] >= 0;
+        if (sign !== prev) {
+          const a = Math.abs(data[i - 1]), b = Math.abs(data[i]);
+          const frac = a / (a + b + 1e-12);
+          const cross = i - 1 + frac;
+          if (last >= 0) periods.push(cross - last);
+          last = cross; prev = sign;
+        }
+      }
+      if (periods.length < 2) return state.audioDriver.detectedFreq || 1;
+      const avgHalf = periods.reduce((a,b)=>a+b,0) / periods.length;
+      return Math.min(24000, Math.max(0.1, sr / (2 * avgHalf)));
+    }
+
+    function classifyDriverShape(buffer, position, freq) {
+      const data = buffer.getChannelData(0), sr = buffer.sampleRate;
+      const period = Math.max(16, Math.round(sr / Math.max(0.1, freq)));
+      const count = Math.min(128, period), start = Math.floor(position - period / 2);
+      let errS=0, errQ=0, errSaw=0;
+      for (let i=0;i<count;i++) {
+        const idx=(start+Math.floor(i*period/count)+data.length)%data.length;
+        const sample=Math.max(-1,Math.min(1,data[idx]));
+        const ph=i/count;
+        errS+=Math.abs(sample-Math.sin(ph*Math.PI*2));
+        errQ+=Math.abs(sample-(ph<0.5?1:-1));
+        errSaw+=Math.abs(sample-(1-2*ph));
+      }
+      errS/=count; errQ/=count; errSaw/=count;
+      if (errS <= errQ && errS <= errSaw && errS < 0.35) return 'sine';
+      return errQ <= errSaw ? 'square' : 'sawtooth';
+    }
+
+    function getDriverSample(position) {
+      const data=state.audioDriver.buffer.getChannelData(0); if (!data.length) return 0;
+      const i=Math.floor(position)%data.length, j=(i+1)%data.length, f=position-Math.floor(position);
+      return data[i]*(1-f)+data[j]*f;
+    }
+
+    function updateDriverAnimation(dt) {
+      const d=state.audioDriver, main=state.gears.find(g=>g.isMain);
+      if(!d.buffer||!d.playing||!main) return;
+      // Driver speed is controlled exclusively by the persistent RPM control.
+      // Never infer or overwrite it from the detected audio frequency.
+      if (!Number.isFinite(d.driverRPM) || d.driverRPM <= 0) d.driverRPM = d.driverRPMBase || DRIVER_NOMINAL_RPM;
+      d.driverRate = d.driverRPM / d.driverNominalRPM;
+      d.elapsed += dt * d.driverRate;
+      const pos=(d.elapsed*d.buffer.sampleRate)%d.buffer.length;
+      const f=estimateDriverFrequency(d.buffer,pos);
+      d.detectedFreq=d.detectedFreq*0.85+f*0.15;
+      d.visualShape=classifyDriverShape(d.buffer,pos,d.detectedFreq);
+      state.fundamentalFreq=d.detectedFreq;
+      state.targetFundamentalFreq=d.detectedFreq;
+      state.gears.forEach(g => {
+        if (g.isMain) { g.ratio = 1; g.freq = d.detectedFreq; }
+        else { g.freq = Math.abs(g.ratio) * d.detectedFreq; g.isUltrasonic = g.freq > 20000 || (state.audioCtx && g.freq > state.audioCtx.sampleRate / 2); }
+      });
+      state.masterPhase=(state.masterPhase+2*Math.PI*d.detectedFreq*dt)%(2*Math.PI);
+      const sample=getDriverSample(pos), base=-Math.PI/2;
+      let warp=0;
+      if(d.visualShape==='square') warp=sample>=0?Math.PI/4:-Math.PI/4;
+      else if(d.visualShape==='sawtooth') warp=-sample*Math.PI/4;
+      state.gears.forEach(g=>{ if(g.ratio!==0) g.angle=base+g.ratio*state.masterPhase+g.phaseOffsetRad+g.ratio*warp; });
+      const label=document.getElementById('audio-driver-status');
+      if(label && d.fileName) label.textContent=`${d.fileName} | ${d.detectedFreq.toFixed(1)} Hz | ${d.visualShape}`;
     }
 
     /* WEB AUDIO ENGINE */
@@ -913,6 +1061,10 @@
         state.audioCtx.suspend();
       }
       state.audioRunning = false;
+      state.audioDriver.playing = false;
+      stopAudioDriverSources();
+      const driverBtn = document.getElementById('btn-driver-play');
+      if (driverBtn) driverBtn.textContent = '▶ DRIVE';
       document.getElementById('btn-toggle-audio').textContent = '▶ START AUDIO';
       document.getElementById('btn-toggle-audio').style.background = 'var(--accent-main)';
     }
@@ -923,51 +1075,60 @@
       const now = state.audioCtx.currentTime;
       const anySolo = state.gears.some(g => g.solo);
       const mainGear = state.gears.find(g => g.isMain) || state.gears[0];
+      const driverMode = !!state.audioDriver.buffer && state.audioDriver.playing;
 
       state.gears.forEach(gear => {
-        if (!gear.osc) {
-          gear.osc = state.audioCtx.createOscillator();
-          // High precision DelayNode for acoustic phase interference (up to 15 seconds)
-          gear.delayNode = state.audioCtx.createDelay(15.0);
+        // Every gear needs the common output chain, regardless of whether its
+        // source is the normal oscillator or the loaded driver buffer.
+        if (!gear.delayNode) gear.delayNode = state.audioCtx.createDelay(15.0);
+        if (!gear.gainNode) {
           gear.gainNode = state.audioCtx.createGain();
-
-          // 3D Binaural Panner Node setup
+          gear.delayNode.connect(gear.gainNode);
+        }
+        if (!gear.pannerNode) {
           gear.pannerNode = state.audioCtx.createPanner();
           gear.pannerNode.panningModel = state.spatialEnabled ? state.spatialMode : 'equalpower';
           gear.pannerNode.distanceModel = 'inverse';
           gear.pannerNode.refDistance = 1;
           gear.pannerNode.maxDistance = 1000;
           gear.pannerNode.rolloffFactor = 1;
-
-          if (state.waveform === 'impulse') {
-            gear.osc.setPeriodicWave(getImpulseWave(state.audioCtx));
-          } else {
-            gear.osc.type = state.waveform;
-          }
-          gear.osc.frequency.setValueAtTime(Math.max(0.001, gear.freq), now);
-
-          // Audio Signal Chain: Osc -> DelayNode (Phase Shift) -> GainNode -> PannerNode (3D HRTF) -> MasterGain
-          gear.osc.connect(gear.delayNode);
-          gear.delayNode.connect(gear.gainNode);
           gear.gainNode.connect(gear.pannerNode);
           gear.pannerNode.connect(state.masterGain);
-
           gear.gainNode.gain.setValueAtTime(0, now);
-          gear.osc.start();
         }
 
-        if (state.waveform === 'impulse') {
-          gear.osc.setPeriodicWave(getImpulseWave(state.audioCtx));
+        if (driverMode) {
+          // Driver mode is exclusively the loaded audio buffer. Remove any
+          // synthetic oscillator so the dry/original synth tone cannot leak through.
+          if (gear.osc) {
+            try { gear.osc.stop(); } catch(e) {}
+            try { gear.osc.disconnect(); } catch(e) {}
+            gear.osc = null;
+          }
+          if (gear.isMain) {
+            gear.gainNode.gain.setTargetAtTime(0, now, 0.01);
+          } else if (gear.ratio !== 0) {
+            createDriverSourceForGear(gear);
+          }
         } else {
-          gear.osc.type = state.waveform;
+          if (!gear.osc) {
+            gear.osc = state.audioCtx.createOscillator();
+            if (state.waveform === 'impulse') gear.osc.setPeriodicWave(getImpulseWave(state.audioCtx));
+            else gear.osc.type = state.waveform;
+            gear.osc.frequency.setValueAtTime(Math.max(0.001, gear.freq), now);
+            gear.osc.connect(gear.delayNode);
+            gear.osc.start();
+          }
+
+          if (state.waveform === 'impulse') gear.osc.setPeriodicWave(getImpulseWave(state.audioCtx));
+          else gear.osc.type = state.waveform;
         }
 
-        // Update 3D Panner Coordinates relative to Main Drive Hub
+        // Update 3D Panner Coordinates relative to Main Drive Hub.
         if (gear.pannerNode) {
           gear.pannerNode.panningModel = state.spatialEnabled ? state.spatialMode : 'equalpower';
 
           if (!state.spatialEnabled || !mainGear) {
-            // Reset to Center origin (0,0,0) when spatialization is toggled off
             if (gear.pannerNode.positionX) {
               gear.pannerNode.positionX.setTargetAtTime(0, now, 0.03);
               gear.pannerNode.positionY.setTargetAtTime(0, now, 0.03);
@@ -976,12 +1137,9 @@
               gear.pannerNode.setPosition(0, 0, 0);
             }
           } else {
-            // Coordinate Mapping:
-            // 3D X = Relative Canvas X (Left/Right)
-            // 3D Z = Relative Canvas Y (Top = -Y in Canvas = FRONT = -Z; Bottom = +Y in Canvas = BEHIND = +Z)
             const pannerX = gear.isMain ? 0 : (gear.x - mainGear.x) * state.spatialScale;
             const pannerZ = gear.isMain ? 0 : (gear.y - mainGear.y) * state.spatialScale;
-            const pannerY = 0; // Horizontal listener plane
+            const pannerY = 0;
 
             if (gear.pannerNode.positionX) {
               gear.pannerNode.positionX.setTargetAtTime(pannerX, now, 0.03);
@@ -993,38 +1151,42 @@
           }
         }
 
-        const targetFreq = Math.max(0.001, gear.freq);
-
-        if (state.isSlidingFreq) {
-          // Instant frequency update while dragging slider for immediate pitch feedback
-          gear.osc.frequency.setValueAtTime(targetFreq, now);
-          gear.delayNode.delayTime.setValueAtTime(0.0001, now);
-        } else {
-          // Smooth target ramp for pitch (glide time constant when Legato is enabled)
-          const glideTc = state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005;
-          gear.osc.frequency.setTargetAtTime(targetFreq, now, glideTc);
-
-          // Calculate period-modulo delay for accurate phase shift without latency
-          const gearPeriod = 1.0 / targetFreq;
-          const normDeg = ((gear.phaseOffsetDeg % 360) + 360) % 360;
-          const targetDelay = Math.max(0.0001, Math.min(14.9, (normDeg / 360.0) * gearPeriod));
-
-          gear.delayNode.delayTime.setTargetAtTime(targetDelay, now, glideTc);
+        if (!driverMode && gear.osc) {
+          const targetFreq = Math.max(0.001, gear.freq);
+          if (state.isSlidingFreq) {
+            gear.osc.frequency.setValueAtTime(targetFreq, now);
+            gear.delayNode.delayTime.setValueAtTime(0.0001, now);
+          } else {
+            const glideTc = state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005;
+            gear.osc.frequency.setTargetAtTime(targetFreq, now, glideTc);
+            const gearPeriod = 1.0 / targetFreq;
+            const normDeg = ((gear.phaseOffsetDeg % 360) + 360) % 360;
+            const targetDelay = Math.max(0.0001, Math.min(14.9, (normDeg / 360.0) * gearPeriod));
+            gear.delayNode.delayTime.setTargetAtTime(targetDelay, now, glideTc);
+          }
+        } else if (driverMode) {
+          const source = state.audioDriver.sources.get(gear.id);
+          if (source) {
+            source.playbackRate.setTargetAtTime(Math.max(0.000001, Math.abs(gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1)), now, 0.01);
+          }
+          // The buffer is the source in driver mode, so its phase is the actual
+          // audio timeline. The existing delay remains available for phase offsets.
+          const targetDelay = Math.max(0.0001, Math.min(14.9, (Math.abs(gear.phaseOffsetDeg) / 360) * Math.max(0.001, 1 / Math.max(0.1, state.fundamentalFreq))));
+          gear.delayNode.delayTime.setTargetAtTime(gear.isMain ? 0.0001 : targetDelay, now, 0.005);
         }
 
-        // Gain/Mute evaluation
         let targetVol = gear.volume;
-        if (gear.muted || gear.isUltrasonic || gear.freq === 0 || Math.abs(gear.ratio) === 0) {
-          targetVol = 0;
-        } else if (anySolo && !gear.solo) {
-          targetVol = 0;
-        }
-
+        if (driverMode && gear.isMain) targetVol = 0;
+        if (gear.muted || gear.isUltrasonic || gear.freq === 0 || Math.abs(gear.ratio) === 0) targetVol = 0;
+        else if (anySolo && !gear.solo) targetVol = 0;
         gear.gainNode.gain.setTargetAtTime(targetVol, now, 0.015);
       });
     }
 
     function removeGearAudio(gear) {
+      const source = state.audioDriver.sources.get(gear.id);
+      if (source) { try { source.stop(); } catch(e) {} try { source.disconnect(); } catch(e) {} state.audioDriver.sources.delete(gear.id); }
+      gear.driverSource = null;
       if (gear.osc) {
         try {
           gear.osc.stop();
@@ -1348,17 +1510,18 @@
         updateKinematicNetwork();
       }
 
-      // Advance global master fundamental phase
-      state.masterPhase += (2 * Math.PI * state.fundamentalFreq) * dt;
-      state.masterPhase %= (2 * Math.PI);
-
-      state.gears.forEach(gear => {
-        if (gear.ratio !== 0) {
-          // Calculate deterministic phase angle so all offset=0 gears line up vertical every fundamental revolution
-          const baseVertical = -Math.PI / 2;
-          gear.angle = baseVertical + (gear.ratio * state.masterPhase) + gear.phaseOffsetRad;
-        }
-      });
+      if (state.audioDriver.buffer && state.audioDriver.playing) {
+        updateDriverAnimation(dt);
+      } else {
+        state.masterPhase += (2 * Math.PI * state.fundamentalFreq) * dt;
+        state.masterPhase %= (2 * Math.PI);
+        state.gears.forEach(gear => {
+          if (gear.ratio !== 0) {
+            const baseVertical = -Math.PI / 2;
+            gear.angle = baseVertical + (gear.ratio * state.masterPhase) + gear.phaseOffsetRad;
+          }
+        });
+      }
 
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1507,6 +1670,7 @@
     canvas.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       e.preventDefault();
+      document.getElementById('startup-tooltip')?.remove();
       canvas.setPointerCapture?.(e.pointerId);
       const rect = canvas.getBoundingClientRect();
       const mouse = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
@@ -1603,6 +1767,7 @@
 
     // Double click to create new gear at mouse location
     canvas.addEventListener('dblclick', (e) => {
+      document.getElementById('startup-tooltip')?.remove();
       const mouse = screenToWorld(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
       const clicked = getGearAtPosition(mouse.x, mouse.y);
       if (!clicked) {
@@ -1696,36 +1861,98 @@
     }
 
     /* UI CONTROLLER & FUNDAMENTAL FREQUENCY SLIDER BINDINGS */
+    const DRIVER_RPM_MIN = 0.1;
+    const DRIVER_RPM_MAX = 20000;
+    const DRIVER_NOMINAL_RPM = 33.3;
+    const DRIVER_RPM_SNAPS = [1, 33.3, 45, 78, 100, 1000, 5000, 10000, 20000];
+
+    function nearestDriverRpmSnap(rpm, toleranceFraction = 0.018) {
+      let best = rpm, bestDiff = Infinity;
+      DRIVER_RPM_SNAPS.forEach(snap => {
+        const diff = Math.abs(Math.log(rpm / snap));
+        if (diff < bestDiff) { bestDiff = diff; best = snap; }
+      });
+      return bestDiff <= toleranceFraction ? best : rpm;
+    }
+
+    function setDriverRPM(rpm, snap = false, updateBase = true) {
+      const d = state.audioDriver;
+      rpm = Math.min(DRIVER_RPM_MAX, Math.max(DRIVER_RPM_MIN, Number(rpm) || DRIVER_NOMINAL_RPM));
+      if (snap) rpm = nearestDriverRpmSnap(rpm);
+      d.driverRPM = rpm;
+      if (updateBase) d.driverRPMBase = rpm;
+      d.driverRate = rpm / d.driverNominalRPM;
+
+      const slider = document.getElementById('slider-fundamental');
+      const numInput = document.getElementById('input-fundamental');
+      const label = document.getElementById('fundamental-label');
+      const unit = document.getElementById('fundamental-unit');
+      const value = document.getElementById('val-fundamental');
+
+      slider.min = Math.log10(DRIVER_RPM_MIN);
+      slider.max = Math.log10(DRIVER_RPM_MAX);
+      slider.value = Math.log10(rpm);
+      numInput.min = DRIVER_RPM_MIN;
+      numInput.max = DRIVER_RPM_MAX;
+      numInput.value = rpm >= 100 ? rpm.toFixed(0) : rpm.toFixed(1);
+      label.textContent = 'Audio Driver Speed';
+      unit.textContent = 'RPM';
+      value.textContent = `${rpm < 100 ? rpm.toFixed(1) : rpm.toFixed(0)} RPM`;
+
+      if (state.audioRunning && d.playing) {
+        const now = state.audioCtx.currentTime;
+        state.audioDriver.sources.forEach((source, id) => {
+          const gear = state.gearMap.get(id);
+          if (source && gear) source.playbackRate.setTargetAtTime(
+            Math.max(0.000001, Math.abs(gear.ratio) * d.driverRate), now, 0.005
+          );
+        });
+      }
+    }
+
+    function restoreFrequencyControls() {
+      const nyquist = getNyquist();
+      const slider = document.getElementById('slider-fundamental');
+      const numInput = document.getElementById('input-fundamental');
+      document.getElementById('fundamental-label').textContent = 'Fundamental Frequency';
+      document.getElementById('fundamental-unit').textContent = 'Hz';
+      slider.min = -1;
+      slider.max = Math.log10(nyquist).toFixed(3);
+      numInput.min = 0.1;
+      numInput.max = nyquist;
+    }
+
     function setFundamentalFrequency(freq, isBaseChange = true) {
       const nyquist = getNyquist();
       freq = Math.min(nyquist, Math.max(0.1, freq));
 
-      if (isBaseChange) {
-        state.baseFundamentalFreq = freq;
+      // In audio-driver mode, the same control is RPM. 33.3 RPM = normal playback.
+      if (state.audioDriver.buffer) {
+        setDriverRPM(freq, false);
+        return;
       }
 
+      if (isBaseChange) state.baseFundamentalFreq = freq;
       state.targetFundamentalFreq = freq;
-      if (!state.legato) {
-        state.fundamentalFreq = freq;
-      }
+      if (!state.legato) state.fundamentalFreq = freq;
 
-      // Update Slider Position (Logarithmic mapping up to Nyquist)
       const logVal = Math.log10(freq);
       const slider = document.getElementById('slider-fundamental');
+      slider.min = -1;
       slider.max = Math.log10(nyquist).toFixed(3);
       slider.value = logVal;
 
-      // Update Number Input Box
       const numInput = document.getElementById('input-fundamental');
+      numInput.min = 0.1;
       numInput.max = nyquist;
       numInput.value = freq >= 10 ? freq.toFixed(1) : freq.toFixed(2);
 
       const freqLabel = freq >= 1000 ? `${(freq / 1000).toFixed(2)} kHz` : `${freq.toFixed(1)} Hz`;
+      document.getElementById('fundamental-label').textContent = 'Fundamental Frequency';
+      document.getElementById('fundamental-unit').textContent = 'Hz';
       document.getElementById('val-fundamental').textContent = freqLabel;
 
-      if (!state.legato) {
-        updateKinematicNetwork();
-      }
+      if (!state.legato) updateKinematicNetwork();
     }
 
     /* 12TET QWERTY KEYBOARD NOTE SYNTHESIS ENGINE */
@@ -1747,6 +1974,19 @@
       'KeyK': 12  // C (2f)
     };
 
+    function applyKeyboardDriverPitch() {
+      if (!state.audioCtx || !state.audioRunning || !state.audioDriver.buffer || !state.audioDriver.playing) return;
+      const now = state.audioCtx.currentTime;
+      const baseRate = (state.audioDriver.driverRPMBase || DRIVER_NOMINAL_RPM) / state.audioDriver.driverNominalRPM;
+      const keyRate = baseRate * (state.audioDriver.keyboardKeyRatio || 1);
+      state.audioDriver.sources.forEach((source, id) => {
+        const gear = state.gearMap.get(id);
+        if (source && gear) {
+          source.playbackRate.setTargetAtTime(Math.max(0.000001, Math.abs(gear.ratio) * keyRate), now, 0.005);
+        }
+      });
+    }
+
     function playSemitone(semitone) {
       if (!state.audioRunning) {
         initAudio();
@@ -1755,9 +1995,16 @@
 
       const totalSemitones = semitone + (state.octaveShift * 12);
       const ratio = Math.pow(2, totalSemitones / 12);
-      const activeFreq = state.baseFundamentalFreq * ratio;
 
-      setFundamentalFrequency(activeFreq, false);
+      if (state.audioDriver.buffer && state.audioDriver.playing) {
+        // Keyboard has its own fundamental RPM. The driver RPM slider stays untouched.
+        state.audioDriver.keyboardKeyRatio = ratio;
+        applyKeyboardDriverPitch();
+      } else {
+        const activeFreq = state.baseFundamentalFreq * ratio;
+        setFundamentalFrequency(activeFreq, false);
+      }
+
       updateKeyboardUI(semitone, ratio);
     }
 
@@ -1766,7 +2013,12 @@
       if (!state.releaseOnKeyup) return;
 
       state.activeSemitone = null;
-      setFundamentalFrequency(state.baseFundamentalFreq, false);
+      state.audioDriver.keyboardKeyRatio = 1;
+      if (state.audioDriver.buffer && state.audioDriver.playing) {
+        applyKeyboardDriverPitch();
+      } else {
+        setFundamentalFrequency(state.baseFundamentalFreq, false);
+      }
       updateKeyboardUI(null, 1.0);
     }
 
@@ -1827,7 +2079,12 @@
         state.octaveShift = 0;
         document.getElementById('val-oct-shift').textContent = '0';
         state.activeSemitone = null;
-        setFundamentalFrequency(state.baseFundamentalFreq, false);
+        state.audioDriver.keyboardKeyRatio = 1;
+        if (state.audioDriver.buffer && state.audioDriver.playing) {
+          applyKeyboardDriverPitch();
+        } else if (!state.audioDriver.buffer) {
+          setFundamentalFrequency(state.baseFundamentalFreq, false);
+        }
         updateKeyboardUI(null, 1.0);
       });
 
@@ -1856,13 +2113,18 @@
       });
     }
 
-    // Fundamental Slider Event (Smooth continuous change)
+    // Fundamental Frequency / Audio Driver RPM Slider
     const fundSlider = document.getElementById('slider-fundamental');
 
     const stopSliderDrag = () => {
       if (state.isSlidingFreq) {
         state.isSlidingFreq = false;
-        state.masterPhase = 0; // Snap back to mod 0 alignment
+        if (state.audioDriver.buffer) {
+          const rpm = nearestDriverRpmSnap(state.audioDriver.driverRPM);
+          setDriverRPM(rpm, false, false);
+          return;
+        }
+        state.masterPhase = 0;
         updateKinematicNetwork();
       }
     };
@@ -1873,9 +2135,12 @@
 
     fundSlider.addEventListener('input', (e) => {
       state.isSlidingFreq = true;
-      const logVal = parseFloat(e.target.value);
-      const freq = Math.pow(10, logVal);
-      setFundamentalFrequency(freq);
+      const value = parseFloat(e.target.value);
+      if (state.audioDriver.buffer) {
+        setDriverRPM(Math.pow(10, value), false);
+      } else {
+        setFundamentalFrequency(Math.pow(10, value));
+      }
     });
 
     fundSlider.addEventListener('pointerup', stopSliderDrag);
@@ -1883,19 +2148,20 @@
     fundSlider.addEventListener('change', stopSliderDrag);
     window.addEventListener('pointerup', stopSliderDrag);
 
-    // Number Input Event
     document.getElementById('input-fundamental').addEventListener('input', (e) => {
       state.masterPhase = 0;
       const val = parseFloat(e.target.value);
-      if (!isNaN(val)) setFundamentalFrequency(val);
+      if (isNaN(val)) return;
+      if (state.audioDriver.buffer) setDriverRPM(val, false);
+      else setFundamentalFrequency(val);
     });
 
-    // Quick Frequency Presets
     document.querySelectorAll('.btn-freq-preset').forEach(btn => {
       btn.addEventListener('click', () => {
         state.masterPhase = 0;
         const f = parseFloat(btn.getAttribute('data-freq'));
-        setFundamentalFrequency(f);
+        if (state.audioDriver.buffer) setDriverRPM(f, true);
+        else setFundamentalFrequency(f);
       });
     });
 
@@ -2132,6 +2398,35 @@
       updateAudioNodes();
     });
 
+    // AUDIO DRIVER LISTENERS
+    document.getElementById('input-audio-driver').addEventListener('change', async (e) => {
+      const file=e.target.files && e.target.files[0]; if(!file) return;
+      try {
+        if(!state.audioCtx) initAudio();
+        const ab=await file.arrayBuffer();
+        state.audioDriver.buffer=await state.audioCtx.decodeAudioData(ab.slice(0));
+        state.audioDriver.fileName=file.name; state.audioDriver.elapsed=0; state.audioDriver.detectedFreq=1; state.audioDriver.driverRate=1; state.audioDriver.driverRPM=DRIVER_NOMINAL_RPM; state.audioDriver.driverRPMBase=DRIVER_NOMINAL_RPM; state.audioDriver.keyboardKeyRatio=1; state.audioDriver.visualShape='sine';
+        document.getElementById('audio-driver-status').textContent=`${file.name} | ${state.audioDriver.buffer.duration.toFixed(2)}s`;
+        setDriverRPM(DRIVER_NOMINAL_RPM, false);
+      } catch(err) { console.error(err); state.audioDriver.buffer=null; document.getElementById('audio-driver-status').textContent='Could not decode audio file'; }
+    });
+
+    document.getElementById('btn-driver-play').addEventListener('click', () => {
+      if(!state.audioDriver.buffer) return;
+      if(!state.audioRunning) initAudio();
+      const btn=document.getElementById('btn-driver-play');
+      if(state.audioDriver.playing) {
+        state.audioDriver.playing=false; stopAudioDriverSources(); btn.textContent='▶ DRIVE'; updateAudioNodes();
+      } else {
+        state.audioDriver.playing=true; state.audioDriver.elapsed=0; state.masterPhase=0; setDriverRPM(state.audioDriver.driverRPM, false, false); state.audioDriver.keyboardKeyRatio=1; btn.textContent='⏸ DRIVE'; applyKeyboardDriverPitch(); updateAudioNodes();
+      }
+    });
+
+    document.getElementById('btn-driver-clear').addEventListener('click', () => {
+      state.audioDriver.playing=false; stopAudioDriverSources(); state.audioDriver.buffer=null; state.audioDriver.fileName=''; state.audioDriver.elapsed=0;
+      document.getElementById('input-audio-driver').value=''; document.getElementById('audio-driver-status').textContent='No audio file loaded'; document.getElementById('btn-driver-play').textContent='▶ DRIVE'; restoreFrequencyControls(); setFundamentalFrequency(state.baseFundamentalFreq || 1.0, false); updateAudioNodes();
+    });
+
     // 3D Binaural Spatializer Control Listeners
     document.getElementById('chk-spatial-enable').addEventListener('change', (e) => {
       state.spatialEnabled = e.target.checked;
@@ -2150,10 +2445,23 @@
     });
 
     document.getElementById('slider-spatial-scale').addEventListener('input', (e) => {
+      // Spatial scale must never alter the independent driver RPM or keyboard pitch state.
+      const savedDriverRPM = state.audioDriver.driverRPM;
+      const savedDriverRPMBase = state.audioDriver.driverRPMBase;
+      const savedKeyboardKeyRatio = state.audioDriver.keyboardKeyRatio || 1;
+
       state.spatialScale = parseFloat(e.target.value);
       document.getElementById('val-spatial-scale').textContent = `${(state.spatialScale / 0.05).toFixed(1)}x`;
       updateAudioNodes();
       updateInspector();
+
+      if (state.audioDriver.buffer) {
+        state.audioDriver.driverRPM = savedDriverRPM;
+        state.audioDriver.driverRPMBase = savedDriverRPMBase;
+        state.audioDriver.keyboardKeyRatio = savedKeyboardKeyRatio;
+        setDriverRPM(savedDriverRPM, false, false);
+        applyKeyboardDriverPitch();
+      }
     });
 
     document.getElementById('input-main-teeth').addEventListener('change', (e) => {
@@ -2190,28 +2498,36 @@
       addGear(teeth);
     });
 
-    // Ratio Direct Calculator Tool
+    // Ratio controls: separate numerator/denominator fields and sliders.
+    const ratioNumInput = document.getElementById('input-ratio-num');
+    const ratioDenInput = document.getElementById('input-ratio-den');
+    const ratioNumSlider = document.getElementById('slider-ratio-num');
+    const ratioDenSlider = document.getElementById('slider-ratio-den');
+    const ratioDisplay = document.getElementById('ratio-calc-display');
+
+    function syncRatioControl(which, value) {
+      const v = Math.min(120, Math.max(1, Math.round(Number(value) || 1)));
+      if (which === 'num') { ratioNumInput.value = v; ratioNumSlider.value = v; }
+      else { ratioDenInput.value = v; ratioDenSlider.value = v; }
+      ratioDisplay.textContent = `${ratioNumInput.value}:${ratioDenInput.value}`;
+    }
+    ratioNumInput.addEventListener('input', e => syncRatioControl('num', e.target.value));
+    ratioNumSlider.addEventListener('input', e => syncRatioControl('num', e.target.value));
+    ratioDenInput.addEventListener('input', e => syncRatioControl('den', e.target.value));
+    ratioDenSlider.addEventListener('input', e => syncRatioControl('den', e.target.value));
+
     document.getElementById('btn-calc-ratio').addEventListener('click', () => {
-      const str = document.getElementById('input-ratio-calc').value.trim();
-      const parts = str.split(':').map(p => parseFloat(p));
-      const resDiv = document.getElementById('ratio-calc-result');
-
-      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[1] !== 0) {
-        const targetRatio = parts[0] / parts[1];
-        const idealTeeth = state.mainTeeth / targetRatio;
-        const closestTeeth = Math.round(idealTeeth);
-        const actualRatio = state.mainTeeth / closestTeeth;
-        const isExact = Math.abs(targetRatio - actualRatio) < 1e-5;
-
-        resDiv.innerHTML = `
-          Target ${str} → Secondary: <strong>${closestTeeth}T</strong><br>
-          ${isExact ? '✅ Exact integer fit!' : '⚠️ Approx (' + actualRatio.toFixed(4) + ')'}
-        `;
-
-        addGear(closestTeeth);
-      } else {
-        resDiv.textContent = 'Invalid ratio format. Use N:M (e.g. 11:7)';
-      }
+      const num = Math.min(120, Math.max(1, parseInt(ratioNumInput.value) || 1));
+      const den = Math.min(120, Math.max(1, parseInt(ratioDenInput.value) || 1));
+      syncRatioControl('num', num); syncRatioControl('den', den);
+      const targetRatio = num / den;
+      const idealTeeth = state.mainTeeth / targetRatio;
+      const closestTeeth = Math.min(15015, Math.max(1, Math.round(idealTeeth)));
+      const actualRatio = state.mainTeeth / closestTeeth;
+      const isExact = Math.abs(targetRatio - actualRatio) < 1e-5;
+      document.getElementById('ratio-calc-result').innerHTML = `Target ${num}:${den} → Secondary: <strong>${closestTeeth}T</strong><br>${isExact ? 'Exact integer fit!' : 'Approx (' + actualRatio.toFixed(4) + ')'}`;
+      addGear(closestTeeth);
+      document.getElementById('startup-tooltip')?.remove();
     });
 
     // Ratio Presets
@@ -2220,8 +2536,9 @@
         const ratioStr = btn.getAttribute('data-ratio');
         const parts = ratioStr.split(':').map(Number);
         const targetRatio = parts[0] / parts[1];
-        const teeth = Math.round(state.mainTeeth / targetRatio);
+        const teeth = Math.min(15015, Math.max(1, Math.round(state.mainTeeth / targetRatio)));
         addGear(teeth);
+        document.getElementById('startup-tooltip')?.remove();
       });
     });
 
@@ -2232,11 +2549,25 @@
     });
 
     document.getElementById('btn-sync-phase').addEventListener('click', () => {
+      // Global phase reset: every active cog's hand/spoke points exactly at 12 o'clock.
+      const twelveOClock = -Math.PI / 2;
       state.masterPhase = 0;
       state.gears.forEach(g => {
         g.setPhaseOffsetDeg(0);
+        if (g.ratio !== 0) g.angle = twelveOClock;
       });
-      updateAudioNodes();
+
+      // In driver mode, restart the driver at its phase origin so the audio starts
+      // from the same reference point as the visual 12 o'clock reset.
+      if (state.audioDriver.buffer && state.audioDriver.playing) {
+        state.audioDriver.elapsed = 0;
+        stopAudioDriverSources();
+        updateAudioNodes();
+        applyKeyboardDriverPitch();
+      } else {
+        updateAudioNodes();
+      }
+
       updateInspector();
       renderGearList();
     });
@@ -2357,10 +2688,15 @@
 
     // INITIALIZATION
     function initApp() {
+      // Tutorial start state: main drive wheel + unconnected 2:1 gear.
       addGear(120, 0, 0, true);
-      addGear(60);
-      addGear(40);
-      addGear(30);
+      const tutorialGear = addGear(60, 220, 0);
+      tutorialGear.neighbors.clear();
+      state.gears.find(g => g.isMain).neighbors.delete(tutorialGear.id);
+      tutorialGear.ratio = 0;
+      tutorialGear.freq = 0;
+      tutorialGear.angle = -Math.PI / 2;
+      state.selectedGearId = null;
 
       setFundamentalFrequency(1.0);
       initVirtualKeyboardEvents();
