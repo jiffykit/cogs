@@ -269,6 +269,120 @@
       font-size: 0.65rem;
     }
 
+
+    /* PERMANENT TOP GEAR / RATIO TOOLBAR */
+    #gear-add-toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      min-height: 72px;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      background: rgba(2, 6, 23, 0.96);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+    }
+
+    #gear-add-toolbar .toolbar-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex: 0 0 auto;
+    }
+
+    #gear-add-toolbar .toolbar-title {
+      color: var(--accent-cyan);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.45px;
+      margin-right: 4px;
+    }
+
+    #gear-add-toolbar label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      justify-content: flex-start;
+      white-space: nowrap;
+    }
+
+    #gear-add-toolbar input[type="number"] {
+      width: 68px;
+      min-width: 68px;
+      padding: 5px 6px;
+    }
+
+    #gear-add-toolbar input[type="range"] {
+      width: 78px;
+      min-width: 78px;
+    }
+
+    #gear-add-toolbar .toolbar-check {
+      width: auto;
+      min-width: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0;
+      color: var(--text-muted);
+    }
+
+    #gear-add-toolbar .toolbar-check input {
+      margin: 0;
+      width: auto;
+      min-width: auto;
+    }
+
+    #gear-add-toolbar .toolbar-divider {
+      width: 1px;
+      height: 28px;
+      background: var(--border-color);
+      flex: 0 0 auto;
+      margin: 0 2px;
+    }
+
+    #gear-add-toolbar .toolbar-button {
+      min-height: 34px;
+      padding: 6px 11px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    /* The app content sits below the permanent toolbar. */
+    #app-container {
+      box-sizing: border-box;
+      padding-top: 72px;
+    }
+
+    #hud-network-body {
+      transition: opacity 0.15s ease;
+    }
+
+    #hud-network-body.is-collapsed {
+      display: none;
+    }
+
+    #btn-toggle-network-overview {
+      border: 1px solid var(--border-color);
+      background: rgba(255,255,255,0.06);
+      color: var(--text-main);
+      padding: 2px 7px;
+      min-width: 28px;
+      font-size: 0.7rem;
+    }
+
     /* MAIN CANVAS AREA */
     #canvas-container {
       flex: 1;
@@ -483,6 +597,71 @@
 <body>
 
   <div id="app-container">
+  <div id="gear-add-toolbar" aria-label="Add Gear / Ratio Tool">
+    <span class="toolbar-title">Add Gear / Ratio</span>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-group">
+      <label>Teeth
+        <input type="number" id="input-add-teeth" min="1" max="15015" value="60">
+      </label>
+    </div>
+
+    <div class="toolbar-group">
+      <label>Num
+        <input type="number" id="input-ratio-num" min="1" max="120" step="1" value="2">
+      </label>
+      <label>Den
+        <input type="number" id="input-ratio-den" min="1" max="120" step="1" value="1">
+      </label>
+      <span id="ratio-calc-display" style="font-size:0.72rem; font-weight:800; color:var(--accent-cyan); min-width:42px; text-align:center;">2:1</span>
+    </div>
+
+    <div class="toolbar-group">
+      <label>Phase°
+        <input type="number" id="input-add-phase" min="-360" max="360" step="1" value="0">
+      </label>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <label class="toolbar-check" title="Keep this gear's ratio fixed when the main gear teeth change">
+      <input type="checkbox" id="input-add-ratio-lock">
+      Ratio Lock
+    </label>
+    <label class="toolbar-check" title="Keep this gear's tooth count fixed when other gear sizes change">
+      <input type="checkbox" id="input-add-teeth-lock">
+      Teeth Lock
+    </label>
+
+    <div class="toolbar-divider"></div>
+
+    <label class="toolbar-check" title="Orbit this gear around the main gear/listener">
+      <input type="checkbox" id="input-add-orbit">
+      Orbit
+    </label>
+    <label>Orbit time
+      <input type="number" id="input-add-orbit-time" min="0.25" max="60" step="0.05" value="8.00">
+    </label>
+    <label class="toolbar-check" title="Keep the gear's phase relationship fixed while it orbits">
+      <input type="checkbox" id="input-add-preserve-phase" checked>
+      Preserve Phase
+    </label>
+
+    <label>Volume
+      <input type="number" id="input-add-volume" min="0" max="1" step="0.01" value="0.20">
+    </label>
+
+    <label class="toolbar-check" title="Calculate the teeth count from Num:Den instead of using the typed Teeth value">
+      <input type="checkbox" id="input-solve-teeth-from-ratio" checked>
+      Solve Teeth from Ratio
+    </label>
+
+    <button id="btn-calc-ratio" class="btn-primary toolbar-button">ADD RATIO / GEAR</button>
+    <span id="ratio-calc-result" style="font-size:0.68rem; color:var(--text-muted); min-width:120px; overflow:hidden; text-overflow:ellipsis;"></span>
+  </div>
+
     <!-- SIDEBAR -->
     <aside id="sidebar">
       <div class="sidebar-header">
@@ -514,11 +693,23 @@
         <div class="panel-box">
           <div class="panel-title">Audio Driver</div>
           <div class="control-group">
-            <label>Drive main shaft from an audio file</label>
-            <input type="file" id="input-audio-driver" accept="audio/*" style="width:100%; font-size:0.75rem; color:var(--text-muted);">
+            <label>Use a recorded or imported sound as the main shaft driver</label>
+            <div class="btn-group">
+              <button id="btn-driver-record" class="btn-primary" style="flex:1;">● RECORD</button>
+              <button id="btn-driver-import" style="flex:1;">Import</button>
+              <input type="file" id="input-audio-driver" accept="audio/*" style="display:none;">
+            </div>
           </div>
           <div style="font-size:0.7rem; color:var(--text-muted); line-height:1.35; margin-bottom:8px;">
-            The source file is never sent directly to the speakers. Secondary gears output only the ratio-transformed driver audio.
+            The source is never sent directly to the speakers. Secondary gears output the ratio-transformed driver audio. Loop boundaries use a 25 ms crossfade.
+          </div>
+          <div id="driver-wave-wrap" style="display:none; position:relative; margin-bottom:7px;">
+            <canvas id="driver-waveform" width="640" height="100" style="width:100%; height:100px; display:block; background:var(--panel-bg, rgba(0,0,0,.18)); border:1px solid var(--border-color); border-radius:5px; touch-action:none; cursor:ew-resize;"></canvas>
+            <div style="display:flex; justify-content:space-between; font-size:0.66rem; color:var(--text-muted); margin-top:3px;">
+              <span>START <b id="driver-start-time">0.00s</b></span>
+              <span>END <b id="driver-end-time">0.00s</b></span>
+              <span>25 ms crossfade</span>
+            </div>
           </div>
           <div class="btn-group">
             <button id="btn-driver-play" class="btn-primary" style="flex:1;">▶ DRIVE</button>
@@ -608,14 +799,22 @@
 
           <!-- KEYBOARD PERFORMANCE OPTIONS -->
           <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button id="btn-poly" style="flex:1;">POLY OFF</button>
+              <span id="poly-status" style="font-size:0.68rem; color:var(--text-muted);">Keyboard voices use no extra gears</span>
+            </div>
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
               <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 5px; color: var(--text-muted); cursor: pointer;">
-                <input type="checkbox" id="chk-release-note" checked>
-                <span>Release note on keyup</span>
+                <input type="checkbox" id="chk-continuous">
+                <span>Continuous</span>
               </label>
               <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 5px; color: var(--text-muted); cursor: pointer;">
                 <input type="checkbox" id="chk-legato">
                 <span>Legato (Glissando)</span>
+              </label>
+              <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 5px; color: var(--text-muted); cursor: pointer;">
+                <input type="checkbox" id="chk-ji-keyboard">
+                <span>Nearest JI</span>
               </label>
             </div>
             <div id="gliss-control-group" style="display: flex; align-items: center; gap: 6px; opacity: 0.5; transition: opacity 0.2s ease;">
@@ -623,6 +822,20 @@
               <input type="range" id="slider-gliss-time" min="0.01" max="2.0" step="0.01" value="0.20" disabled style="flex: 1;">
               <span id="val-gliss-time" style="font-size: 0.72rem; color: var(--accent-cyan); font-weight: bold; min-width: 40px; text-align: right;">0.20s</span>
             </div>
+          </div>
+        </div>
+
+        <!-- MIDI INPUT -->
+        <div class="panel-box">
+          <div class="panel-title">MIDI Input</div>
+          <div class="control-group">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+              <button id="btn-midi-enable" class="btn-primary" style="flex:1;">Enable WebMIDI</button>
+              <button id="btn-midi-refresh" style="padding:4px 8px;">Refresh</button>
+            </div>
+            <label style="font-size:0.7rem; color:var(--text-muted);">Input device</label>
+            <select id="select-midi-input" style="width:100%; margin-top:4px;"><option value="">No MIDI input selected</option></select>
+            <div id="midi-status" style="font-size:0.68rem; color:var(--text-muted); line-height:1.35; margin-top:6px;">WebMIDI disabled</div>
           </div>
         </div>
 
@@ -655,38 +868,6 @@
             • <b>Top (-Y)</b> = FRONT (In front of face)<br>
             • <b>Bottom (+Y)</b> = BEHIND (Behind skull)<br>
             • <b>Left / Right</b> = 360° Stereo Horizon
-          </div>
-        </div>
-
-        <!-- ADD GEAR / RATIO CALCULATOR -->
-        <div class="panel-box">
-          <div class="panel-title">Add Gear / Ratio Tool</div>
-          <div class="control-group">
-            <label>Secondary Gear Teeth (1 - 15015)</label>
-            <div class="btn-group">
-              <input type="number" id="input-add-teeth" min="1" max="15015" value="60">
-              <button id="btn-add-gear" class="btn-primary">Add Gear</button>
-            </div>
-          </div>
-          <div class="control-group" style="margin-top: 8px;">
-            <label>Specify Ratio Relative to Main</label>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; align-items:center;">
-              <div>
-                <label style="font-size:0.68rem; margin-bottom:2px;">Numerator</label>
-                <input type="number" id="input-ratio-num" min="1" max="120" step="1" value="2">
-                <input type="range" id="slider-ratio-num" min="1" max="120" step="1" value="2" style="margin-top:4px;">
-              </div>
-              <div>
-                <label style="font-size:0.68rem; margin-bottom:2px;">Denominator</label>
-                <input type="number" id="input-ratio-den" min="1" max="120" step="1" value="1">
-                <input type="range" id="slider-ratio-den" min="1" max="120" step="1" value="1" style="margin-top:4px;">
-              </div>
-            </div>
-            <div class="btn-group" style="margin-top:6px;">
-              <div id="ratio-calc-display" style="flex:1; padding:7px 9px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-dark); font-weight:700; text-align:center;">2:1</div>
-              <button id="btn-calc-ratio">Add Ratio</button>
-            </div>
-            <div id="ratio-calc-result" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;"></div>
           </div>
         </div>
 
@@ -742,7 +923,11 @@
       <!-- HUD TOP RIGHT: NETWORK INFORMATION -->
       <div id="hud-top-right" class="hud-panel">
         <div id="loop-conflict-warning">⚠️ Gear loop ratio conflict! Loop motion is locked or invalid.</div>
-        <div class="panel-title">Harmonic Network Overview</div>
+        <div class="panel-title">
+          <span>Harmonic Network Overview</span>
+          <button id="btn-toggle-network-overview" title="Minimize Harmonic Network Overview">−</button>
+        </div>
+        <div id="hud-network-body">
         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;">
           <span>Fundamental:</span> <strong id="hud-fundamental">1.000 Hz</strong>
         </div>
@@ -771,6 +956,7 @@
         <div id="inspector-panel" style="margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 8px; display: none;">
           <div class="panel-title" style="color: var(--accent-main); font-size: 0.75rem;">Selected Gear Detail</div>
           <div id="inspector-content" style="font-size: 0.72rem; display: flex; flex-direction: column; gap: 3px;"></div>
+        </div>
         </div>
       </div>
     </main>
@@ -833,7 +1019,9 @@
       octaveShift: 0,            // Octave shift (-3 to +3)
       pressedKeys: new Set(),    // Active playing piano keys
       activeSemitone: null,      // Active playing semitone
-      releaseOnKeyup: true,      // Turn note off / reset pitch on key release
+      releaseOnKeyup: true,      // When true, keyboard/MIDI notes stop sounding on release
+      keyboardAudioActive: false, // Synth audio gate when Continuous is off
+      midiHeldNotes: new Map(),
       legato: false,             // Legato glissando mode toggle
       glissTime: 0.20,           // Glissando glide duration in seconds
       mainTeeth: 120,
@@ -848,8 +1036,16 @@
       loopConflict: false,
       masterPhase: 0, // Global fundamental phase angle [0, 2pi)
       isSlidingFreq: false, // Instant pitch feedback mode during slider drag
+      audioSyncPending: false,
+      audioSyncPerfMs: 0,
+      polyMode: false,
+      jiKeyboard: false,          // Retune POLY chords to nearest simple JI ratios
+      polyVoices: new Map(),
+      midi: { access: null, enabled: false, input: null },
       audioDriver: {
-        buffer: null, fileName: '', playing: false, elapsed: 0, detectedFreq: 1, visualShape: 'sine', driverRate: 1, driverRPM: 33.3, driverRPMBase: 33.3, driverNominalRPM: 33.3,
+        buffer: null, rawBuffer: null, fileName: '', playing: false, elapsed: 0, detectedFreq: 1, visualShape: 'sine', driverRate: 1, driverRPM: 33.3, driverRPMBase: 33.3, driverNominalRPM: 33.3,
+        loopStart: 0, loopEnd: 0, crossfadeMs: 25,
+        recorder: null, recorderStream: null, recorderChunks: [],
         sources: new Map()
       }
     };
@@ -881,6 +1077,14 @@
         this.volume = 0.2;
         this.muted = false;
         this.solo = false;
+        this.ratioLock = false;
+        this.teethLock = false;
+        this.orbitEnabled = false;
+        this.orbitPeriodSec = 8.0;
+        this.orbitAngle = 0;
+        this.orbitRadius = 0;
+        this.orbitPhase = 0;
+        this.orbitPreservePhase = true;
       }
 
       get phaseOffsetRad() {
@@ -918,19 +1122,82 @@
       state.gears.forEach(g => g.driverSource = null);
     }
 
-    function createDriverSourceForGear(gear) {
-      if (!state.audioDriver.buffer || !state.audioRunning || !state.audioDriver.playing || gear.isMain || gear.ratio === 0) return;
-      if (state.audioDriver.sources.has(gear.id)) return;
+    function createDriverSourceForGear(gear, startTime = 0, offset = null) {
+      if (!state.audioDriver.buffer || !state.audioRunning || !state.audioDriver.playing || gear.isMain || gear.ratio === 0) return null;
+      if (state.audioDriver.sources.has(gear.id)) return state.audioDriver.sources.get(gear.id);
       const source = state.audioCtx.createBufferSource();
       source.buffer = state.audioDriver.buffer;
       source.loop = true;
-      source.playbackRate.value = Math.max(0.000001, Math.abs(gear.ratio) * state.audioDriver.driverRate);
+      source.playbackRate.value = Math.max(0.000001, Math.abs(gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1));
+      const loopEnd = state.audioDriver.buffer.duration;
+      source.loopStart = 0;
+      source.loopEnd = loopEnd;
       source.connect(gear.delayNode);
-      const offset = state.audioDriver.buffer.duration ? (state.audioDriver.elapsed % state.audioDriver.buffer.duration) : 0;
-      source.start(0, offset);
+      const startOffset = offset == null ? (loopEnd ? (state.audioDriver.elapsed % loopEnd) : 0) : Math.max(0, Math.min(loopEnd, offset));
+      if (startTime > 0) source.start(startTime, startOffset); else source.start(0, startOffset);
       gear.driverSource = source;
       state.audioDriver.sources.set(gear.id, source);
+      return source;
     }
+
+    function stopAllSynthOscillators() {
+      state.gears.forEach(gear => {
+        if (gear.osc) {
+          try { gear.osc.stop(); } catch(e) {}
+          try { gear.osc.disconnect(); } catch(e) {}
+          gear.osc = null;
+        }
+        if (gear.delayNode) gear.delayNode.delayTime.value = 0;
+      });
+    }
+
+    function hardResetAudioPhaseToMod0() {
+      if (!state.audioCtx || !state.audioRunning) return;
+      const lead = 0.06;
+      const startAt = state.audioCtx.currentTime + lead;
+      state.audioSyncPending = true;
+      state.audioSyncPerfMs = performance.now() + lead * 1000;
+      state.masterPhase = 0;
+
+      state.gears.forEach(g => {
+        g.setPhaseOffsetDeg(0);
+        if (g.ratio !== 0) g.angle = -Math.PI / 2;
+      });
+
+      // Make sure routing nodes exist, then completely rebuild every audible source.
+      updateAudioNodes();
+      stopAudioDriverSources();
+      stopAllSynthOscillators();
+      state.audioDriver.elapsed = 0;
+
+      const driverMode = !!state.audioDriver.buffer && state.audioDriver.playing;
+      const polyMode = !!state.polyMode;
+      state.gears.forEach(g => {
+        if (g.delayNode) g.delayNode.delayTime.setValueAtTime(0, startAt);
+        // POLY mode uses only the hidden per-note gear trains. Never resurrect
+        // the visible machine's fundamental or driver sources during a sync.
+        const audible = !polyMode && !g.muted && g.ratio !== 0 && !g.isUltrasonic && (!state.gears.some(x => x.solo) || g.solo) && !(driverMode && g.isMain);
+        if (g.gainNode) g.gainNode.gain.setValueAtTime(audible ? g.volume : 0, startAt);
+      });
+
+      if (!polyMode && driverMode) {
+        state.gears.forEach(g => {
+          if (!g.isMain && g.ratio !== 0) createDriverSourceForGear(g, startAt, 0);
+        });
+      } else if (!polyMode) {
+        state.gears.forEach(g => {
+          if (g.ratio === 0) return;
+          const osc = state.audioCtx.createOscillator();
+          if (state.waveform === 'impulse') osc.setPeriodicWave(getImpulseWave(state.audioCtx));
+          else osc.type = state.waveform;
+          osc.frequency.setValueAtTime(Math.max(0.001, g.freq), startAt);
+          osc.connect(g.delayNode);
+          osc.start(startAt);
+          g.osc = osc;
+        });
+      }
+    }
+
 
     function estimateDriverFrequency(buffer, position) {
       const data = buffer.getChannelData(0), sr = buffer.sampleRate;
@@ -994,12 +1261,15 @@
         if (g.isMain) { g.ratio = 1; g.freq = d.detectedFreq; }
         else { g.freq = Math.abs(g.ratio) * d.detectedFreq; g.isUltrasonic = g.freq > 20000 || (state.audioCtx && g.freq > state.audioCtx.sampleRate / 2); }
       });
-      state.masterPhase=(state.masterPhase+2*Math.PI*d.detectedFreq*dt)%(2*Math.PI);
+      // The driver's transport rate is authoritative. Visual phase advances at the
+      // same rate as the loaded audio, so the 12-o'clock hand remains the phase-zero reference.
+      const transportPhaseAdvance = 2 * Math.PI * (d.detectedFreq * d.driverRate) * dt;
+      state.masterPhase = (state.masterPhase + transportPhaseAdvance) % (2 * Math.PI);
       const sample=getDriverSample(pos), base=-Math.PI/2;
       let warp=0;
       if(d.visualShape==='square') warp=sample>=0?Math.PI/4:-Math.PI/4;
       else if(d.visualShape==='sawtooth') warp=-sample*Math.PI/4;
-      state.gears.forEach(g=>{ if(g.ratio!==0) g.angle=base+g.ratio*state.masterPhase+g.phaseOffsetRad+g.ratio*warp; });
+      state.gears.forEach(g=>{ if(g.ratio!==0 && !isGearBeingDragged(g)) g.angle=base+g.ratio*state.masterPhase+g.phaseOffsetRad+g.ratio*warp; });
       const label=document.getElementById('audio-driver-status');
       if(label && d.fileName) label.textContent=`${d.fileName} | ${d.detectedFreq.toFixed(1)} Hz | ${d.visualShape}`;
     }
@@ -1067,6 +1337,46 @@
       if (driverBtn) driverBtn.textContent = '▶ DRIVE';
       document.getElementById('btn-toggle-audio').textContent = '▶ START AUDIO';
       document.getElementById('btn-toggle-audio').style.background = 'var(--accent-main)';
+    }
+
+    function getPhaseAlignedDelaySeconds(phaseOffsetRad, frequencyHz) {
+      if (!Number.isFinite(frequencyHz) || frequencyHz <= 0) return 0.0001;
+      const period = 1 / frequencyHz;
+      const phase = ((-phaseOffsetRad % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
+      return Math.max(0.0001, Math.min(14.9, (phase / (2 * Math.PI)) * period));
+    }
+
+    // Orbit-phase delay helper. Unlike the normal phase helper, this keeps
+    // equivalent delays on the same continuous branch so an orbiting phase
+    // can pass through 2π/0 without a discontinuous DelayNode jump.
+    function getContinuousOrbitDelaySeconds(phaseOffsetRad, frequencyHz) {
+      if (!Number.isFinite(frequencyHz) || frequencyHz <= 0) return 0.0001;
+      const period = 1 / frequencyHz;
+      const twoPi = 2 * Math.PI;
+      const wrappedPhase = ((-phaseOffsetRad % twoPi) + twoPi) % twoPi;
+      return Math.max(0.0001, Math.min(14.9, (wrappedPhase / twoPi) * period));
+    }
+
+    function orbitPhaseBoundaryCrossed(previousPhase, nextPhase) {
+      if (!Number.isFinite(previousPhase) || !Number.isFinite(nextPhase)) return false;
+      return Math.floor(previousPhase / (2 * Math.PI)) !== Math.floor(nextPhase / (2 * Math.PI));
+    }
+
+    function smoothOrbitPhaseBoundary(gear, delayNode, sourceFreq, previousPhase, nextPhase) {
+      if (!delayNode || !state.audioCtx || !orbitPhaseBoundaryCrossed(previousPhase, nextPhase)) return;
+      const gain = gear && gear.gainNode;
+      if (!gain) return;
+      const now = state.audioCtx.currentTime;
+      const fade = 0.012;
+      const held = Math.max(0.0001, Math.min(1, Number(gear.volume) || 0.2));
+      const wrappedDelay = getContinuousOrbitDelaySeconds(gear.phaseOffsetRad + nextPhase, sourceFreq);
+      gain.gain.cancelScheduledValues(now);
+      const currentGain = Math.max(0, Math.min(1, Number(gain.gain.value) || held));
+      gain.gain.setValueAtTime(currentGain, now);
+      gain.gain.linearRampToValueAtTime(0, now + fade * 0.5);
+      delayNode.delayTime.cancelScheduledValues(now);
+      delayNode.delayTime.setValueAtTime(wrappedDelay, now + fade * 0.5);
+      gain.gain.linearRampToValueAtTime(held, now + fade);
     }
 
     function updateAudioNodes() {
@@ -1159,9 +1469,7 @@
           } else {
             const glideTc = state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005;
             gear.osc.frequency.setTargetAtTime(targetFreq, now, glideTc);
-            const gearPeriod = 1.0 / targetFreq;
-            const normDeg = ((gear.phaseOffsetDeg % 360) + 360) % 360;
-            const targetDelay = Math.max(0.0001, Math.min(14.9, (normDeg / 360.0) * gearPeriod));
+            const targetDelay = getPhaseAlignedDelaySeconds(gear.phaseOffsetRad, targetFreq);
             gear.delayNode.delayTime.setTargetAtTime(targetDelay, now, glideTc);
           }
         } else if (driverMode) {
@@ -1169,15 +1477,24 @@
           if (source) {
             source.playbackRate.setTargetAtTime(Math.max(0.000001, Math.abs(gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1)), now, 0.01);
           }
-          // The buffer is the source in driver mode, so its phase is the actual
-          // audio timeline. The existing delay remains available for phase offsets.
-          const targetDelay = Math.max(0.0001, Math.min(14.9, (Math.abs(gear.phaseOffsetDeg) / 360) * Math.max(0.001, 1 / Math.max(0.1, state.fundamentalFreq))));
-          gear.delayNode.delayTime.setTargetAtTime(gear.isMain ? 0.0001 : targetDelay, now, 0.005);
+          // The buffer is the source in driver mode. Apply the same signed phase
+          // convention as the visual hand, using the actual per-gear playback rate.
+          const sourceFreq = Math.max(0.1, state.audioDriver.detectedFreq * state.audioDriver.driverRate * Math.abs(gear.ratio) * (state.audioDriver.keyboardKeyRatio || 1));
+          const targetDelay = gear.isMain ? 0.0001 : getPhaseAlignedDelaySeconds(gear.phaseOffsetRad, sourceFreq);
+          gear.delayNode.delayTime.setTargetAtTime(targetDelay, now, 0.005);
         }
 
         let targetVol = gear.volume;
         if (driverMode && gear.isMain) targetVol = 0;
-        if (gear.muted || gear.isUltrasonic || gear.freq === 0 || Math.abs(gear.ratio) === 0) targetVol = 0;
+        // POLY mode uses dedicated keyboard voices; mute the visible gear synth path
+        // so the 1x fundamental cannot leak underneath. Driver-mode POLY voices are
+        // created separately from the same sample buffer.
+        if (state.polyMode) targetVol = 0;
+        // In Audio Driver mode, gear.freq may still be zero until the first driver
+        // animation tick. Do NOT use that synthesized frequency as the gate for a
+        // loaded/recorded driver source; the ratio is the authoritative eligibility.
+        const invalidSource = gear.muted || gear.isUltrasonic || Math.abs(gear.ratio) === 0 || (!driverMode && gear.freq === 0);
+        if (invalidSource) targetVol = 0;
         else if (anySolo && !gear.solo) targetVol = 0;
         gear.gainNode.gain.setTargetAtTime(targetVol, now, 0.015);
       });
@@ -1301,13 +1618,23 @@
       return bestCandidate;
     }
 
-    function alignToothPhases(parent, child, meshAngle) {
-      const relAngle = meshAngle - parent.angle;
-      const contactTeethParent = (relAngle / (2 * Math.PI)) * parent.teeth;
-      const contactTeethChild = contactTeethParent;
-      
-      const childRelAngle = Math.PI + meshAngle - (contactTeethChild / child.teeth) * (2 * Math.PI);
-      child.angle = childRelAngle + Math.PI / child.teeth; // Interlock teeth into valley
+    // Phase-lock a newly meshed gear to the parent's current hand/tooth-1 angle.
+    // The visual 12-o'clock position is also the audio phase reference.
+    function alignGearPhaseToParent(parent, child) {
+      const baseVertical = -Math.PI / 2;
+      const ratio = child.ratio;
+      if (!Number.isFinite(ratio) || ratio === 0) {
+        child.angle = parent.angle;
+        return;
+      }
+
+      // child.angle = baseVertical + ratio * masterPhase + phaseOffset
+      // Choose the offset so the child's hand is exactly where the parent's
+      // hand is at the instant of attachment.
+      const computedWithoutOffset = baseVertical + (ratio * state.masterPhase);
+      const offsetRad = parent.angle - computedWithoutOffset;
+      child.phaseOffsetDeg = ((offsetRad * 180 / Math.PI + 540) % 360) - 180;
+      child.angle = parent.angle;
     }
 
     /* CANVAS PROCEDURAL GEAR RENDERER */
@@ -1495,12 +1822,114 @@
       ctx.restore();
     }
 
+    function updateOrbitPositions(dt) {
+      const mainGear = state.gears.find(g => g.isMain) || state.gears[0];
+      if (!mainGear) return;
+      state.gears.forEach(gear => {
+        if (gear.isMain || !gear.orbitEnabled || isGearBeingDragged(gear)) return;
+        const period = Math.max(0.25, Number(gear.orbitPeriodSec) || 8.0);
+        const previousOrbitPhase = gear.orbitPhase;
+        gear.orbitPhase += (2 * Math.PI * dt) / period;
+        const a = gear.orbitAngle + gear.orbitPhase;
+        const minRadius = mainGear.pitchRadius + gear.pitchRadius + 2;
+        const radius = Math.max(minRadius, gear.orbitRadius || minRadius);
+        gear.x = mainGear.x + Math.cos(a) * radius;
+        gear.y = mainGear.y + Math.sin(a) * radius;
+
+        // Orbit can optionally become part of the gear's rotational phase.
+        // Preserve Phase = checked: current behavior, orbit is spatial only.
+        // Unchecked: orbital motion advances the gear phase for a more dramatic effect.
+        if (!gear.orbitPreservePhase) {
+          gear.angle = -Math.PI / 2 + gear.ratio * state.masterPhase + gear.phaseOffsetRad + gear.orbitPhase;
+          if (gear.delayNode && state.audioCtx) {
+            const sourceFreq = Math.max(0.1, gear.freq || state.fundamentalFreq || 1);
+            const effectivePhase = gear.phaseOffsetRad + gear.orbitPhase;
+            const targetDelay = gear.isMain ? 0.0001 : getContinuousOrbitDelaySeconds(effectivePhase, sourceFreq);
+            if (!orbitPhaseBoundaryCrossed(previousOrbitPhase, gear.orbitPhase)) {
+              gear.delayNode.delayTime.setTargetAtTime(targetDelay, state.audioCtx.currentTime, 0.008);
+            } else {
+              smoothOrbitPhaseBoundary(gear, gear.delayNode, sourceFreq, previousOrbitPhase, gear.orbitPhase);
+            }
+          }
+        }
+
+        if (gear.pannerNode) {
+          const scale = state.spatialScale || 0.05;
+          const px = (gear.x - mainGear.x) * scale;
+          const pz = (gear.y - mainGear.y) * scale;
+          const nowAudio = state.audioCtx ? state.audioCtx.currentTime : 0;
+          if (gear.pannerNode.positionX) {
+            gear.pannerNode.positionX.setValueAtTime(px, nowAudio);
+            gear.pannerNode.positionY.setValueAtTime(0, nowAudio);
+            gear.pannerNode.positionZ.setValueAtTime(pz, nowAudio);
+          } else if (gear.pannerNode.setPosition) {
+            gear.pannerNode.setPosition(px, 0, pz);
+          }
+        }
+      });
+    }
+
+    function updatePolyOrbitPanners() {
+      if (!state.polyMode || !state.audioCtx) return;
+      const mainGear = state.gears.find(g => g.isMain) || state.gears[0];
+      if (!mainGear) return;
+      const nowAudio = state.audioCtx.currentTime;
+      state.polyVoices.forEach(voice => {
+        voice.gears.forEach(pg => {
+          const gear = pg.gear;
+          const relX = gear.isMain ? 0 : (gear.x - mainGear.x);
+          const relY = gear.isMain ? 0 : (gear.y - mainGear.y);
+          const px = state.spatialEnabled ? relX * state.spatialScale : 0;
+          const pz = state.spatialEnabled ? relY * state.spatialScale : 0;
+
+          // Keep hidden POLY gear trains phase-locked to their visible gear unless
+          // Preserve Phase is explicitly disabled on that gear.
+          if (!gear.isMain && !gear.orbitPreservePhase && pg.delayNode) {
+            const voiceFreq = Math.max(0.1, state.audioDriver.buffer && state.audioDriver.playing
+              ? (state.audioDriver.detectedFreq * state.audioDriver.driverRate * Math.abs(gear.ratio) * (state.audioDriver.keyboardKeyRatio || 1))
+              : (pg.gear.freq || state.fundamentalFreq || 1));
+            const effectivePhase = gear.phaseOffsetRad + gear.orbitPhase;
+            const targetDelay = getContinuousOrbitDelaySeconds(effectivePhase, voiceFreq);
+            const lastPolyPhase = Number.isFinite(pg._lastOrbitPhase) ? pg._lastOrbitPhase : gear.orbitPhase;
+            if (!orbitPhaseBoundaryCrossed(lastPolyPhase, gear.orbitPhase)) {
+              pg.delayNode.delayTime.setTargetAtTime(targetDelay, nowAudio, 0.008);
+            } else {
+              const gain = pg.gainNode;
+              if (gain) {
+                const held = Math.max(0.0001, Math.min(1, Number(pg.volume ?? gear.volume) || 0.2));
+                const fade = 0.012;
+                const wrappedDelay = getContinuousOrbitDelaySeconds(effectivePhase, voiceFreq);
+                gain.gain.cancelScheduledValues(nowAudio);
+                const currentGain = Math.max(0, Math.min(1, Number(gain.gain.value) || held));
+                gain.gain.setValueAtTime(currentGain, nowAudio);
+                gain.gain.linearRampToValueAtTime(0, nowAudio + fade * 0.5);
+                pg.delayNode.delayTime.cancelScheduledValues(nowAudio);
+                pg.delayNode.delayTime.setValueAtTime(wrappedDelay, nowAudio + fade * 0.5);
+                gain.gain.linearRampToValueAtTime(held, nowAudio + fade);
+              }
+            }
+            pg._lastOrbitPhase = gear.orbitPhase;
+          }
+
+          if (pg.pannerNode?.positionX) {
+            pg.pannerNode.positionX.setTargetAtTime(px, nowAudio, 0.02);
+            pg.pannerNode.positionY.setTargetAtTime(0, nowAudio, 0.02);
+            pg.pannerNode.positionZ.setTargetAtTime(pz, nowAudio, 0.02);
+          } else if (pg.pannerNode?.setPosition) {
+            pg.pannerNode.setPosition(px, 0, pz);
+          }
+        });
+      });
+    }
+
     /* ANIMATION LOOP */
     let lastTime = performance.now();
 
     function renderLoop(now) {
-      const dt = (now - lastTime) / 1000;
+      const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
       lastTime = now;
+      updateOrbitPositions(dt);
+      updatePolyOrbitPanners();
 
       // Legato Glissando Smooth Pitch Interpolation for Mechanical Gears
       if (state.legato && Math.abs(state.fundamentalFreq - state.targetFundamentalFreq) > 0.0001) {
@@ -1510,17 +1939,28 @@
         updateKinematicNetwork();
       }
 
-      if (state.audioDriver.buffer && state.audioDriver.playing) {
-        updateDriverAnimation(dt);
-      } else {
-        state.masterPhase += (2 * Math.PI * state.fundamentalFreq) * dt;
-        state.masterPhase %= (2 * Math.PI);
-        state.gears.forEach(gear => {
-          if (gear.ratio !== 0) {
-            const baseVertical = -Math.PI / 2;
-            gear.angle = baseVertical + (gear.ratio * state.masterPhase) + gear.phaseOffsetRad;
-          }
-        });
+      if (state.audioSyncPending) {
+        if (performance.now() >= state.audioSyncPerfMs) {
+          state.audioSyncPending = false;
+          state.masterPhase = 0;
+        } else {
+          state.gears.forEach(g => { if (g.ratio !== 0) g.angle = -Math.PI / 2; });
+        }
+      }
+
+      if (!state.audioSyncPending) {
+        if (state.audioDriver.buffer && state.audioDriver.playing) {
+          updateDriverAnimation(dt);
+        } else {
+          state.masterPhase += (2 * Math.PI * state.fundamentalFreq) * dt;
+          state.masterPhase %= (2 * Math.PI);
+          state.gears.forEach(gear => {
+            if (gear.ratio !== 0 && !isGearBeingDragged(gear)) {
+              const baseVertical = -Math.PI / 2;
+              gear.angle = baseVertical + (gear.ratio * state.masterPhase) + gear.phaseOffsetRad;
+            }
+          });
+        }
       }
 
       ctx.fillStyle = '#0f172a';
@@ -1648,6 +2088,10 @@
       return null;
     }
 
+    function isGearBeingDragged(gear) {
+      return !!(state.dragState && state.dragState.mode === 'gear' && state.dragState.branch && state.dragState.branch.some(g => g.id === gear.id));
+    }
+
     function getBranchGears(startGear) {
       const branch = new Set();
       const queue = [startGear];
@@ -1681,14 +2125,17 @@
         const moveBranch = clickedGear.isMain || e.shiftKey;
         const branch = moveBranch ? getBranchGears(clickedGear) : [clickedGear];
         if (!moveBranch) {
+          // Preserve the gear's exact hand/tooth-1 angle while disconnected.
+          clickedGear.dragStartAngle = clickedGear.angle;
           clickedGear.neighbors.forEach(nid => {
             const neighbor = state.gearMap.get(nid);
             if (neighbor) neighbor.neighbors.delete(clickedGear.id);
           });
           clickedGear.neighbors.clear();
           updateKinematicNetwork();
+          clickedGear.angle = clickedGear.dragStartAngle;
         }
-        state.dragState = { mode: 'gear', gear: clickedGear, branch, moveBranch, startX: mouse.x, startY: mouse.y, snapTarget: null, pointerId: e.pointerId };
+        state.dragState = { mode: 'gear', gear: clickedGear, branch, moveBranch, startX: mouse.x, startY: mouse.y, snapTarget: null, pointerId: e.pointerId, phaseAngles: new Map(branch.map(g => [g.id, g.angle])) };
       } else {
         state.selectedGearId = null;
         state.dragState = { mode: 'pan', startX: e.clientX, startY: e.clientY, camStartX: state.camera.x, camStartY: state.camera.y, pointerId: e.pointerId };
@@ -1735,7 +2182,6 @@
           gear.y = snap.y;
           gear.neighbors.add(snap.parent.id);
           snap.parent.neighbors.add(gear.id);
-          alignToothPhases(snap.parent, gear, snap.angle);
         } else {
           state.gears.forEach(other => {
             if (other.id !== gear.id && !state.dragState.branch.includes(other)) {
@@ -1749,6 +2195,23 @@
           });
         }
         updateKinematicNetwork();
+        const phaseParent = Array.from(gear.neighbors).map(id => state.gearMap.get(id)).find(Boolean);
+        if (phaseParent) {
+          alignGearPhaseToParent(phaseParent, gear);
+        } else {
+          const savedAngle = state.dragState.phaseAngles?.get(gear.id);
+          if (Number.isFinite(savedAngle)) gear.angle = savedAngle;
+        }
+        updateAudioNodes();
+        if (gear.orbitEnabled && !gear.isMain) {
+          const main = state.gears.find(g => g.isMain) || state.gears[0];
+          if (main) {
+            const dx = gear.x - main.x, dy = gear.y - main.y;
+            gear.orbitRadius = Math.max(main.pitchRadius + gear.pitchRadius + 2, Math.hypot(dx, dy));
+            gear.orbitAngle = Math.atan2(dy, dx);
+            gear.orbitPhase = 0;
+          }
+        }
       }
       canvas.releasePointerCapture?.(e.pointerId);
       state.dragState = null;
@@ -1810,7 +2273,7 @@
           if (!checkOverlap(gear, gear.x, gear.y)) {
             gear.neighbors.add(parent.id);
             parent.neighbors.add(gear.id);
-            alignToothPhases(parent, gear, angle);
+            alignGearPhaseToParent(parent, gear);
           }
         }
       }
@@ -1820,14 +2283,12 @@
 
       updateKinematicNetwork();
 
-      // Preserve the requested creation phase: a newly created gear starts at the
-      // same visual angle as the main driver at the instant it is created.
+      // Preserve the requested creation phase: a newly created connected gear
+      // starts with its hand/tooth-1 at the exact main-driver angle.
       if (!isMain) {
         const main = state.gears.find(g => g.isMain);
-        if (main && gear.ratio !== 0) {
-          const baseVertical = -Math.PI / 2;
-          const currentComputedAngle = baseVertical + (gear.ratio * state.masterPhase);
-          gear.setPhaseOffsetDeg((main.angle - currentComputedAngle) * 180 / Math.PI);
+        if (main && gear.neighbors.has(main.id)) {
+          alignGearPhaseToParent(main, gear);
           updateAudioNodes();
         } else if (main) {
           gear.angle = main.angle;
@@ -1987,15 +2448,325 @@
       });
     }
 
-    function playSemitone(semitone) {
-      if (!state.audioRunning) {
-        initAudio();
+    function setKeyboardAudioActive(active) {
+      state.keyboardAudioActive = !!active;
+      if (!state.audioCtx || !state.audioRunning) return;
+      const now = state.audioCtx.currentTime;
+      // In POLY, the visible machine is muted; the virtual gear trains are the sound source.
+      if (state.polyMode) {
+        state.masterGain.gain.setTargetAtTime(state.masterVolume, now, 0.005);
+        state.polyVoices.forEach(voice => {
+          const voiceTarget = (!state.releaseOnKeyup || state.keyboardAudioActive) ? 1 : 0;
+          voice.masterGain.gain.setTargetAtTime(voiceTarget, now, 0.005);
+        });
+        return;
       }
-      state.activeSemitone = semitone;
+      const target = (state.releaseOnKeyup && !state.keyboardAudioActive) ? 0 : state.masterVolume;
+      state.masterGain.gain.setTargetAtTime(target, now, 0.005);
+    }
 
+    function syncKeyboardAudioGate() {
+      const held = state.pressedKeys.size > 0 || state.midiHeldNotes.size > 0;
+      setKeyboardAudioActive(state.releaseOnKeyup ? held : true);
+    }
+
+    function getPolyGearVolume(gear) {
+      if (gear.muted || gear.isUltrasonic || gear.freq === 0 || Math.abs(gear.ratio) === 0) return 0;
+      const anySolo = state.gears.some(g => g.solo);
+      if (anySolo && !gear.solo) return 0;
+      // Keep each virtual train balanced as the number of active gear trains increases.
+      const trainCount = Math.max(1, state.polyVoices.size);
+      const polyScale = 1 / Math.sqrt(trainCount);
+      return Math.max(0, gear.volume) * polyScale;
+    }
+
+    function disconnectPolyGear(pg) {
+      if (!pg) return;
+      if (pg.source) { try { pg.source.stop(); } catch(e) {} try { pg.source.disconnect(); } catch(e) {} }
+      if (pg.osc) { try { pg.osc.stop(); } catch(e) {} try { pg.osc.disconnect(); } catch(e) {} }
+      try { pg.delayNode.disconnect(); } catch(e) {}
+      try { pg.gainNode.disconnect(); } catch(e) {}
+      try { pg.pannerNode.disconnect(); } catch(e) {}
+    }
+
+    // Nearest simple-ratio just intonation for a held POLY chord.
+    // The lowest held note is the temporary tonal root. With one held note we
+    // retain 12-EDO so a single note does not collapse to unison.
+    const JI_RATIO_LIMIT = 16;
+    let jiRatioTable = null;
+
+    function buildJIRatioTable() {
+      const out = [];
+      const seen = new Set();
+      for (let d = 1; d <= JI_RATIO_LIMIT; d++) {
+        for (let n = d; n <= d * 2; n++) {
+          const g = gcdInt(n, d);
+          const nn = n / g, dd = d / g;
+          const key = `${nn}/${dd}`;
+          if (seen.has(key) || nn > JI_RATIO_LIMIT || dd > JI_RATIO_LIMIT) continue;
+          const ratio = nn / dd;
+          if (ratio < 1 || ratio > 2) continue;
+          seen.add(key);
+          out.push({ n: nn, d: dd, ratio, complexity: nn + dd });
+        }
+      }
+      out.sort((a, b) => a.complexity - b.complexity || a.ratio - b.ratio);
+      return out;
+    }
+
+    function gcdInt(a, b) {
+      a = Math.abs(a); b = Math.abs(b);
+      while (b) { const t = a % b; a = b; b = t; }
+      return a || 1;
+    }
+
+    function nearestSimpleJIRatio(semitones) {
+      if (!jiRatioTable) jiRatioTable = buildJIRatioTable();
+      const cents = Math.abs(semitones) * 100;
+      let best = { ratio: 1, error: Infinity, complexity: Infinity };
+      jiRatioTable.forEach(candidate => {
+        const candidateCents = 1200 * Math.log2(candidate.ratio);
+        const error = Math.abs(candidateCents - cents);
+        // Simplicity wins when candidates are effectively equally close.
+        if (error < best.error - 0.01 ||
+            (Math.abs(error - best.error) <= 0.01 && candidate.complexity < best.complexity)) {
+          best = { ratio: candidate.ratio, error, complexity: candidate.complexity };
+        }
+      });
+      return semitones < 0 ? 1 / best.ratio : best.ratio;
+    }
+
+    function getHeldAbsoluteSemitones() {
+      const notes = [];
+      state.midiHeldNotes.forEach(v => notes.push(Number(v.semitone)));
+      state.pressedKeys.forEach(code => {
+        if (Object.prototype.hasOwnProperty.call(KEY_TO_SEMITONE, code)) {
+          notes.push(KEY_TO_SEMITONE[code] + state.octaveShift * 12);
+        }
+      });
+      return notes.filter(Number.isFinite).sort((a, b) => a - b);
+    }
+
+    function getPolyMasterFrequency(absoluteSemitone) {
+      // Always start from the note's own absolute 12-EDO frequency.
+      // Nearest-JI is applied only as a cents correction, so changing the
+      // held chord can never move a surviving note by an octave.
+      const equalRatio = Math.pow(2, absoluteSemitone / 12);
+      let freq = state.baseFundamentalFreq * equalRatio;
+
+      if (!state.jiKeyboard || !state.polyMode) {
+        return Math.max(0.001, freq);
+      }
+
+      const held = getHeldAbsoluteSemitones();
+      if (held.length < 2) return Math.max(0.001, freq);
+
+      const root = held[0];
+      const interval = absoluteSemitone - root;
+      const withinOctave = ((interval % 12) + 12) % 12;
+      const ji = nearestSimpleJIRatio(withinOctave);
+      const equalIntervalRatio = Math.pow(2, withinOctave / 12);
+
+      // Preserve the note's existing octave and replace only the 12-EDO
+      // interval inside that octave with the nearest simple JI ratio.
+      const jiCorrection = ji / equalIntervalRatio;
+      freq *= jiCorrection;
+      return Math.max(0.001, freq);
+    }
+
+    function createPolyTrain(semitone, keyId) {
+      if (!state.audioCtx || !state.audioRunning) return null;
+      const now = state.audioCtx.currentTime;
+      const absoluteSemitone = semitone + state.octaveShift * 12;
+      const masterFreq = getPolyMasterFrequency(absoluteSemitone);
+      const anySolo = state.gears.some(g => g.solo);
+      const driverMode = !!state.audioDriver.buffer && state.audioDriver.playing;
+      const baseFund = Math.max(0.001, state.baseFundamentalFreq || 1);
+      const voiceRatio = Math.max(0.000001, masterFreq / baseFund);
+      const voice = {
+        keyId,
+        semitone,
+        absoluteSemitone,
+        masterFreq,
+        voiceRatio,
+        driverMode,
+        masterGain: state.audioCtx.createGain(),
+        gears: new Map()
+      };
+
+      voice.masterGain.gain.setValueAtTime((!state.releaseOnKeyup || state.keyboardAudioActive) ? 1 : 0, now);
+      voice.masterGain.connect(state.masterGain);
+
+      state.gears.forEach(gear => {
+        if (gear.isUltrasonic || gear.freq === 0 || Math.abs(gear.ratio) === 0) return;
+        // The visible main gear's own driver is intentionally silent in driver mode,
+        // matching the normal Audio Driver routing. Secondary gears carry the sample.
+        if (driverMode && gear.isMain) return;
+
+        const delayNode = state.audioCtx.createDelay(15.0);
+        const gainNode = state.audioCtx.createGain();
+        const pannerNode = state.audioCtx.createPanner();
+        pannerNode.panningModel = state.spatialEnabled ? state.spatialMode : 'equalpower';
+        pannerNode.distanceModel = 'inverse';
+        pannerNode.refDistance = 1;
+        pannerNode.maxDistance = 1000;
+        pannerNode.rolloffFactor = 1;
+        gainNode.connect(pannerNode);
+        pannerNode.connect(voice.masterGain);
+        delayNode.connect(gainNode);
+
+        const gearFreq = Math.max(0.001, masterFreq * Math.abs(gear.ratio));
+        const phaseRad = (Number(gear.phaseOffsetDeg) || 0) * Math.PI / 180;
+        const delay = gear.isMain ? 0.0001 : getPhaseAlignedDelaySeconds(phaseRad, gearFreq);
+        delayNode.delayTime.setValueAtTime(delay, now);
+
+        if (pannerNode.positionX) {
+          const mainGear = state.gears.find(g => g.isMain) || state.gears[0];
+          const pannerX = (!state.spatialEnabled || !mainGear || gear.isMain) ? 0 : (gear.x - mainGear.x) * state.spatialScale;
+          const pannerZ = (!state.spatialEnabled || !mainGear || gear.isMain) ? 0 : (gear.y - mainGear.y) * state.spatialScale;
+          pannerNode.positionX.setValueAtTime(pannerX, now);
+          pannerNode.positionY.setValueAtTime(0, now);
+          pannerNode.positionZ.setValueAtTime(pannerZ, now);
+        } else if (pannerNode.setPosition) {
+          pannerNode.setPosition(0, 0, 0);
+        }
+
+        let vol = getPolyGearVolume(gear);
+        if (!anySolo || gear.solo) vol = Math.max(0, vol);
+        // A driver-backed POLY voice is valid as soon as it has a non-zero gear ratio;
+        // do not suppress it because the synth-side gear frequency has not been updated yet.
+        if (driverMode && gear.isUltrasonic) vol = 0;
+        gainNode.gain.setValueAtTime(vol, now);
+
+        if (driverMode) {
+          const source = state.audioCtx.createBufferSource();
+          source.buffer = state.audioDriver.buffer;
+          source.loop = true;
+          const playbackRate = Math.max(0.000001,
+            Math.abs(gear.ratio) * state.audioDriver.driverRate * voiceRatio
+          );
+          source.playbackRate.setValueAtTime(playbackRate, now);
+          source.connect(delayNode);
+          const duration = state.audioDriver.buffer.duration || 0;
+          const offset = duration > 0 ? (state.audioDriver.elapsed % duration) : 0;
+          try { source.start(now, offset); } catch(e) { source.start(); }
+          voice.gears.set(gear.id, { source, delayNode, gainNode, pannerNode, gear });
+        } else {
+          const osc = state.audioCtx.createOscillator();
+          if (state.waveform === 'impulse') osc.setPeriodicWave(getImpulseWave(state.audioCtx));
+          else osc.type = state.waveform;
+          osc.frequency.setValueAtTime(gearFreq, now);
+          osc.connect(delayNode);
+          osc.start(now);
+          voice.gears.set(gear.id, { osc, delayNode, gainNode, pannerNode, gear });
+        }
+      });
+
+      return voice;
+    }
+
+    function stopPolyVoice(keyId) {
+      const voice = state.polyVoices.get(keyId);
+      if (!voice || voice.releasing) return;
+
+      const now = state.audioCtx.currentTime;
+      const releaseTime = 0.025; // short musical release; prevents DC-crossing clicks
+      voice.releasing = true;
+
+      // Never hard-stop an active oscillator at the current waveform value.
+      // Ramp the complete train to silence first, then dispose of its nodes.
+      voice.masterGain.gain.cancelScheduledValues(now);
+      voice.masterGain.gain.setValueAtTime(Math.max(0, voice.masterGain.gain.value), now);
+      voice.masterGain.gain.linearRampToValueAtTime(0, now + releaseTime);
+
+      setTimeout(() => {
+        voice.gears.forEach(disconnectPolyGear);
+        try { voice.masterGain.disconnect(); } catch(e) {}
+        state.polyVoices.delete(keyId);
+        // Recalculate the balance of the remaining virtual trains without touching their pitch.
+        updatePolyVoices();
+        syncKeyboardAudioGate();
+      }, Math.ceil(releaseTime * 1000) + 8);
+    }
+
+    function stopAllPolyVoices() {
+      Array.from(state.polyVoices.keys()).forEach(stopPolyVoice);
+    }
+
+    function updatePolyVoices() {
+      if (!state.audioCtx || !state.audioRunning) return;
+      const now = state.audioCtx.currentTime;
+      const driverMode = !!state.audioDriver.buffer && state.audioDriver.playing;
+      const baseFund = Math.max(0.001, state.baseFundamentalFreq || 1);
+
+      state.polyVoices.forEach(voice => {
+        voice.absoluteSemitone = voice.semitone + state.octaveShift * 12;
+        voice.masterFreq = getPolyMasterFrequency(voice.absoluteSemitone);
+        voice.voiceRatio = Math.max(0.000001, voice.masterFreq / baseFund);
+        voice.driverMode = driverMode;
+
+        voice.gears.forEach(pg => {
+          const gear = pg.gear;
+          const gearFreq = Math.max(0.001, voice.masterFreq * Math.abs(gear.ratio));
+          const phaseRad = (Number(gear.phaseOffsetDeg) || 0) * Math.PI / 180;
+          const delay = gear.isMain ? 0.0001 : getPhaseAlignedDelaySeconds(phaseRad, gearFreq);
+          pg.delayNode.delayTime.setTargetAtTime(delay, now, 0.005);
+          pg.gainNode.gain.setTargetAtTime(getPolyGearVolume(gear), now, 0.01);
+
+          if (driverMode && pg.source) {
+            const playbackRate = Math.max(0.000001,
+              Math.abs(gear.ratio) * state.audioDriver.driverRate * voice.voiceRatio
+            );
+            pg.source.playbackRate.setTargetAtTime(playbackRate, now, 0.005);
+          } else if (!driverMode && pg.osc) {
+            pg.osc.frequency.setTargetAtTime(
+              gearFreq,
+              now,
+              state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005
+            );
+          }
+        });
+
+        const gate = (!state.releaseOnKeyup || state.keyboardAudioActive) ? 1 : 0;
+        voice.masterGain.gain.setTargetAtTime(gate, now, 0.005);
+      });
+    }
+
+    function rebuildPolyVoicesForDriverMode() {
+      if (!state.polyMode || !state.audioCtx || !state.audioRunning) return;
+      const held = Array.from(state.polyVoices.values()).map(v => ({ semitone: v.semitone, keyId: v.keyId }));
+      held.forEach(({ keyId }) => stopPolyVoice(keyId));
+      window.setTimeout(() => {
+        if (!state.polyMode) return;
+        held.forEach(({ semitone, keyId }) => startPolyVoice(semitone, keyId));
+      }, 40);
+    }
+
+    function startPolyVoice(semitone, keyId) {
+      if (!state.audioRunning) initAudio();
+      if (state.polyVoices.has(keyId)) return;
+      setKeyboardAudioActive(true);
+      const voice = createPolyTrain(semitone, keyId);
+      if (!voice) return;
+      state.polyVoices.set(keyId, voice);
+      // Rebalance all trains because the number of active notes changed.
+      updatePolyVoices();
+    }
+
+    function playSemitone(semitone, keyId = `note-${semitone}`) {
+      // semitone may be signed for MIDI: 0 = C4, -39 = MIDI 21 (A0),
+      // +48 = MIDI 108 (C8). QWERTY still supplies 0..11 plus octaveShift.
+      if (!state.audioRunning) initAudio();
+      setKeyboardAudioActive(true);
       const totalSemitones = semitone + (state.octaveShift * 12);
       const ratio = Math.pow(2, totalSemitones / 12);
-
+      if (state.polyMode) {
+        state.activeSemitone = semitone;
+        startPolyVoice(semitone, keyId);
+        updateKeyboardUI(semitone, ratio);
+        return;
+      }
+      state.activeSemitone = semitone;
       if (state.audioDriver.buffer && state.audioDriver.playing) {
         // Keyboard has its own fundamental RPM. The driver RPM slider stays untouched.
         state.audioDriver.keyboardKeyRatio = ratio;
@@ -2008,25 +2779,48 @@
       updateKeyboardUI(semitone, ratio);
     }
 
-    function releaseKeyboardNotes() {
-      // If releaseOnKeyup is disabled (Hold Mode), retain played pitch on key release
+    function releaseKeyboardNotes(keyId = null) {
+      if (state.polyMode) {
+        if (keyId) stopPolyVoice(keyId);
+        else stopAllPolyVoices();
+        if (state.polyVoices.size === 0) {
+          state.activeSemitone = null;
+          updateKeyboardUI(null, 1.0);
+        }
+        syncKeyboardAudioGate();
+        return;
+      }
       if (!state.releaseOnKeyup) return;
+
+      // A MIDI note or another QWERTY key may still be holding the synth.
+      if (state.pressedKeys.size > 0 || state.midiHeldNotes.size > 0) {
+        const lastMidi = Array.from(state.midiHeldNotes.values()).pop();
+        if (state.pressedKeys.size === 0 && lastMidi) {
+          const oldOct = state.octaveShift;
+          state.octaveShift = lastMidi.octave;
+          playSemitone(lastMidi.semitone, `midi-${lastMidi.note}`);
+          state.octaveShift = oldOct;
+        }
+        syncKeyboardAudioGate();
+        return;
+      }
 
       state.activeSemitone = null;
       state.audioDriver.keyboardKeyRatio = 1;
-      if (state.audioDriver.buffer && state.audioDriver.playing) {
-        applyKeyboardDriverPitch();
-      } else {
-        setFundamentalFrequency(state.baseFundamentalFreq, false);
-      }
+      if (state.audioDriver.buffer && state.audioDriver.playing) applyKeyboardDriverPitch();
+      else setFundamentalFrequency(state.baseFundamentalFreq, false);
       updateKeyboardUI(null, 1.0);
+      setKeyboardAudioActive(false);
     }
 
     function updateKeyboardUI(activeSemitone, ratio = 1.0) {
       const keys = document.querySelectorAll('#virtual-keyboard .key');
       keys.forEach(k => {
         const noteIdx = parseInt(k.getAttribute('data-note'));
-        if (activeSemitone !== null && noteIdx === activeSemitone) {
+        const activePitchClass = activeSemitone === null || activeSemitone === undefined
+          ? null
+          : ((activeSemitone % 12) + 12) % 12;
+        if (activePitchClass !== null && noteIdx === activePitchClass) {
           k.classList.add('active');
         } else {
           k.classList.remove('active');
@@ -2035,7 +2829,8 @@
 
       const noteHud = document.getElementById('hud-current-note');
       if (activeSemitone !== null && activeSemitone !== undefined) {
-        const noteName = NOTE_NAMES[activeSemitone] || 'C';
+        const pitchClass = ((activeSemitone % 12) + 12) % 12;
+        const noteName = NOTE_NAMES[pitchClass] || 'C';
         noteHud.textContent = `${noteName} (${ratio.toFixed(2)}x)`;
       } else {
         noteHud.textContent = 'C (1.00x)';
@@ -2047,13 +2842,16 @@
       keys.forEach(key => {
         const semitone = parseInt(key.getAttribute('data-note'));
         
+        const keyId = key.getAttribute('data-key');
         const startNote = (e) => {
           e.preventDefault();
-          playSemitone(semitone);
+          state.pressedKeys.add(keyId);
+          playSemitone(semitone, keyId);
         };
         const stopNote = (e) => {
           e.preventDefault();
-          releaseKeyboardNotes();
+          state.pressedKeys.delete(keyId);
+          releaseKeyboardNotes(keyId);
         };
 
         key.addEventListener('mousedown', startNote);
@@ -2066,19 +2864,20 @@
       document.getElementById('btn-oct-down').addEventListener('click', () => {
         state.octaveShift = Math.max(-3, state.octaveShift - 1);
         document.getElementById('val-oct-shift').textContent = state.octaveShift > 0 ? `+${state.octaveShift}` : state.octaveShift;
-        if (state.activeSemitone !== null) playSemitone(state.activeSemitone);
+        if (state.polyMode) updatePolyVoices(); else if (state.activeSemitone !== null) playSemitone(state.activeSemitone);
       });
 
       document.getElementById('btn-oct-up').addEventListener('click', () => {
         state.octaveShift = Math.min(3, state.octaveShift + 1);
         document.getElementById('val-oct-shift').textContent = state.octaveShift > 0 ? `+${state.octaveShift}` : state.octaveShift;
-        if (state.activeSemitone !== null) playSemitone(state.activeSemitone);
+        if (state.polyMode) updatePolyVoices(); else if (state.activeSemitone !== null) playSemitone(state.activeSemitone);
       });
 
       document.getElementById('btn-reset-pitch').addEventListener('click', () => {
         state.octaveShift = 0;
         document.getElementById('val-oct-shift').textContent = '0';
         state.activeSemitone = null;
+        if (state.polyMode) { stopAllPolyVoices(); updateKeyboardUI(null, 1.0); return; }
         state.audioDriver.keyboardKeyRatio = 1;
         if (state.audioDriver.buffer && state.audioDriver.playing) {
           applyKeyboardDriverPitch();
@@ -2088,12 +2887,32 @@
         updateKeyboardUI(null, 1.0);
       });
 
-      // Bind Note Release, Legato, and Gliss Speed controls
-      document.getElementById('chk-release-note').addEventListener('change', (e) => {
-        state.releaseOnKeyup = e.target.checked;
-        if (state.releaseOnKeyup && state.pressedKeys.size === 0) {
+      document.getElementById('btn-poly').addEventListener('click', () => {
+        state.polyMode = !state.polyMode;
+        const btn = document.getElementById('btn-poly');
+        const status = document.getElementById('poly-status');
+        btn.textContent = state.polyMode ? 'POLY ON' : 'POLY OFF';
+        btn.style.background = state.polyMode ? 'var(--accent-green)' : 'var(--border-color)';
+        btn.style.color = state.polyMode ? '#000' : 'var(--text-main)';
+        status.textContent = state.polyMode ? 'One full gear train per held note' : 'Keyboard plays the visible gear machine';
+        if (!state.polyMode) stopAllPolyVoices();
+        updateAudioNodes();
+        syncKeyboardAudioGate();
+      });
+
+      // Bind Continuous, Legato, and Gliss Speed controls
+      document.getElementById('chk-continuous').addEventListener('change', (e) => {
+        state.releaseOnKeyup = !e.target.checked;
+        syncKeyboardAudioGate();
+        if (state.releaseOnKeyup && state.pressedKeys.size === 0 && state.midiHeldNotes.size === 0) {
           releaseKeyboardNotes();
         }
+      });
+
+      const jiKeyboardChk = document.getElementById('chk-ji-keyboard');
+      jiKeyboardChk.addEventListener('change', (e) => {
+        state.jiKeyboard = e.target.checked;
+        if (state.polyMode && state.polyVoices.size) updatePolyVoices();
       });
 
       const legatoChk = document.getElementById('chk-legato');
@@ -2112,6 +2931,111 @@
         glissVal.textContent = `${state.glissTime.toFixed(2)}s`;
       });
     }
+
+    // WEB MIDI INPUT
+    function setMidiStatus(text, ok = false) {
+      const el = document.getElementById('midi-status');
+      if (!el) return;
+      el.textContent = text;
+      el.style.color = ok ? 'var(--accent-green)' : 'var(--text-muted)';
+    }
+
+    function midiNoteToVoice(note) {
+      // MIDI note 60 (C4) is the machine's 1:1 reference. Keep the full
+      // signed semitone distance so the complete MIDI range is preserved.
+      const semitone = Number(note) - 60;
+      return { note, semitone, octave: 0 };
+    }
+
+    function attachMidiInput(id) {
+      if (state.midi.input) state.midi.input.onmidimessage = null;
+      const input = state.midi.access?.inputs.get(id) || null;
+      state.midi.input = input;
+      if (!input) { setMidiStatus('No MIDI input selected'); return; }
+      input.onmidimessage = handleMidiMessage;
+      setMidiStatus(`Listening: ${input.name || input.id}`, true);
+    }
+
+    function populateMidiInputs() {
+      const select = document.getElementById('select-midi-input');
+      if (!select) return;
+      const inputs = state.midi.access ? Array.from(state.midi.access.inputs.values()) : [];
+      select.innerHTML = '';
+      if (!inputs.length) {
+        select.add(new Option('No MIDI inputs found', ''));
+        state.midi.input = null;
+        return;
+      }
+      inputs.forEach(input => select.add(new Option(input.name || input.id, input.id)));
+      const loop = inputs.find(input => /loopmidi/i.test(`${input.name || ''} ${input.manufacturer || ''}`));
+      const chosen = inputs.find(input => input.id === state.midi.input?.id) || loop || inputs[0];
+      select.value = chosen.id;
+      attachMidiInput(chosen.id);
+    }
+
+    function handleMidiMessage(event) {
+      const d = event?.data;
+      if (!d || d.length < 2) return;
+      const type = d[0] & 0xf0;
+      const note = d[1] & 127;
+      const velocity = (d[2] || 0) & 127;
+      if (type === 0x90 && velocity > 0) {
+        const v = midiNoteToVoice(note);
+        state.midiHeldNotes.set(note, v);
+        setKeyboardAudioActive(true);
+        const oldOct = state.octaveShift;
+        state.octaveShift = 0;
+        playSemitone(v.semitone, `midi-${note}`);
+        state.octaveShift = oldOct;
+      } else if (type === 0x80 || (type === 0x90 && velocity === 0)) {
+        state.midiHeldNotes.delete(note);
+        if (state.polyMode) {
+          if (state.releaseOnKeyup) stopPolyVoice(`midi-${note}`);
+          syncKeyboardAudioGate();
+          return;
+        }
+        if (!state.releaseOnKeyup) {
+          syncKeyboardAudioGate();
+          return;
+        }
+        if (state.midiHeldNotes.size === 0 && state.pressedKeys.size === 0) {
+          releaseKeyboardNotes();
+        } else if (state.pressedKeys.size === 0) {
+          const last = Array.from(state.midiHeldNotes.values()).pop();
+          const oldOct = state.octaveShift;
+          state.octaveShift = 0;
+          playSemitone(last.semitone, `midi-${last.note}`);
+          state.octaveShift = oldOct;
+        } else {
+          syncKeyboardAudioGate();
+        }
+      }
+    }
+
+    async function initWebMIDI() {
+      if (!navigator.requestMIDIAccess) {
+        setMidiStatus('WebMIDI is not supported by this browser');
+        return false;
+      }
+      try {
+        state.midi.access = await navigator.requestMIDIAccess({ sysex: false });
+        state.midi.enabled = true;
+        state.midi.access.onstatechange = populateMidiInputs;
+        populateMidiInputs();
+        const count = state.midi.access.inputs.size;
+        const loop = Array.from(state.midi.access.inputs.values()).some(i => /loopmidi/i.test(`${i.name || ''} ${i.manufacturer || ''}`));
+        setMidiStatus(loop ? 'WebMIDI ready - LoopMIDI detected' : `WebMIDI ready - ${count} input(s)`, true);
+        return true;
+      } catch (err) {
+        console.error(err);
+        setMidiStatus('Could not access WebMIDI');
+        return false;
+      }
+    }
+
+    document.getElementById('btn-midi-enable').addEventListener('click', initWebMIDI);
+    document.getElementById('btn-midi-refresh').addEventListener('click', () => state.midi.access ? populateMidiInputs() : initWebMIDI());
+    document.getElementById('select-midi-input').addEventListener('change', e => attachMidiInput(e.target.value));
 
     // Fundamental Frequency / Audio Driver RPM Slider
     const fundSlider = document.getElementById('slider-fundamental');
@@ -2284,6 +3208,7 @@
             <button id="btn-inspector-teeth-up" type="button" style="padding:3px 9px; font-size:0.9rem; line-height:1;">+</button>
           </div>
         </div>
+        <input type="range" id="slider-inspector-teeth" min="1" max="15015" step="1" value="${gear.teeth}" style="width:100%; margin-top:5px;">
         <div><strong>Absolute Ratio:</strong> ${floatToFraction(gear.ratio)} (${gear.ratio.toFixed(6)})</div>
         <div><strong>Calculated Freq:</strong> ${gear.freq.toFixed(3)} Hz</div>
         <div><strong>Acoustic Delay:</strong> ${delayMs >= 0 ? '+' : ''}${delayMs.toFixed(3)} ms</div>
@@ -2291,6 +3216,26 @@
         <div><strong>Rotation Dir:</strong> ${gear.ratio >= 0 ? 'Clockwise (+)' : 'Counter-Clockwise (-)'}</div>
         <div><strong>Meshed With:</strong> ${parents.map(p => p.teeth + 'T').join(', ') || 'None (Unpowered)'}</div>
 
+        <div style="margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 6px;">
+          <strong style="color: var(--accent-cyan);">Gear Locks</strong>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:5px; font-size:0.7rem;">
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="chk-ratio-lock" ${gear.isMain ? 'disabled' : ''} ${gear.ratioLock ? 'checked' : ''}><span>Ratio Lock</span></label>
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="chk-teeth-lock" ${gear.isMain ? 'disabled' : ''} ${gear.teethLock ? 'checked' : ''}><span>Teeth Lock</span></label>
+          </div>
+          <div style="font-size:0.64rem; color:var(--text-muted); margin-top:3px; line-height:1.3;">Ratio Lock preserves this gear's ratio when the main gear changes. Teeth Lock preserves its tooth count when other gear sizes change.</div>
+        </div>
+        <div style="margin-top:8px; border-top:1px solid var(--border-color); padding-top:6px;">
+          <strong style="color: var(--accent-cyan);">3D Orbit Around Head</strong>
+          <div style="display:flex; align-items:center; gap:7px; margin-top:5px; font-size:0.7rem;">
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="chk-orbit" ${gear.isMain ? 'disabled' : ''} ${gear.orbitEnabled ? 'checked' : ''}><span>Orbit</span></label>
+            <input type="range" id="slider-orbit-time" min="0.25" max="60" step="0.05" value="${Math.min(60, Math.max(0.25, gear.orbitPeriodSec || 8))}" ${gear.isMain ? 'disabled' : ''} style="flex:1; min-width:0;">
+            <span id="val-orbit-time" style="min-width:58px; text-align:right; color:var(--accent-cyan);">${(gear.orbitPeriodSec || 8).toFixed(2)}s</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:7px; margin-top:5px; font-size:0.7rem;">
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="chk-orbit-preserve-phase" ${gear.isMain ? 'disabled' : ''} ${gear.orbitPreservePhase !== false ? 'checked' : ''}><span>Preserve Phase</span></label>
+          </div>
+          <div style="font-size:0.64rem; color:var(--text-muted); margin-top:3px; line-height:1.3;">The gear orbits the main hub/listener at its current radius. Orbiting gears may pass through one another.</div>
+        </div>
         <div style="margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 6px;">
           <strong style="color: var(--accent-cyan);">Phase & Time Alignment</strong>
           <div style="font-size:0.68rem; color: var(--text-muted); margin-bottom: 4px;">Set offset early/late relative to 12 o'clock vertical sync:</div>
@@ -2326,12 +3271,26 @@
         if (!selected) return;
         const newTeeth = Math.min(15015, Math.max(1, selected.teeth + delta));
         if (newTeeth === selected.teeth) return;
-        selected.teeth = newTeeth;
         if (selected.isMain) {
+          const oldMainTeeth = selected.teeth;
+          const oldRatios = new Map(state.gears.map(g => [g.id, Math.abs(g.ratio)]));
+          selected.teeth = newTeeth;
+          state.gears.forEach(g => {
+            if (g.isMain) return;
+            if (g.ratioLock) {
+              const targetRatio = oldRatios.get(g.id) || 1;
+              g.teeth = Math.min(15015, Math.max(1, Math.round(newTeeth / Math.max(1e-9, targetRatio))));
+            } else if (!g.teethLock) {
+              const scale = oldMainTeeth > 0 ? newTeeth / oldMainTeeth : 1;
+              g.teeth = Math.min(15015, Math.max(1, Math.round(g.teeth * scale)));
+            }
+          });
           state.mainTeeth = newTeeth;
           document.getElementById('input-main-teeth').value = newTeeth;
           document.getElementById('val-main-teeth').textContent = newTeeth;
           document.getElementById('select-main-teeth-preset').value = '';
+        } else {
+          selected.teeth = newTeeth;
         }
         updateKinematicNetwork();
         updateInspector();
@@ -2340,6 +3299,50 @@
 
       teethDown.addEventListener('click', () => changeSelectedGearTeeth(-1));
       teethUp.addEventListener('click', () => changeSelectedGearTeeth(1));
+      const teethSlider = document.getElementById('slider-inspector-teeth');
+      teethSlider?.addEventListener('input', (e) => {
+        const selected = state.gearMap.get(state.selectedGearId);
+        if (!selected) return;
+        const target = Math.min(15015, Math.max(1, Math.round(Number(e.target.value) || selected.teeth)));
+        const delta = target - selected.teeth;
+        if (delta) changeSelectedGearTeeth(delta);
+      });
+
+      const ratioLockChk = document.getElementById('chk-ratio-lock');
+      const teethLockChk = document.getElementById('chk-teeth-lock');
+      const orbitChk = document.getElementById('chk-orbit');
+      const orbitSlider = document.getElementById('slider-orbit-time');
+      const orbitVal = document.getElementById('val-orbit-time');
+      const orbitPreserveChk = document.getElementById('chk-orbit-preserve-phase');
+      ratioLockChk?.addEventListener('change', e => { gear.ratioLock = !!e.target.checked; });
+      teethLockChk?.addEventListener('change', e => { gear.teethLock = !!e.target.checked; });
+      orbitChk?.addEventListener('change', e => {
+        gear.orbitEnabled = !!e.target.checked;
+        const main = state.gears.find(g => g.isMain) || state.gears[0];
+        if (gear.orbitEnabled && main && !gear.isMain) {
+          const dx = gear.x - main.x, dy = gear.y - main.y;
+          gear.orbitRadius = Math.max(main.pitchRadius + gear.pitchRadius + 2, Math.hypot(dx, dy));
+          gear.orbitAngle = Math.atan2(dy, dx);
+          gear.orbitPhase = 0;
+        }
+        renderGearList();
+      });
+      orbitSlider?.addEventListener('input', e => {
+        gear.orbitPeriodSec = Math.max(0.25, Math.min(60, Number(e.target.value) || 8));
+        if (orbitVal) orbitVal.textContent = `${gear.orbitPeriodSec.toFixed(2)}s`;
+      });
+      orbitPreserveChk?.addEventListener('change', e => {
+        gear.orbitPreservePhase = !!e.target.checked;
+        if (gear.orbitPreservePhase && gear.orbitEnabled) {
+          // Restore the normal phase relationship immediately when re-locking.
+          gear.angle = -Math.PI / 2 + gear.ratio * state.masterPhase + gear.phaseOffsetRad;
+          if (gear.delayNode && state.audioCtx) {
+            const sourceFreq = Math.max(0.1, gear.freq || state.fundamentalFreq || 1);
+            const targetDelay = gear.isMain ? 0.0001 : getPhaseAlignedDelaySeconds(gear.phaseOffsetRad, sourceFreq);
+            gear.delayNode.delayTime.setTargetAtTime(targetDelay, state.audioCtx.currentTime, 0.008);
+          }
+        }
+      });
 
       // Bind Inspector Phase Events
       const degSlider = document.getElementById('input-phase-deg-slider');
@@ -2364,6 +3367,8 @@
           renderGearList();
         }
       });
+
+      bindWheelControls(document.getElementById('inspector-content') || document);
 
       content.querySelectorAll('.btn-phase-quick').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -2398,17 +3403,226 @@
       updateAudioNodes();
     });
 
-    // AUDIO DRIVER LISTENERS
-    document.getElementById('input-audio-driver').addEventListener('change', async (e) => {
-      const file=e.target.files && e.target.files[0]; if(!file) return;
+    // AUDIO DRIVER SAMPLE EDITOR / RECORDER
+    const DRIVER_CROSSFADE_MS = 25;
+    function getDriverRawBuffer() { return state.audioDriver.rawBuffer || state.audioDriver.buffer; }
+
+    function drawDriverWaveform() {
+      const canvas = document.getElementById('driver-waveform');
+      const wrap = document.getElementById('driver-wave-wrap');
+      const raw = getDriverRawBuffer();
+      if (!canvas || !wrap || !raw) { if (wrap) wrap.style.display='none'; return; }
+      wrap.style.display='block';
+      const ctx = canvas.getContext('2d');
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.max(1, Math.floor(rect.width * (window.devicePixelRatio || 1)));
+      const h = Math.max(1, Math.floor(rect.height * (window.devicePixelRatio || 1)));
+      if (canvas.width !== w || canvas.height !== h) { canvas.width=w; canvas.height=h; }
+      ctx.clearRect(0,0,w,h);
+      const data = raw.getChannelData(0), mid=h*0.5, amp=h*0.42;
+      ctx.beginPath();
+      for (let x=0; x<w; x++) {
+        const i=Math.min(data.length-1, Math.floor(x/w*data.length));
+        let peak=0;
+        const span=Math.max(1, Math.floor(data.length/w));
+        for(let j=0;j<span && i+j<data.length;j++) peak=Math.max(peak,Math.abs(data[i+j]));
+        const y=mid-peak*amp;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      for (let x=w-1; x>=0; x--) {
+        const i=Math.min(data.length-1, Math.floor(x/w*data.length));
+        let peak=0;
+        const span=Math.max(1, Math.floor(data.length/w));
+        for(let j=0;j<span && i+j<data.length;j++) peak=Math.max(peak,Math.abs(data[i+j]));
+        ctx.lineTo(x,mid+peak*amp);
+      }
+      ctx.closePath();
+      ctx.strokeStyle='rgba(120,200,255,.9)'; ctx.fillStyle='rgba(120,200,255,.14)'; ctx.fill(); ctx.stroke();
+      const start = raw.duration ? state.audioDriver.loopStart/raw.duration*w : 0;
+      const end = raw.duration ? state.audioDriver.loopEnd/raw.duration*w : w;
+      ctx.fillStyle='rgba(255,255,255,.07)'; ctx.fillRect(start,0,Math.max(1,end-start),h);
+      ctx.strokeStyle='rgba(80,255,170,.95)'; ctx.lineWidth=Math.max(1,2*(window.devicePixelRatio||1));
+      ctx.beginPath(); ctx.moveTo(start,0); ctx.lineTo(start,h); ctx.moveTo(end,0); ctx.lineTo(end,h); ctx.stroke();
+      ctx.lineWidth=1;
+      document.getElementById('driver-start-time').textContent=state.audioDriver.loopStart.toFixed(2)+'s';
+      document.getElementById('driver-end-time').textContent=state.audioDriver.loopEnd.toFixed(2)+'s';
+    }
+
+    function buildCrossfadedDriverBuffer() {
+      const raw=getDriverRawBuffer();
+      if (!raw || !state.audioCtx) return null;
+      const sr=raw.sampleRate, start=Math.max(0,Math.min(raw.duration,state.audioDriver.loopStart));
+      const end=Math.max(start,Math.min(raw.duration,state.audioDriver.loopEnd));
+      const length=Math.max(2,Math.floor((end-start)*sr));
+      if(length < Math.ceil(sr*0.05)) return null;
+      const out=state.audioCtx.createBuffer(raw.numberOfChannels,length,sr);
+      const fadeSamples=Math.min(Math.floor(sr*(DRIVER_CROSSFADE_MS/1000)), Math.floor(length/2));
+      const startSample=Math.floor(start*sr);
+      for(let ch=0; ch<raw.numberOfChannels; ch++) {
+        const src=raw.getChannelData(ch), dst=out.getChannelData(ch);
+        for(let i=0;i<length;i++) dst[i]=src[Math.min(src.length-1,startSample+i)];
+        if(fadeSamples>1) {
+          for(let i=0;i<fadeSamples;i++) {
+            const t=i/(fadeSamples-1);
+            const tailIdx=length-fadeSamples+i;
+            const headIdx=i;
+            dst[tailIdx]=dst[tailIdx]*(1-t)+dst[headIdx]*t;
+          }
+        }
+      }
+      return out;
+    }
+
+    function applyDriverSelection(keepPlaying=true) {
+      const rebuilt=buildCrossfadedDriverBuffer();
+      if(!rebuilt) return false;
+      const wasPlaying=!!(keepPlaying && state.audioDriver.playing);
+      const now=state.audioCtx ? state.audioCtx.currentTime : 0;
+      if(wasPlaying && state.audioCtx) {
+        state.gears.forEach(g=>{ if(g.gainNode) g.gainNode.gain.setTargetAtTime(0,now,0.008); });
+      }
+      if(wasPlaying) {
+        state.audioDriver.playing=false;
+        window.setTimeout(()=>stopAudioDriverSources(),12);
+      } else {
+        stopAudioDriverSources();
+      }
+      state.audioDriver.buffer=rebuilt;
+      state.audioDriver.elapsed=0;
+      if(wasPlaying) {
+        window.setTimeout(()=>{
+          state.audioDriver.playing=true;
+          state.masterPhase=0;
+          updateAudioNodes();
+          rebuildPolyVoicesForDriverMode();
+        },18);
+      }
+      drawDriverWaveform();
+      return true;
+    }
+
+    function loadDriverBuffer(buffer, fileName='Recorded sample') {
+      if(!buffer) return;
+      if(!state.audioCtx) initAudio();
+      state.audioDriver.rawBuffer=buffer;
+      state.audioDriver.loopStart=0;
+      state.audioDriver.loopEnd=buffer.duration;
+      state.audioDriver.fileName=fileName;
+      state.audioDriver.elapsed=0;
+      state.audioDriver.detectedFreq=1;
+      state.audioDriver.driverRate=1;
+      state.audioDriver.driverRPM=DRIVER_NOMINAL_RPM;
+      state.audioDriver.driverRPMBase=DRIVER_NOMINAL_RPM;
+      state.audioDriver.keyboardKeyRatio=1;
+      state.audioDriver.visualShape='sine';
+      applyDriverSelection(false);
+      document.getElementById('audio-driver-status').textContent=`${fileName} | ${buffer.duration.toFixed(2)}s | 25 ms crossfade`;
+      setDriverRPM(DRIVER_NOMINAL_RPM, false);
+      drawDriverWaveform();
+    }
+
+    async function decodeDriverFile(file) {
       try {
         if(!state.audioCtx) initAudio();
         const ab=await file.arrayBuffer();
-        state.audioDriver.buffer=await state.audioCtx.decodeAudioData(ab.slice(0));
-        state.audioDriver.fileName=file.name; state.audioDriver.elapsed=0; state.audioDriver.detectedFreq=1; state.audioDriver.driverRate=1; state.audioDriver.driverRPM=DRIVER_NOMINAL_RPM; state.audioDriver.driverRPMBase=DRIVER_NOMINAL_RPM; state.audioDriver.keyboardKeyRatio=1; state.audioDriver.visualShape='sine';
-        document.getElementById('audio-driver-status').textContent=`${file.name} | ${state.audioDriver.buffer.duration.toFixed(2)}s`;
-        setDriverRPM(DRIVER_NOMINAL_RPM, false);
-      } catch(err) { console.error(err); state.audioDriver.buffer=null; document.getElementById('audio-driver-status').textContent='Could not decode audio file'; }
+        const decoded=await state.audioCtx.decodeAudioData(ab.slice(0));
+        loadDriverBuffer(decoded,file.name);
+        if (state.polyMode && state.audioDriver.playing) rebuildPolyVoicesForDriverMode();
+      } catch(err) {
+        console.error(err);
+        state.audioDriver.rawBuffer=null; state.audioDriver.buffer=null;
+        document.getElementById('audio-driver-status').textContent='Could not decode audio file';
+      }
+    }
+
+    function stopDriverRecording() {
+      const r=state.audioDriver.recorder;
+      if(r && r.state !== 'inactive') r.stop();
+    }
+
+    async function startDriverRecording() {
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder==='undefined') {
+        document.getElementById('audio-driver-status').textContent='Microphone recording is not supported by this browser';
+        return;
+      }
+      try {
+        if(!state.audioCtx) initAudio();
+        const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+        const preferred='audio/webm;codecs=opus';
+        const options=MediaRecorder.isTypeSupported(preferred)?{mimeType:preferred}:{};
+        const recorder=new MediaRecorder(stream,options);
+        state.audioDriver.recorder=recorder;
+        state.audioDriver.recorderStream=stream;
+        state.audioDriver.recorderChunks=[];
+        recorder.ondataavailable=e=>{ if(e.data && e.data.size) state.audioDriver.recorderChunks.push(e.data); };
+        recorder.onstop=async()=>{
+          try {
+            stream.getTracks().forEach(t=>t.stop());
+            const blob=new Blob(state.audioDriver.recorderChunks,{type:recorder.mimeType||'audio/webm'});
+            const ab=await blob.arrayBuffer();
+            const decoded=await state.audioCtx.decodeAudioData(ab.slice(0));
+            loadDriverBuffer(decoded,'Microphone recording');
+          } catch(err) {
+            console.error(err);
+            document.getElementById('audio-driver-status').textContent='Could not decode recording';
+          } finally {
+            state.audioDriver.recorder=null; state.audioDriver.recorderStream=null; state.audioDriver.recorderChunks=[];
+            const btn=document.getElementById('btn-driver-record'); if(btn) btn.textContent='● RECORD';
+          }
+        };
+        recorder.start(100);
+        document.getElementById('btn-driver-record').textContent='■ STOP RECORDING';
+        document.getElementById('audio-driver-status').textContent='Recording from microphone...';
+      } catch(err) {
+        console.error(err);
+        document.getElementById('audio-driver-status').textContent='Microphone permission was denied or unavailable';
+      }
+    }
+
+    const driverWaveCanvas=document.getElementById('driver-waveform');
+    if(driverWaveCanvas) {
+      driverWaveCanvas.addEventListener('pointerdown',e=>{
+        const raw=getDriverRawBuffer(); if(!raw) return;
+        driverWaveCanvas.setPointerCapture(e.pointerId);
+        const x=Math.max(0,Math.min(1,(e.offsetX/driverWaveCanvas.clientWidth)));
+        const t=x*raw.duration;
+        const ds=Math.abs(t-state.audioDriver.loopStart), de=Math.abs(t-state.audioDriver.loopEnd);
+        driverWaveCanvas.dataset.dragHandle=ds<=de?'start':'end';
+        if(driverWaveCanvas.dataset.dragHandle==='start') state.audioDriver.loopStart=Math.min(t,state.audioDriver.loopEnd-0.05);
+        else state.audioDriver.loopEnd=Math.max(t,state.audioDriver.loopStart+0.05);
+        state.audioDriver.loopStart=Math.max(0,state.audioDriver.loopStart); state.audioDriver.loopEnd=Math.min(raw.duration,state.audioDriver.loopEnd);
+        drawDriverWaveform();
+      });
+      driverWaveCanvas.addEventListener('pointermove',e=>{
+        if(!driverWaveCanvas.hasPointerCapture(e.pointerId)) return;
+        const raw=getDriverRawBuffer(); if(!raw) return;
+        const x=Math.max(0,Math.min(1,(e.offsetX/driverWaveCanvas.clientWidth)));
+        const t=x*raw.duration;
+        if(driverWaveCanvas.dataset.dragHandle==='start') state.audioDriver.loopStart=Math.min(t,state.audioDriver.loopEnd-0.05);
+        else state.audioDriver.loopEnd=Math.max(t,state.audioDriver.loopStart+0.05);
+        state.audioDriver.loopStart=Math.max(0,state.audioDriver.loopStart); state.audioDriver.loopEnd=Math.min(raw.duration,state.audioDriver.loopEnd);
+        drawDriverWaveform();
+      });
+      driverWaveCanvas.addEventListener('pointerup',e=>{
+        if(driverWaveCanvas.hasPointerCapture(e.pointerId)) applyDriverSelection(true);
+        try{driverWaveCanvas.releasePointerCapture(e.pointerId);}catch(_){}
+      });
+      driverWaveCanvas.addEventListener('pointercancel',e=>{
+        try{driverWaveCanvas.releasePointerCapture(e.pointerId);}catch(_){}
+        applyDriverSelection(true);
+      });
+    }
+    window.addEventListener('resize',drawDriverWaveform);
+
+    document.getElementById('btn-driver-import').addEventListener('click',()=>document.getElementById('input-audio-driver').click());
+    document.getElementById('btn-driver-record').addEventListener('click',()=>{
+      if(state.audioDriver.recorder && state.audioDriver.recorder.state!=='inactive') stopDriverRecording();
+      else startDriverRecording();
+    });
+    // AUDIO DRIVER LISTENERS
+    document.getElementById('input-audio-driver').addEventListener('change', async (e) => {
+      const file=e.target.files && e.target.files[0];
+      if(file) await decodeDriverFile(file);
     });
 
     document.getElementById('btn-driver-play').addEventListener('click', () => {
@@ -2416,15 +3630,16 @@
       if(!state.audioRunning) initAudio();
       const btn=document.getElementById('btn-driver-play');
       if(state.audioDriver.playing) {
-        state.audioDriver.playing=false; stopAudioDriverSources(); btn.textContent='▶ DRIVE'; updateAudioNodes();
+        state.audioDriver.playing=false; stopAudioDriverSources(); btn.textContent='▶ DRIVE'; updateAudioNodes(); rebuildPolyVoicesForDriverMode();
       } else {
-        state.audioDriver.playing=true; state.audioDriver.elapsed=0; state.masterPhase=0; setDriverRPM(state.audioDriver.driverRPM, false, false); state.audioDriver.keyboardKeyRatio=1; btn.textContent='⏸ DRIVE'; applyKeyboardDriverPitch(); updateAudioNodes();
+        state.audioDriver.playing=true; state.audioDriver.elapsed=0; state.masterPhase=0; setDriverRPM(state.audioDriver.driverRPM, false, false); state.audioDriver.keyboardKeyRatio=1; btn.textContent='⏸ DRIVE'; applyKeyboardDriverPitch(); updateAudioNodes(); rebuildPolyVoicesForDriverMode();
       }
     });
 
     document.getElementById('btn-driver-clear').addEventListener('click', () => {
-      state.audioDriver.playing=false; stopAudioDriverSources(); state.audioDriver.buffer=null; state.audioDriver.fileName=''; state.audioDriver.elapsed=0;
-      document.getElementById('input-audio-driver').value=''; document.getElementById('audio-driver-status').textContent='No audio file loaded'; document.getElementById('btn-driver-play').textContent='▶ DRIVE'; restoreFrequencyControls(); setFundamentalFrequency(state.baseFundamentalFreq || 1.0, false); updateAudioNodes();
+      if(state.audioDriver.recorder) stopDriverRecording();
+      state.audioDriver.playing=false; stopAudioDriverSources(); state.audioDriver.buffer=null; state.audioDriver.rawBuffer=null; state.audioDriver.fileName=''; state.audioDriver.elapsed=0; state.audioDriver.loopStart=0; state.audioDriver.loopEnd=0;
+      document.getElementById('input-audio-driver').value=''; document.getElementById('driver-wave-wrap').style.display='none'; document.getElementById('audio-driver-status').textContent='No audio file loaded'; document.getElementById('btn-driver-play').textContent='▶ DRIVE'; restoreFrequencyControls(); setFundamentalFrequency(state.baseFundamentalFreq || 1.0, false); updateAudioNodes();
     });
 
     // 3D Binaural Spatializer Control Listeners
@@ -2473,8 +3688,22 @@
 
       const main = state.gears.find(g => g.isMain);
       if (main) {
+        const oldMainTeeth = main.teeth;
+        const oldRatios = new Map(state.gears.map(g => [g.id, Math.abs(g.ratio)]));
         main.teeth = val;
+        const mainScale = oldMainTeeth > 0 ? val / oldMainTeeth : 1;
+        state.gears.forEach(g => {
+          if (g.isMain) return;
+          if (g.ratioLock) {
+            const targetRatio = oldRatios.get(g.id) || 1;
+            g.teeth = Math.min(15015, Math.max(1, Math.round(val / Math.max(1e-9, targetRatio))));
+          } else if (!g.teethLock) {
+            g.teeth = Math.min(15015, Math.max(1, Math.round(g.teeth * mainScale)));
+          }
+        });
         updateKinematicNetwork();
+        updateInspector();
+        renderGearList();
       }
     });
 
@@ -2486,48 +3715,87 @@
         document.getElementById('val-main-teeth').textContent = val;
 
         const main = state.gears.find(g => g.isMain);
-        if (main) {
-          main.teeth = val;
-          updateKinematicNetwork();
+      if (main) {
+        const oldMainTeeth = main.teeth;
+        const oldRatios = new Map(state.gears.map(g => [g.id, Math.abs(g.ratio)]));
+        main.teeth = val;
+          const mainScale = oldMainTeeth > 0 ? val / oldMainTeeth : 1;
+        state.gears.forEach(g => {
+          if (g.isMain) return;
+          if (g.ratioLock) {
+            const targetRatio = oldRatios.get(g.id) || 1;
+            g.teeth = Math.min(15015, Math.max(1, Math.round(val / Math.max(1e-9, targetRatio))));
+          } else if (!g.teethLock) {
+            g.teeth = Math.min(15015, Math.max(1, Math.round(g.teeth * mainScale)));
+          }
+        });
+        updateKinematicNetwork();
+        updateInspector();
+        renderGearList();
         }
       }
     });
 
-    document.getElementById('btn-add-gear').addEventListener('click', () => {
-      const teeth = Math.min(15015, Math.max(1, parseInt(document.getElementById('input-add-teeth').value) || 60));
-      addGear(teeth);
-    });
-
-    // Ratio controls: separate numerator/denominator fields and sliders.
+    // ADD GEAR / RATIO TOOLBAR
     const ratioNumInput = document.getElementById('input-ratio-num');
     const ratioDenInput = document.getElementById('input-ratio-den');
-    const ratioNumSlider = document.getElementById('slider-ratio-num');
-    const ratioDenSlider = document.getElementById('slider-ratio-den');
     const ratioDisplay = document.getElementById('ratio-calc-display');
 
     function syncRatioControl(which, value) {
       const v = Math.min(120, Math.max(1, Math.round(Number(value) || 1)));
-      if (which === 'num') { ratioNumInput.value = v; ratioNumSlider.value = v; }
-      else { ratioDenInput.value = v; ratioDenSlider.value = v; }
+      if (which === 'num') ratioNumInput.value = v;
+      else ratioDenInput.value = v;
       ratioDisplay.textContent = `${ratioNumInput.value}:${ratioDenInput.value}`;
     }
+
     ratioNumInput.addEventListener('input', e => syncRatioControl('num', e.target.value));
-    ratioNumSlider.addEventListener('input', e => syncRatioControl('num', e.target.value));
     ratioDenInput.addEventListener('input', e => syncRatioControl('den', e.target.value));
-    ratioDenSlider.addEventListener('input', e => syncRatioControl('den', e.target.value));
 
     document.getElementById('btn-calc-ratio').addEventListener('click', () => {
       const num = Math.min(120, Math.max(1, parseInt(ratioNumInput.value) || 1));
       const den = Math.min(120, Math.max(1, parseInt(ratioDenInput.value) || 1));
-      syncRatioControl('num', num); syncRatioControl('den', den);
+      const phaseDeg = Math.min(360, Math.max(-360, parseFloat(document.getElementById('input-add-phase').value) || 0));
+      const solveTeeth = document.getElementById('input-solve-teeth-from-ratio').checked;
+      const ratioLock = document.getElementById('input-add-ratio-lock').checked;
+      const teethLock = document.getElementById('input-add-teeth-lock').checked;
+      const orbitEnabled = document.getElementById('input-add-orbit').checked;
+      const orbitPeriodSec = Math.min(60, Math.max(0.25, parseFloat(document.getElementById('input-add-orbit-time').value) || 8));
+      const orbitPreservePhase = document.getElementById('input-add-preserve-phase').checked;
+      const volume = Math.min(1, Math.max(0, parseFloat(document.getElementById('input-add-volume').value) || 0.2));
+
+      let teeth = Math.min(15015, Math.max(1, parseInt(document.getElementById('input-add-teeth').value) || 60));
       const targetRatio = num / den;
-      const idealTeeth = state.mainTeeth / targetRatio;
-      const closestTeeth = Math.min(15015, Math.max(1, Math.round(idealTeeth)));
-      const actualRatio = state.mainTeeth / closestTeeth;
-      const isExact = Math.abs(targetRatio - actualRatio) < 1e-5;
-      document.getElementById('ratio-calc-result').innerHTML = `Target ${num}:${den} → Secondary: <strong>${closestTeeth}T</strong><br>${isExact ? 'Exact integer fit!' : 'Approx (' + actualRatio.toFixed(4) + ')'}`;
-      addGear(closestTeeth);
+      if (solveTeeth) {
+        teeth = Math.min(15015, Math.max(1, Math.round(state.mainTeeth / Math.max(1e-9, targetRatio))));
+        document.getElementById('input-add-teeth').value = teeth;
+      }
+
+      const gear = addGear(teeth);
+      gear.setPhaseOffsetDeg(phaseDeg);
+      gear.ratioLock = ratioLock;
+      gear.teethLock = teethLock;
+      gear.volume = volume;
+      gear.orbitEnabled = orbitEnabled;
+      gear.orbitPeriodSec = orbitPeriodSec;
+      gear.orbitPreservePhase = orbitPreservePhase;
+
+      const main = state.gears.find(g => g.isMain) || state.gears[0];
+      if (orbitEnabled && main && !gear.isMain) {
+        const dx = gear.x - main.x;
+        const dy = gear.y - main.y;
+        gear.orbitRadius = Math.max(main.pitchRadius + gear.pitchRadius + 2, Math.hypot(dx, dy));
+        gear.orbitAngle = Math.atan2(dy, dx);
+        gear.orbitPhase = 0;
+      }
+
+      updateKinematicNetwork();
+      updateAudioNodes();
+      updateInspector();
+      renderGearList();
       document.getElementById('startup-tooltip')?.remove();
+
+      const actualRatio = main ? main.teeth / gear.teeth : targetRatio;
+      document.getElementById('ratio-calc-result').textContent = `Added ${gear.teeth}T | actual ${floatToFraction(actualRatio)}${orbitEnabled ? ' | orbit' : ''}`;
     });
 
     // Ratio Presets
@@ -2544,30 +3812,22 @@
 
     document.getElementById('btn-clear-all').addEventListener('click', clearExtraGears);
 
+    document.getElementById('btn-toggle-network-overview').addEventListener('click', () => {
+      const body = document.getElementById('hud-network-body');
+      const btn = document.getElementById('btn-toggle-network-overview');
+      const collapsed = body.classList.toggle('is-collapsed');
+      btn.textContent = collapsed ? '+' : '−';
+      btn.title = collapsed ? 'Expand Harmonic Network Overview' : 'Minimize Harmonic Network Overview';
+    });
+
     document.getElementById('btn-reset-view').addEventListener('click', () => {
       state.camera = { x: 0, y: 0, zoom: 1.0 };
     });
 
     document.getElementById('btn-sync-phase').addEventListener('click', () => {
-      // Global phase reset: every active cog's hand/spoke points exactly at 12 o'clock.
-      const twelveOClock = -Math.PI / 2;
-      state.masterPhase = 0;
-      state.gears.forEach(g => {
-        g.setPhaseOffsetDeg(0);
-        if (g.ratio !== 0) g.angle = twelveOClock;
-      });
-
-      // In driver mode, restart the driver at its phase origin so the audio starts
-      // from the same reference point as the visual 12 o'clock reset.
-      if (state.audioDriver.buffer && state.audioDriver.playing) {
-        state.audioDriver.elapsed = 0;
-        stopAudioDriverSources();
-        updateAudioNodes();
-        applyKeyboardDriverPitch();
-      } else {
-        updateAudioNodes();
-      }
-
+      // Hard Mod-0: every gear hand is 12 o'clock and every audible source restarts
+      // together from phase zero on the same Web Audio clock time.
+      hardResetAudioPhaseToMod0();
       updateInspector();
       renderGearList();
     });
@@ -2586,9 +3846,10 @@
         g.neighbors.clear();
         g.neighbors.add(main.id);
         main.neighbors.add(g.id);
-        alignToothPhases(main, g, angle);
       });
       updateKinematicNetwork();
+      secondaries.forEach(g => alignGearPhaseToParent(main, g));
+      updateAudioNodes();
     });
 
     /* MACRO SYSTEM PRESETS */
@@ -2630,8 +3891,6 @@
 
         gear.neighbors.add(prevGear.id);
         prevGear.neighbors.add(gear.id);
-        alignToothPhases(prevGear, gear, currentAngle);
-
         state.gears.push(gear);
         state.gearMap.set(gear.id, gear);
 
@@ -2640,6 +3899,15 @@
       });
 
       updateKinematicNetwork();
+      // Lock each newly-added chain stage to the previous stage's current hand.
+      let phaseParent = main;
+      state.gears.filter(g => !g.isMain).forEach(g => {
+        if (g.neighbors.has(phaseParent.id)) {
+          alignGearPhaseToParent(phaseParent, g);
+          phaseParent = g;
+        }
+      });
+      updateAudioNodes();
     });
 
     // KEYBOARD SHORTCUTS
@@ -2649,7 +3917,8 @@
       if (e.code in KEY_TO_SEMITONE) {
         if (e.repeat) return;
         state.pressedKeys.add(e.code);
-        playSemitone(KEY_TO_SEMITONE[e.code]);
+        setKeyboardAudioActive(true);
+        playSemitone(KEY_TO_SEMITONE[e.code], e.code);
         return;
       }
 
@@ -2677,12 +3946,15 @@
 
       if (e.code in KEY_TO_SEMITONE) {
         state.pressedKeys.delete(e.code);
-        if (state.pressedKeys.size > 0) {
+        if (state.polyMode) {
+          releaseKeyboardNotes(e.code);
+        } else if (state.pressedKeys.size > 0) {
           const lastKey = Array.from(state.pressedKeys).pop();
-          playSemitone(KEY_TO_SEMITONE[lastKey]);
+          playSemitone(KEY_TO_SEMITONE[lastKey], lastKey);
         } else {
           releaseKeyboardNotes();
         }
+        syncKeyboardAudioGate();
       }
     });
 
@@ -2700,9 +3972,68 @@
 
       setFundamentalFrequency(1.0);
       initVirtualKeyboardEvents();
+      syncKeyboardAudioGate();
     }
 
     initApp();
-  </script>
+  
+
+    // Mouse-wheel control for all sliders and numeric inputs.
+    // Wheel up increases; wheel down decreases. Shift = 10x, Alt = 0.1x.
+    function bindWheelInput(el) {
+      if (!el || el.dataset.wheelBound) return;
+      el.dataset.wheelBound = '1';
+      el.addEventListener('wheel', (e) => {
+        if (el.disabled || el.readOnly) return;
+        e.preventDefault();
+        const step = Number(el.step) > 0 ? Number(el.step) : 1;
+        const min = Number(el.min), max = Number(el.max);
+        const multiplier = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
+        const direction = e.deltaY < 0 ? 1 : -1;
+        let value = Number(el.value);
+        if (!Number.isFinite(value)) value = Number.isFinite(min) ? min : 0;
+        value += direction * step * multiplier;
+        if (Number.isFinite(min)) value = Math.max(min, value);
+        if (Number.isFinite(max)) value = Math.min(max, value);
+        el.value = String(value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }, { passive: false });
+    }
+
+    function bindWheelControls(root = document) {
+      root.querySelectorAll('input[type="range"], input[type="number"]').forEach(bindWheelInput);
+      ['btn-oct-down','btn-oct-up','btn-inspector-teeth-down','btn-inspector-teeth-up'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn || btn.dataset.wheelBound) return;
+        btn.dataset.wheelBound = '1';
+        btn.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          if (id === 'btn-inspector-teeth-down' || id === 'btn-inspector-teeth-up') {
+            const selected = state.gearMap.get(state.selectedGearId);
+            if (!selected) return;
+            const step = e.shiftKey ? 10 : 1;
+            const delta = (e.deltaY < 0 ? 1 : -1) * (id === 'btn-inspector-teeth-up' ? step : -step);
+            selected.teeth = Math.min(15015, Math.max(1, selected.teeth + delta));
+            if (selected.isMain) {
+              state.mainTeeth = selected.teeth;
+              document.getElementById('input-main-teeth').value = selected.teeth;
+            }
+            updateKinematicNetwork();
+            updateInspector();
+            renderGearList();
+          } else {
+            const shift = document.getElementById('input-octave-shift');
+            if (!shift) return;
+            const delta = e.deltaY < 0 ? 1 : -1;
+            shift.value = Math.max(-3, Math.min(3, Number(shift.value || 0) + delta));
+            shift.dispatchEvent(new Event('input', { bubbles: true }));
+            shift.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }, { passive: false });
+      });
+    }
+    bindWheelControls();
+</script>
 </body>
 </html>
