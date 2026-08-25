@@ -5600,6 +5600,49 @@
         return groups.sort((a, b) => b.mag - a.mag);
       }
 
+      // ——— Harmonic picking: extract harmonic series from raw magnitude spectrum ———
+      // Looks directly at bins near n*f0 for n = 1..maxCount, bypassing compression.
+      // Returns array of { n, freq, mag, phase, sharpness, num, den } sorted by magnitude.
+      function pickHarmonics(mags, sr, winSize, f0, maxCount, refRe, refIm) {
+        if (!f0 || f0 <= 0 || !mags) return [];
+        const binHz = sr / winSize;
+        const nyquist = (sr / 2) * 0.97;
+        const result = [];
+        // Search half-width in bins: wide enough to handle FFT smear but narrow
+        // enough not to grab the wrong harmonic.  Never wider than 0.45 × the
+        // inter-harmonic spacing.
+        const maxHalfWidthBins = Math.max(1.5, Math.min(4, (0.45 * f0) / binHz));
+
+        for (let n = 1; n <= maxCount; n++) {
+          const targetFreq = n * f0;
+          if (targetFreq > nyquist) break;
+          const centerBin = targetFreq / binHz;
+          const lo = Math.max(1, Math.floor(centerBin - maxHalfWidthBins));
+          const hi = Math.min(mags.length - 2, Math.ceil(centerBin + maxHalfWidthBins));
+
+          let bestMag = 0, bestBin = lo;
+          for (let b = lo; b <= hi; b++) {
+            if (mags[b] > bestMag) { bestMag = mags[b]; bestBin = b; }
+          }
+
+          // Parabolic sub-bin frequency refinement
+          const ma = mags[Math.max(0, bestBin - 1)];
+          const mb = mags[bestBin];
+          const mc = mags[Math.min(mags.length - 1, bestBin + 1)];
+          const denom2 = ma - 2 * mb + mc;
+          const delta = (denom2 !== 0) ? Math.max(-0.5, Math.min(0.5, 0.5 * (ma - mc) / denom2)) : 0;
+          const refinedFreq = (bestBin + delta) * binHz;
+          const phase = (refRe && refIm) ? Math.atan2(refIm[bestBin] || 0, refRe[bestBin] || 0) : 0;
+          const left = Math.max(ma, 1e-9), right = Math.max(mc, 1e-9);
+          const sharpness = mb / Math.max(1e-9, (left + right) * 0.5);
+
+          result.push({ n, freq: refinedFreq, mag: bestMag, phase, sharpness,
+                        num: n, den: 1, ratio: n, approxFreq: n * f0 });
+        }
+
+        return result.sort((a, b) => b.mag - a.mag);
+      }
+
       // ——— Nearest simple rational approximation ———
       // Returns [numerator, denominator] such that num/den ≈ r,
       // preferring simpler (smaller) ratios.
@@ -5782,43 +5825,65 @@
         onStatus('Building carrier structures…');
         await tick();
 
-        // Express each cluster as a ratio relative to fundamental, quantize to simple rational
-        const components = clustered.map(pk => {
-          const ratio = pk.freq / fundamental;
-          const [num, den] = nearestSimpleRatio(ratio);
-          const approxFreq = (num / den) * fundamental;
-          const freqErr = Math.abs(approxFreq - pk.freq) / Math.max(1, pk.freq);
-          return {
-            freq: pk.freq,
-            mag: pk.mag,
-            ratio,
-            num,
-            den,
-            approxFreq,
-            freqErr,
-            phase: pk.phase || 0,
-            sharpness: pk.sharpness || 1
-          };
-        });
+        // ——— Harmonic picking: directly scan the raw magnitude spectrum for the
+        // harmonic series of the estimated fundamental.  This avoids the spectral
+        // compression step collapsing upper harmonics (adjacent guitar/voice
+        // harmonics fall within the 21 % compression band and would otherwise
+        // merge, leaving only 2–3 components for 27+ harmonics).
+        // We search up to complexity × 4 harmonics and keep the loudest ones.
+        const harmonicCandidates = pickHarmonics(
+          mags, sr, winSize, fundamental, complexity * 4, refRe, refIm
+        );
 
-        // Sort by magnitude descending, deduplicate by (num:den)
-        components.sort((a, b) => b.mag - a.mag);
-        const seenRatio = new Set();
+        // Fall back to clustered-peaks approach if harmonic picking found nothing
+        const sourceComponents = harmonicCandidates.length >= 2
+          ? harmonicCandidates
+          : clustered.map(pk => {
+              const ratio = pk.freq / fundamental;
+              const [num, den] = nearestSimpleRatio(ratio);
+              return {
+                freq: pk.freq, mag: pk.mag, ratio,
+                num, den, approxFreq: (num / den) * fundamental,
+                phase: pk.phase || 0, sharpness: pk.sharpness || 1
+              };
+            });
+
+        // Sort by magnitude descending, deduplicate by harmonic index / (num:den)
+        sourceComponents.sort((a, b) => b.mag - a.mag);
+        const seenKey = new Set();
         const unique = [];
-        for (const c of components) {
-          const key = `${c.num}:${c.den}`;
-          if (!seenRatio.has(key)) { seenRatio.add(key); unique.push(c); }
+        for (const c of sourceComponents) {
+          const key = c.n != null ? String(c.n) : `${c.num}:${c.den}`;
+          if (!seenKey.has(key)) { seenKey.add(key); unique.push(c); }
         }
 
         const selected = unique.slice(0, complexity);
-        if (!selected.length) { onStatus('Error: The analyzed components collapsed away during simplification. Try lower compression or higher complexity.'); return; }
+        if (!selected.length) { onStatus('Error: No distinct spectral components found. Try lower compression or a louder sample.'); return; }
+
+        // ——— Scale main wheel teeth so every harmonic gets a distinct, accurate
+        // integer tooth count.  For harmonic n and main-wheel M teeth:
+        //   gearTeeth = round(M / n)
+        // For consecutive harmonics n and n+1 to always round to different integers,
+        // the gap M/(n*(n+1)) must be ≥ 1, i.e. M ≥ n*(n+1).
+        // We also keep at least 6 teeth on the smallest gear (M >= N*6).
+        const maxHarmonicN = Math.max(...selected.map(c => c.n != null ? c.n : (c.num / Math.max(1, c.den))), 1);
+        const minTeethForUniqueness = maxHarmonicN * (maxHarmonicN + 1);
+        const minTeethForClearance = maxHarmonicN * 6;
+        const buildMainTeeth = Math.min(
+          15015,
+          Math.max(state.mainTeeth || 120, minTeethForUniqueness, minTeethForClearance)
+        );
+
         const maxSelectedMag = Math.max(...selected.map(c => c.mag), 1);
         selected.forEach(c => {
+          c.ratio = c.n != null ? c.n : (c.num / Math.max(1, c.den));
+          c.approxFreq = c.ratio * fundamental;
+          c.freqErr = Math.abs(c.approxFreq - c.freq) / Math.max(1, c.freq);
           c.weight = c.mag / maxSelectedMag;
           c.phaseBias = Math.abs(Math.sin(c.phase || 0));
           c.brightness = clamp((c.ratio - 1) / Math.max(1, complexity * 0.75), 0, 1);
           c.shape = chooseComponentShape(c, analysisMode);
-          c.shapeParams = buildShapeParams(c.shape, clamp(c.weight * 0.75 + c.sharpness * 0.08, 0, 1), c.phase || 0);
+          c.shapeParams = buildShapeParams(c.shape, clamp(c.weight * 0.75 + (c.sharpness || 1) * 0.08, 0, 1), c.phase || 0);
           c.phaseOffsetDeg = wrapDegrees(-(c.phase || 0) * 180 / Math.PI);
         });
 
@@ -5841,7 +5906,18 @@
           state.waveform = 'sine';
           if (typeof refreshClockworkControlVisibility === 'function') refreshClockworkControlVisibility();
         }
+
+        // Update the main gear's tooth count if a larger wheel is needed for
+        // the gear train to represent all harmonics with distinct, accurate teeth.
         const mainGearObj = state.gears.find(g => g.isMain) || state.gears[0];
+        if (mainGearObj && buildMainTeeth > mainGearObj.teeth) {
+          mainGearObj.teeth = buildMainTeeth;
+          state.mainTeeth = buildMainTeeth;
+          const mainTeethInput = document.getElementById('input-main-teeth');
+          if (mainTeethInput) mainTeethInput.value = buildMainTeeth;
+          const mainTeethPreset = document.getElementById('select-main-teeth-preset');
+          if (mainTeethPreset) mainTeethPreset.value = '';
+        }
         if (mainGearObj) {
           mainGearObj.shape = chooseMainShape(analysisMode, analysis, fundamental);
           mainGearObj.shapeParams = buildShapeParams(
@@ -5855,22 +5931,22 @@
         await tick();
 
         rs.resultGearIds = [];
-        const mainTeeth = state.mainTeeth || 120;
+        const mainTeeth = mainGearObj ? mainGearObj.teeth : (state.mainTeeth || 120);
         const maxMag = Math.max(...selected.map(c => c.mag)) || 1;
 
         for (let gi = 0; gi < selected.length; gi++) {
           if (rs.buildAbort) { onStatus('Aborted.'); return; }
           const comp = selected[gi];
-          onStatus(`Gear ${gi + 1}/${selected.length}: ${comp.approxFreq.toFixed(1)} Hz  (${comp.num}:${comp.den})…`);
+          const harmonicN = comp.n != null ? comp.n : comp.num;
+          const harmonicD = comp.n != null ? 1 : Math.max(1, comp.den);
+          onStatus(`Gear ${gi + 1}/${selected.length}: ${comp.approxFreq.toFixed(1)} Hz  (${harmonicN}:${harmonicD})…`);
           await tick();
 
-          // Teeth: ratio p/q means gearFreq = (p/q) * fundamental
-          // Kinematic formula: gearRatio = -mainTeeth / gearTeeth
-          // → |gearRatio| = mainTeeth / gearTeeth = p/q
-          // → gearTeeth = mainTeeth * q / p
-          const rawTeeth = mainTeeth * comp.den / comp.num;
+          // Kinematic formula: |ratio| = mainTeeth / gearTeeth = harmonicN / harmonicD
+          // → gearTeeth = mainTeeth * harmonicD / harmonicN
+          const rawTeeth = mainTeeth * harmonicD / harmonicN;
           const teeth = Math.max(1, Math.min(15015, Math.round(rawTeeth)));
-          if (teeth < 1 || !isFinite(teeth)) continue;
+          if (!isFinite(teeth)) continue;
 
           const gear = addGear(teeth);
           // Volume proportional to spectral magnitude
@@ -5915,13 +5991,15 @@
         const listEl = $('rfft-component-list');
         if (listEl && components.length > 0) {
           let html = '<table class="rfft-component-table"><thead><tr>' +
-            '<th>Freq (Hz)</th><th>Ratio</th><th>Approx (Hz)</th><th>Phase</th><th>Shape</th><th>Magnitude</th>' +
+            '<th>Freq (Hz)</th><th>Harmonic</th><th>Approx (Hz)</th><th>Phase</th><th>Shape</th><th>Magnitude</th>' +
             '</tr></thead><tbody>';
           for (const c of components) {
+            const harmonicN = c.n != null ? c.n : c.num;
+            const harmonicD = c.n != null ? 1 : Math.max(1, c.den);
             html += `<tr>
               <td>${c.freq.toFixed(1)}</td>
-              <td>${c.num}:${c.den}</td>
-              <td>${c.approxFreq.toFixed(1)}</td>
+              <td>${harmonicN}:${harmonicD}</td>
+              <td>${(c.approxFreq || 0).toFixed(1)}</td>
               <td>${wrapDegrees(-(c.phase || 0) * 180 / Math.PI).toFixed(0)}°</td>
               <td>${c.shape || 'circular'}</td>
               <td>${(c.mag).toFixed(3)}</td>
