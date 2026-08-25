@@ -5558,8 +5558,9 @@
       // Compression factor c: 0 = RAW, 1 = EXTREME.
       function compressPeaks(peaks, compressionFactor) {
         if (compressionFactor < 0.05) return peaks; // RAW
-        // Merge peaks whose frequency ratio is within the tolerance band
-        const tol = 1 + compressionFactor * 0.6; // e.g. EXTREME=1.6 → merge within 60% ratio
+        // Merge peaks whose frequency stays within a forward ratio band from the
+        // group's anchor frequency; higher compression widens that band.
+        const tol = 1 + compressionFactor * 0.6;
         const groups = [];
         const used = new Set();
         const sorted = [...peaks].sort((a, b) => a.freq - b.freq);
@@ -5570,10 +5571,8 @@
           used.add(i);
           for (let j = i + 1; j < sorted.length; j++) {
             if (used.has(j)) continue;
-            // Compare against the last group member (running boundary), not the first,
-            // so only truly adjacent peaks are merged together.
-            const boundary = group[group.length - 1].freq;
-            if (sorted[j].freq / boundary < tol) {
+            const anchor = group[0].freq;
+            if (sorted[j].freq / anchor < tol) {
               group.push(sorted[j]);
               used.add(j);
             } else {
@@ -5605,7 +5604,7 @@
       // Returns [numerator, denominator] such that num/den ≈ r,
       // preferring simpler (smaller) ratios.
       function nearestSimpleRatio(r, maxN, maxD) {
-        maxN = maxN || 32; maxD = maxD || 32;
+        maxN = maxN ?? 32; maxD = maxD ?? 32;
         let best = [1, 1];
         let bestErr = Infinity;
         // Search by total complexity (num+den), so simpler ratios win ties
@@ -5812,6 +5811,7 @@
         }
 
         const selected = unique.slice(0, complexity);
+        if (!selected.length) { onStatus('Error: The analyzed components collapsed away during simplification. Try lower compression or higher complexity.'); return; }
         const maxSelectedMag = Math.max(...selected.map(c => c.mag), 1);
         selected.forEach(c => {
           c.weight = c.mag / maxSelectedMag;
@@ -5876,6 +5876,8 @@
           // Volume proportional to spectral magnitude
           gear.volume = Math.max(0.04, Math.min(0.85, (comp.mag / maxMag) * 0.65));
           gear.ratioLock = true;
+          // Keep tooth editing available after generation so the resulting machine
+          // stays musical/editable while still preserving the analyzed ratio.
           gear.teethLock = false;
           gear.shape = comp.shape;
           gear.shapeParams = normalizedShapeParams(comp.shapeParams);
@@ -5963,6 +5965,10 @@
       function playMachine() {
         stopSourcePlayback();
         if (!state.audioRunning) initAudio();
+        else {
+          updateAudioNodes();
+          setStatus('Machine is already live — tweak gears or compare against SOURCE.');
+        }
       }
 
       // ——— Public initializer ———
