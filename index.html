@@ -869,6 +869,13 @@
 
     <button id="btn-calc-ratio" class="btn-primary toolbar-button">ADD RATIO / GEAR</button>
     <span id="ratio-calc-result" style="font-size:0.68rem; color:var(--text-muted); min-width:120px; overflow:hidden; text-overflow:ellipsis;"></span>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-group">
+      <span class="toolbar-title">Chain Tools</span>
+      <button id="btn-add-crank-tool" class="btn-primary toolbar-button" title="Add or reposition a crank-handle and transmission rod away from the gear train">↻ CRANK HANDLE</button>
+    </div>
   </div>
 
     <!-- FLOATING RATIO / HARMONIC PALETTE -->
@@ -1218,6 +1225,7 @@
   <script>
     // MATH & HARMONIC UTILITIES
     const GCD = (a, b) => b ? GCD(b, a % b) : a;
+    const TAU = Math.PI * 2;
 
     function simplifyRatio(num, den) {
       num = Math.round(num);
@@ -1286,12 +1294,28 @@
       hoveredGearId: null,
       camera: { x: 0, y: 0, zoom: 1.0 },
       dragState: null,
+      driveDirection: 1,
       pitchModule: 1.2, // Pixels per tooth multiplier for pitch radius
       loopConflict: false,
       masterPhase: 0, // Global fundamental phase angle [0, 2pi)
       isSlidingFreq: false, // Instant pitch feedback mode during slider drag
       audioSyncPending: false,
       audioSyncPerfMs: 0,
+      crankTool: {
+        enabled: false,
+        pivotX: -300,
+        pivotY: 0,
+        diffX: -180,
+        diffY: 0,
+        armLength: 72,
+        diffRadius: 22,
+        knobRadius: 12,
+        handleRadius: 28,
+        closeRadius: 10,
+        phaseOffset: -Math.PI / 2,
+        hoverPart: null,
+        dragAngle: null
+      },
       polyMode: false,
       jiKeyboard: false,          // Retune POLY chords to nearest simple JI ratios
       polyVoices: new Map(),
@@ -1372,6 +1396,130 @@
       }
     }
 
+    function normalizeWrappedAngle(angle) {
+      return Math.atan2(Math.sin(angle), Math.cos(angle));
+    }
+
+    function getMainGear() {
+      return state.gears.find(g => g.isMain) || state.gears[0] || null;
+    }
+
+    function getMachineBounds() {
+      if (!state.gears.length) {
+        return { minX: -120, maxX: 120, minY: -120, maxY: 120 };
+      }
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      state.gears.forEach(g => {
+        const outer = g.outerRadius;
+        minX = Math.min(minX, g.x - outer);
+        maxX = Math.max(maxX, g.x + outer);
+        minY = Math.min(minY, g.y - outer);
+        maxY = Math.max(maxY, g.y + outer);
+      });
+      return { minX, maxX, minY, maxY };
+    }
+
+    function getCrankToolAngle() {
+      const tool = state.crankTool;
+      return Number.isFinite(tool.dragAngle) ? tool.dragAngle : normalizeWrappedAngle(state.masterPhase + tool.phaseOffset);
+    }
+
+    function isCrankManualDriveActive() {
+      return !!state.crankTool.enabled;
+    }
+
+    function setCrankDrivenSpeed(angularVelocity = 0) {
+      const safeVelocity = Number.isFinite(angularVelocity) ? angularVelocity : 0;
+      const direction = safeVelocity < 0 ? -1 : 1;
+      state.driveDirection = direction;
+      const turnsPerSecond = Math.max(0, Math.abs(safeVelocity) / TAU);
+      if (state.audioDriver.buffer) {
+        setDriverRPM(turnsPerSecond * 60, false, false, true, true);
+      } else {
+        setFundamentalFrequency(turnsPerSecond, false, true, true, true);
+      }
+    }
+
+    function disableCrankTool() {
+      state.crankTool.enabled = false;
+      state.crankTool.hoverPart = null;
+      state.crankTool.dragAngle = null;
+      state.driveDirection = 1;
+      if (state.dragState?.mode === 'crank') state.dragState = null;
+      if (state.audioDriver.buffer) {
+        setDriverRPM(state.audioDriver.driverRPMBase || DRIVER_NOMINAL_RPM, false, false);
+      } else {
+        setFundamentalFrequency(state.baseFundamentalFreq || 1.0, false);
+      }
+    }
+
+    function placeCrankTool(resetAngle = false) {
+      const tool = state.crankTool;
+      const main = getMainGear();
+      if (!main) return;
+      const bounds = getMachineBounds();
+      const safeDiffGap = Math.max(92, tool.diffRadius + tool.knobRadius + 42);
+      tool.diffX = bounds.minX - safeDiffGap;
+      tool.diffY = main.y;
+      tool.pivotX = tool.diffX - (tool.armLength + tool.knobRadius + 54);
+      tool.pivotY = main.y;
+      tool.enabled = true;
+      tool.hoverPart = null;
+      tool.dragAngle = null;
+      if (resetAngle) {
+        tool.phaseOffset = normalizeWrappedAngle((-Math.PI / 2) - state.masterPhase);
+      }
+      setCrankDrivenSpeed(0);
+    }
+
+    function getCrankToolGeometry() {
+      const tool = state.crankTool;
+      const main = getMainGear();
+      if (!tool.enabled || !main) return null;
+      const angle = getCrankToolAngle();
+      return {
+        tool,
+        main,
+        angle,
+        pivotX: tool.pivotX,
+        pivotY: tool.pivotY,
+        diffX: tool.diffX,
+        diffY: tool.diffY,
+        hubRadius: 18,
+        knobX: tool.pivotX + Math.cos(angle) * tool.armLength,
+        knobY: tool.pivotY + Math.sin(angle) * tool.armLength
+      };
+    }
+
+    function getCrankToolInteractionTarget(wx, wy) {
+      const geo = getCrankToolGeometry();
+      if (!geo) return null;
+      const centerDist = Math.hypot(wx - geo.pivotX, wy - geo.pivotY);
+      if (centerDist <= geo.tool.closeRadius + 5) {
+        return { kind: 'remove', geometry: geo };
+      }
+      const knobDist = Math.hypot(wx - geo.knobX, wy - geo.knobY);
+      const pivotDist = Math.hypot(wx - geo.pivotX, wy - geo.pivotY);
+      const ringDist = Math.abs(pivotDist - geo.tool.armLength);
+      if (knobDist <= geo.tool.knobRadius + 10 || ringDist <= geo.tool.handleRadius) {
+        return { kind: 'turn', angle: Math.atan2(wy - geo.pivotY, wx - geo.pivotX), geometry: geo };
+      }
+      return null;
+    }
+
+    function applyCurrentMasterPhaseToGears(warp = 0) {
+      const baseVertical = -Math.PI / 2;
+      state.gears.forEach(gear => {
+        if (gear.ratio !== 0 && !isGearBeingDragged(gear)) {
+          const motion = getGearMechanicalMotion(gear);
+          gear._shapePhase = motion.phase + (warp ? (gear.isMain ? warp : gear.ratio * warp) : 0);
+          gear._shapeRate = motion.rate;
+          gear.angle = baseVertical + gear._shapePhase;
+          applyGearShapeMotion(gear);
+        }
+      });
+    }
+
     /* AUDIO DRIVER ENGINE */
     function stopAudioDriverSources() {
       state.audioDriver.sources.forEach(source => { try { source.stop(); } catch(e) {} try { source.disconnect(); } catch(e) {} });
@@ -1385,7 +1533,7 @@
       const source = state.audioCtx.createBufferSource();
       source.buffer = state.audioDriver.buffer;
       source.loop = true;
-      source.playbackRate.value = Math.max(0.000001, Math.abs(isGearBeingDragged(gear) ? (gear._dragHeldRatio || gear.ratio) : gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1));
+      source.playbackRate.value = Math.max(0, Math.abs(isGearBeingDragged(gear) ? (gear._dragHeldRatio || gear.ratio) : gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1));
       const loopEnd = state.audioDriver.buffer.duration;
       source.loopStart = 0;
       source.loopEnd = loopEnd;
@@ -1537,13 +1685,15 @@
       });
       // The driver's transport rate is authoritative. Visual phase advances at the
       // same rate as the loaded audio, so the 12-o'clock hand remains the phase-zero reference.
-      const transportPhaseAdvance = 2 * Math.PI * (d.detectedFreq * d.driverRate) * dt;
-      state.masterPhase = (state.masterPhase + transportPhaseAdvance) % (2 * Math.PI);
-      const sample=getDriverSample(pos), base=-Math.PI/2;
-      let warp=0;
-      if(d.visualShape==='square') warp=sample>=0?Math.PI/4:-Math.PI/4;
-      else if(d.visualShape==='sawtooth') warp=-sample*Math.PI/4;
-      state.gears.forEach(g=>{ if(g.ratio!==0 && !isGearBeingDragged(g)){ const motion=getGearMechanicalMotion(g); g._shapePhase=motion.phase + (g.isMain ? warp : g.ratio*warp); g._shapeRate=motion.rate; g.angle=base+g._shapePhase; applyGearShapeMotion(g); } });
+      if (!isCrankManualDriveActive()) {
+        const transportPhaseAdvance = TAU * (d.detectedFreq * d.driverRate) * dt;
+        state.masterPhase = ((state.masterPhase + transportPhaseAdvance) % TAU + TAU) % TAU;
+        const sample=getDriverSample(pos);
+        let warp=0;
+        if(d.visualShape==='square') warp=sample>=0?Math.PI/4:-Math.PI/4;
+        else if(d.visualShape==='sawtooth') warp=-sample*Math.PI/4;
+        applyCurrentMasterPhaseToGears(warp);
+      }
       const label=document.getElementById('audio-driver-status');
       if(label && d.fileName) label.textContent=`${d.fileName} | ${d.detectedFreq.toFixed(1)} Hz | ${d.visualShape}`;
     }
@@ -1801,7 +1951,7 @@
         } else if (driverMode) {
           const source = state.audioDriver.sources.get(gear.id);
           if (source) {
-            source.playbackRate.setTargetAtTime(Math.max(0.000001, Math.abs(gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1)), now, 0.01);
+            source.playbackRate.setTargetAtTime(Math.max(0, Math.abs(gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1)), now, 0.01);
           }
           // The buffer is the source in driver mode. Apply the same signed phase
           // convention as the visual hand, using the actual per-gear playback rate.
@@ -2236,7 +2386,7 @@
       }
       if (state.audioDriver.playing) {
         const source = state.audioDriver.sources.get(gear.id);
-        if (source) source.playbackRate.setTargetAtTime(Math.max(0.000001, Math.abs(gear.ratio) * motion.rate * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1)), now, 0.006);
+        if (source) source.playbackRate.setTargetAtTime(Math.max(0, Math.abs(gear.ratio) * motion.rate * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1)), now, 0.006);
       }
       if (gear.delayNode) {
         const idealPhase = gear.isMain ? state.masterPhase : gear.ratio * state.masterPhase;
@@ -2596,19 +2746,10 @@
       if (!state.audioSyncPending) {
         if (state.audioDriver.buffer && state.audioDriver.playing) {
           updateDriverAnimation(dt);
-        } else {
-          state.masterPhase += (2 * Math.PI * state.fundamentalFreq) * dt;
-          state.masterPhase %= (2 * Math.PI);
-          state.gears.forEach(gear => {
-            if (gear.ratio !== 0 && !isGearBeingDragged(gear)) {
-              const baseVertical = -Math.PI / 2;
-              const motion = getGearMechanicalMotion(gear);
-              gear._shapePhase = motion.phase;
-              gear._shapeRate = motion.rate;
-              gear.angle = baseVertical + motion.phase;
-              applyGearShapeMotion(gear);
-            }
-          });
+        } else if (!isCrankManualDriveActive()) {
+          state.masterPhase += (TAU * state.fundamentalFreq * state.driveDirection) * dt;
+          state.masterPhase = ((state.masterPhase % TAU) + TAU) % TAU;
+          applyCurrentMasterPhaseToGears();
         }
       }
 
@@ -2654,6 +2795,88 @@
 
       // Draw All Gears
       state.gears.forEach(gear => drawGear(gear));
+
+      const crankGeo = getCrankToolGeometry();
+      if (crankGeo) {
+        const isActive = !!(state.dragState && state.dragState.mode === 'crank');
+        const lineColor = isActive || crankGeo.tool.hoverPart === 'turn' ? 'rgba(16,185,129,0.95)' : 'rgba(248,250,252,0.78)';
+        const hubColor = crankGeo.tool.hoverPart === 'remove' ? '#ef4444' : (isActive ? '#10b981' : '#06b6d4');
+        const diffColor = '#f59e0b';
+        const mainLinkTargetX = crankGeo.main.x - crankGeo.main.outerRadius;
+
+        ctx.save();
+        ctx.lineCap = 'round';
+
+        ctx.strokeStyle = 'rgba(148,163,184,0.42)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(crankGeo.diffX, crankGeo.diffY);
+        ctx.lineTo(mainLinkTargetX, crankGeo.main.y);
+        ctx.stroke();
+
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(crankGeo.pivotX, crankGeo.pivotY);
+        ctx.lineTo(crankGeo.knobX, crankGeo.knobY);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(245,158,11,0.9)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(crankGeo.knobX, crankGeo.knobY);
+        ctx.lineTo(crankGeo.diffX, crankGeo.diffY);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(crankGeo.diffX, crankGeo.diffY);
+        ctx.rotate(crankGeo.angle);
+        ctx.fillStyle = 'rgba(245,158,11,0.18)';
+        ctx.strokeStyle = diffColor;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, crankGeo.tool.diffRadius, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(crankGeo.tool.diffRadius - 6, 0);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = 'rgba(15,23,42,0.98)';
+        ctx.strokeStyle = hubColor;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(crankGeo.pivotX, crankGeo.pivotY, crankGeo.hubRadius, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = crankGeo.tool.hoverPart === 'remove' ? '#ef4444' : '#f8fafc';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(crankGeo.pivotX - 5, crankGeo.pivotY - 5);
+        ctx.lineTo(crankGeo.pivotX + 5, crankGeo.pivotY + 5);
+        ctx.moveTo(crankGeo.pivotX + 5, crankGeo.pivotY - 5);
+        ctx.lineTo(crankGeo.pivotX - 5, crankGeo.pivotY + 5);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.fillStyle = isActive ? '#10b981' : '#f8fafc';
+        ctx.arc(crankGeo.knobX, crankGeo.knobY, crankGeo.tool.knobRadius, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '700 11px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('CRANK', crankGeo.pivotX, crankGeo.pivotY + crankGeo.tool.armLength + 24);
+        ctx.fillText('DIFF', crankGeo.diffX, crankGeo.diffY + crankGeo.tool.diffRadius + 12);
+        ctx.restore();
+      }
 
       // RENDER 3D BINAURAL SOUNDFIELD OVERLAY (Radar Ring around Main Drive Hub)
       if (state.spatialEnabled) {
@@ -2785,6 +3008,29 @@
       canvas.setPointerCapture?.(e.pointerId);
       const rect = canvas.getBoundingClientRect();
       const mouse = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const crankHit = getCrankToolInteractionTarget(mouse.x, mouse.y);
+      if (crankHit) {
+        if (crankHit.kind === 'remove') {
+          disableCrankTool();
+          updateInspector();
+          renderGearList();
+          return;
+        }
+        state.selectedGearId = null;
+        state.hoveredGearId = null;
+        state.crankTool.hoverPart = 'turn';
+        state.crankTool.dragAngle = crankHit.angle;
+        state.dragState = {
+          mode: 'crank',
+          pointerId: e.pointerId,
+          lastAngle: crankHit.angle,
+          lastTime: performance.now(),
+          angularVelocity: 0
+        };
+        updateInspector();
+        renderGearList();
+        return;
+      }
       const clickedGear = getGearAtPosition(mouse.x, mouse.y);
 
       if (clickedGear) {
@@ -2822,12 +3068,28 @@
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const mouse = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const crankHit = getCrankToolInteractionTarget(mouse.x, mouse.y);
+      state.crankTool.hoverPart = crankHit?.kind || null;
       state.hoveredGearId = getGearAtPosition(mouse.x, mouse.y)?.id || null;
       if (!state.dragState || state.dragState.pointerId !== e.pointerId) return;
 
       if (state.dragState.mode === 'pan') {
         state.camera.x = state.dragState.camStartX + (e.clientX - state.dragState.startX);
         state.camera.y = state.dragState.camStartY + (e.clientY - state.dragState.startY);
+      } else if (state.dragState.mode === 'crank') {
+        const pointerAngle = Math.atan2(mouse.y - state.crankTool.pivotY, mouse.x - state.crankTool.pivotX);
+        const deltaAngle = normalizeWrappedAngle(pointerAngle - state.dragState.lastAngle);
+        state.crankTool.hoverPart = 'turn';
+        state.crankTool.dragAngle = pointerAngle;
+        state.masterPhase = (state.masterPhase + deltaAngle + TAU) % TAU;
+        const nowMs = performance.now();
+        const dtSec = Math.max(0.001, (nowMs - state.dragState.lastTime) / 1000);
+        const instantaneousVelocity = Math.max(-TAU * 24, Math.min(TAU * 24, deltaAngle / dtSec));
+        state.dragState.angularVelocity = (state.dragState.angularVelocity * 0.52) + (instantaneousVelocity * 0.48);
+        state.dragState.lastAngle = pointerAngle;
+        state.dragState.lastTime = nowMs;
+        setCrankDrivenSpeed(state.dragState.angularVelocity);
+        applyCurrentMasterPhaseToGears();
       } else if (state.dragState.mode === 'gear') {
         const dx = mouse.x - state.dragState.startX;
         const dy = mouse.y - state.dragState.startY;
@@ -2852,7 +3114,13 @@
 
     const finishPointerDrag = (e) => {
       if (!state.dragState || state.dragState.pointerId !== e.pointerId) return;
-      if (state.dragState.mode === 'gear') {
+      if (state.dragState.mode === 'crank') {
+        const releasedAngle = Number.isFinite(state.crankTool.dragAngle) ? state.crankTool.dragAngle : getCrankToolAngle();
+        state.crankTool.phaseOffset = normalizeWrappedAngle(releasedAngle - state.masterPhase);
+        state.crankTool.dragAngle = null;
+        state.crankTool.hoverPart = null;
+        setCrankDrivenSpeed(0);
+      } else if (state.dragState.mode === 'gear') {
         const gear = state.dragState.gear;
         const snap = state.dragState.snapTarget;
         if (snap) {
@@ -3029,10 +3297,14 @@
       return bestDiff <= toleranceFraction ? best : rpm;
     }
 
-    function setDriverRPM(rpm, snap = false, updateBase = true) {
+    function setDriverRPM(rpm, snap = false, updateBase = true, preserveDirection = false, allowZero = false) {
       const d = state.audioDriver;
-      rpm = Math.min(DRIVER_RPM_MAX, Math.max(DRIVER_RPM_MIN, Number(rpm) || DRIVER_NOMINAL_RPM));
-      if (snap) rpm = nearestDriverRpmSnap(rpm);
+      const minRpm = allowZero ? 0 : DRIVER_RPM_MIN;
+      const rawRpm = Number(rpm);
+      rpm = Math.min(DRIVER_RPM_MAX, Math.max(minRpm, Number.isFinite(rawRpm) ? rawRpm : (allowZero ? 0 : DRIVER_NOMINAL_RPM)));
+      if (!allowZero && rpm === 0) rpm = DRIVER_NOMINAL_RPM;
+      if (snap && rpm > 0) rpm = nearestDriverRpmSnap(rpm);
+      if (!preserveDirection) state.driveDirection = 1;
       d.driverRPM = rpm;
       if (updateBase) d.driverRPMBase = rpm;
       d.driverRate = rpm / d.driverNominalRPM;
@@ -3045,20 +3317,20 @@
 
       slider.min = Math.log10(DRIVER_RPM_MIN);
       slider.max = Math.log10(DRIVER_RPM_MAX);
-      slider.value = Math.log10(rpm);
-      numInput.min = DRIVER_RPM_MIN;
+      slider.value = rpm > 0 ? Math.log10(rpm) : slider.min;
+      numInput.min = allowZero ? 0 : DRIVER_RPM_MIN;
       numInput.max = DRIVER_RPM_MAX;
-      numInput.value = rpm >= 100 ? rpm.toFixed(0) : rpm.toFixed(1);
+      numInput.value = rpm === 0 ? '0' : (rpm >= 100 ? rpm.toFixed(0) : rpm.toFixed(1));
       label.textContent = 'Audio Driver Speed';
       unit.textContent = 'RPM';
-      value.textContent = `${rpm < 100 ? rpm.toFixed(1) : rpm.toFixed(0)} RPM`;
+      value.textContent = rpm === 0 ? '0.0 RPM' : `${rpm < 100 ? rpm.toFixed(1) : rpm.toFixed(0)} RPM`;
 
       if (state.audioRunning && d.playing) {
         const now = state.audioCtx.currentTime;
         state.audioDriver.sources.forEach((source, id) => {
           const gear = state.gearMap.get(id);
           if (source && gear) source.playbackRate.setTargetAtTime(
-            Math.max(0.000001, Math.abs(gear.ratio) * d.driverRate), now, 0.005
+            Math.max(0, Math.abs(gear.ratio) * d.driverRate), now, 0.005
           );
         });
       }
@@ -3076,37 +3348,40 @@
       numInput.max = nyquist;
     }
 
-    function setFundamentalFrequency(freq, isBaseChange = true) {
+    function setFundamentalFrequency(freq, isBaseChange = true, preserveDirection = false, allowZero = false, immediate = false) {
       const nyquist = getNyquist();
-      freq = Math.min(nyquist, Math.max(0.1, freq));
+      const minFreq = allowZero ? 0 : 0.1;
+      const rawFreq = Number(freq);
+      freq = Math.min(nyquist, Math.max(minFreq, Number.isFinite(rawFreq) ? rawFreq : (allowZero ? 0 : 1.0)));
+      if (!allowZero && freq === 0) freq = 0.1;
+      if (!preserveDirection) state.driveDirection = 1;
 
       // In audio-driver mode, the same control is RPM. 33.3 RPM = normal playback.
       if (state.audioDriver.buffer) {
-        setDriverRPM(freq, false);
+        setDriverRPM(freq, false, isBaseChange, preserveDirection, allowZero);
         return;
       }
 
       if (isBaseChange) state.baseFundamentalFreq = freq;
       state.targetFundamentalFreq = freq;
-      if (!state.legato) state.fundamentalFreq = freq;
+      if (!state.legato || immediate || freq === 0) state.fundamentalFreq = freq;
 
-      const logVal = Math.log10(freq);
       const slider = document.getElementById('slider-fundamental');
       slider.min = -1;
       slider.max = Math.log10(nyquist).toFixed(3);
-      slider.value = logVal;
+      slider.value = freq > 0 ? Math.log10(freq) : slider.min;
 
       const numInput = document.getElementById('input-fundamental');
-      numInput.min = 0.1;
+      numInput.min = allowZero ? 0 : 0.1;
       numInput.max = nyquist;
-      numInput.value = freq >= 10 ? freq.toFixed(1) : freq.toFixed(2);
+      numInput.value = freq === 0 ? '0' : (freq >= 10 ? freq.toFixed(1) : freq.toFixed(2));
 
-      const freqLabel = freq >= 1000 ? `${(freq / 1000).toFixed(2)} kHz` : `${freq.toFixed(1)} Hz`;
+      const freqLabel = freq === 0 ? '0.0 Hz' : (freq >= 1000 ? `${(freq / 1000).toFixed(2)} kHz` : `${freq.toFixed(1)} Hz`);
       document.getElementById('fundamental-label').textContent = 'Fundamental Frequency';
       document.getElementById('fundamental-unit').textContent = 'Hz';
       document.getElementById('val-fundamental').textContent = freqLabel;
 
-      if (!state.legato) updateKinematicNetwork();
+      if (!state.legato || immediate || freq === 0) updateKinematicNetwork();
     }
 
     /* 12TET QWERTY KEYBOARD NOTE SYNTHESIS ENGINE */
@@ -3131,12 +3406,13 @@
     function applyKeyboardDriverPitch() {
       if (!state.audioCtx || !state.audioRunning || !state.audioDriver.buffer || !state.audioDriver.playing) return;
       const now = state.audioCtx.currentTime;
-      const baseRate = (state.audioDriver.driverRPMBase || DRIVER_NOMINAL_RPM) / state.audioDriver.driverNominalRPM;
+      const baseRpm = isCrankManualDriveActive() ? (state.audioDriver.driverRPM || 0) : (state.audioDriver.driverRPMBase || DRIVER_NOMINAL_RPM);
+      const baseRate = baseRpm / state.audioDriver.driverNominalRPM;
       const keyRate = baseRate * (state.audioDriver.keyboardKeyRatio || 1);
       state.audioDriver.sources.forEach((source, id) => {
         const gear = state.gearMap.get(id);
         if (source && gear) {
-          source.playbackRate.setTargetAtTime(Math.max(0.000001, Math.abs(gear.ratio) * keyRate), now, 0.005);
+          source.playbackRate.setTargetAtTime(Math.max(0, Math.abs(gear.ratio) * keyRate), now, 0.005);
         }
       });
     }
@@ -3333,7 +3609,7 @@
           const source = state.audioCtx.createBufferSource();
           source.buffer = state.audioDriver.buffer;
           source.loop = true;
-          const playbackRate = Math.max(0.000001,
+          const playbackRate = Math.max(0,
             Math.abs(gear.ratio) * shapeMotion.rate * state.audioDriver.driverRate * voiceRatio
           );
           source.playbackRate.setValueAtTime(playbackRate, now);
@@ -3407,7 +3683,7 @@
           pg.gainNode.gain.setTargetAtTime(getPolyGearVolume(gear, driverMode), now, 0.01);
 
           if (driverMode && pg.source) {
-            const playbackRate = Math.max(0.000001,
+            const playbackRate = Math.max(0,
               Math.abs(gear.ratio) * shapeMotion.rate * state.audioDriver.driverRate * voice.voiceRatio
             );
             pg.source.playbackRate.setTargetAtTime(playbackRate, now, state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005);
@@ -4666,6 +4942,11 @@
         sessionStorage.setItem('gearFirstUseToastShown', '1');
       }
     });
+    document.getElementById('btn-add-crank-tool')?.addEventListener('click', () => {
+      placeCrankTool(true);
+      fitMachineToView(true);
+      document.getElementById('startup-tooltip')?.remove();
+    });
     closeRatioPaletteBtn?.addEventListener('click', () => { if (isMobilePortraitLayout() || ratioPalettePinned?.checked) return; ratioPaletteModal?.classList.add('is-hidden'); });
     ratioPalettePinned?.addEventListener('change', () => {
       if (ratioPalettePinned.checked) ratioPaletteModal?.classList.remove('is-hidden');
@@ -4706,7 +4987,7 @@
       btn.title = collapsed ? 'Expand Harmonic Network Overview' : 'Minimize Harmonic Network Overview';
     });
 
-    function fitMachineToView() {
+    function fitMachineToView(includeCrank = !!state.crankTool.enabled) {
       if (!canvas || !state.gears.length) {
         state.camera = { x: 0, y: 0, zoom: 1.0 };
         return;
@@ -4723,6 +5004,19 @@
         minY = Math.min(minY, g.y - outer);
         maxY = Math.max(maxY, g.y + outer);
       });
+      if (includeCrank) {
+        const crankGeo = getCrankToolGeometry();
+        if (crankGeo) {
+          const crankMinX = Math.min(crankGeo.pivotX - 22, crankGeo.knobX - crankGeo.tool.knobRadius - 6, crankGeo.diffX - crankGeo.tool.diffRadius - 6);
+          const crankMaxX = Math.max(crankGeo.pivotX + 22, crankGeo.knobX + crankGeo.tool.knobRadius + 6, crankGeo.diffX + crankGeo.tool.diffRadius + 6);
+          const crankMinY = Math.min(crankGeo.pivotY - crankGeo.tool.armLength - crankGeo.tool.knobRadius - 16, crankGeo.diffY - crankGeo.tool.diffRadius - 6);
+          const crankMaxY = Math.max(crankGeo.pivotY + crankGeo.tool.armLength + crankGeo.tool.knobRadius + 32, crankGeo.diffY + crankGeo.tool.diffRadius + 22);
+          minX = Math.min(minX, crankMinX);
+          maxX = Math.max(maxX, crankMaxX);
+          minY = Math.min(minY, crankMinY);
+          maxY = Math.max(maxY, crankMaxY);
+        }
+      }
       if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
         state.camera = { x: 0, y: 0, zoom: 1.0 };
         return;
