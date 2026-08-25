@@ -1311,8 +1311,9 @@
         diffRadius: 22,
         knobRadius: 12,
         handleRadius: 28,
+        closeRadius: 10,
         phaseOffset: -Math.PI / 2,
-        hovered: false,
+        hoverPart: null,
         dragAngle: null
       },
       polyMode: false,
@@ -1423,6 +1424,18 @@
       return Number.isFinite(tool.dragAngle) ? tool.dragAngle : normalizeWrappedAngle(state.masterPhase + tool.phaseOffset);
     }
 
+    function isCrankManualDriveActive() {
+      return !!state.crankTool.enabled;
+    }
+
+    function disableCrankTool() {
+      state.crankTool.enabled = false;
+      state.crankTool.hoverPart = null;
+      state.crankTool.dragAngle = null;
+      state.driveDirection = 1;
+      if (state.dragState?.mode === 'crank') state.dragState = null;
+    }
+
     function placeCrankTool(resetAngle = false) {
       const tool = state.crankTool;
       const main = getMainGear();
@@ -1434,7 +1447,7 @@
       tool.pivotX = tool.diffX - (tool.armLength + tool.knobRadius + 54);
       tool.pivotY = main.y;
       tool.enabled = true;
-      tool.hovered = false;
+      tool.hoverPart = null;
       tool.dragAngle = null;
       if (resetAngle) {
         tool.phaseOffset = normalizeWrappedAngle((-Math.PI / 2) - state.masterPhase);
@@ -1454,19 +1467,24 @@
         pivotY: tool.pivotY,
         diffX: tool.diffX,
         diffY: tool.diffY,
+        hubRadius: 18,
         knobX: tool.pivotX + Math.cos(angle) * tool.armLength,
         knobY: tool.pivotY + Math.sin(angle) * tool.armLength
       };
     }
 
-    function getCrankToolHitTarget(wx, wy) {
+    function getCrankToolInteractionTarget(wx, wy) {
       const geo = getCrankToolGeometry();
       if (!geo) return null;
+      const centerDist = Math.hypot(wx - geo.pivotX, wy - geo.pivotY);
+      if (centerDist <= geo.tool.closeRadius + 5) {
+        return { kind: 'remove', geometry: geo };
+      }
       const knobDist = Math.hypot(wx - geo.knobX, wy - geo.knobY);
       const pivotDist = Math.hypot(wx - geo.pivotX, wy - geo.pivotY);
       const ringDist = Math.abs(pivotDist - geo.tool.armLength);
       if (knobDist <= geo.tool.knobRadius + 10 || ringDist <= geo.tool.handleRadius) {
-        return { angle: Math.atan2(wy - geo.pivotY, wx - geo.pivotX), geometry: geo };
+        return { kind: 'turn', angle: Math.atan2(wy - geo.pivotY, wx - geo.pivotX), geometry: geo };
       }
       return null;
     }
@@ -1482,18 +1500,6 @@
           applyGearShapeMotion(gear);
         }
       });
-    }
-
-    function syncCrankToolSpeed(angularVelocity) {
-      if (!Number.isFinite(angularVelocity) || angularVelocity === 0) return;
-      const direction = angularVelocity < 0 ? -1 : 1;
-      state.driveDirection = direction;
-      const turnsPerSecond = Math.abs(angularVelocity) / TAU;
-      if (state.audioDriver.buffer && state.audioDriver.playing) {
-        setDriverRPM(Math.max(DRIVER_RPM_MIN, turnsPerSecond * 60), false, true, true);
-      } else {
-        setFundamentalFrequency(Math.max(0.1, turnsPerSecond), true, true);
-      }
     }
 
     /* AUDIO DRIVER ENGINE */
@@ -1661,13 +1667,15 @@
       });
       // The driver's transport rate is authoritative. Visual phase advances at the
       // same rate as the loaded audio, so the 12-o'clock hand remains the phase-zero reference.
-      const transportPhaseAdvance = TAU * (d.detectedFreq * d.driverRate) * dt;
-      state.masterPhase = ((state.masterPhase + transportPhaseAdvance) % TAU + TAU) % TAU;
-      const sample=getDriverSample(pos);
-      let warp=0;
-      if(d.visualShape==='square') warp=sample>=0?Math.PI/4:-Math.PI/4;
-      else if(d.visualShape==='sawtooth') warp=-sample*Math.PI/4;
-      applyCurrentMasterPhaseToGears(warp);
+      if (!isCrankManualDriveActive()) {
+        const transportPhaseAdvance = TAU * (d.detectedFreq * d.driverRate) * dt;
+        state.masterPhase = ((state.masterPhase + transportPhaseAdvance) % TAU + TAU) % TAU;
+        const sample=getDriverSample(pos);
+        let warp=0;
+        if(d.visualShape==='square') warp=sample>=0?Math.PI/4:-Math.PI/4;
+        else if(d.visualShape==='sawtooth') warp=-sample*Math.PI/4;
+        applyCurrentMasterPhaseToGears(warp);
+      }
       const label=document.getElementById('audio-driver-status');
       if(label && d.fileName) label.textContent=`${d.fileName} | ${d.detectedFreq.toFixed(1)} Hz | ${d.visualShape}`;
     }
@@ -2720,7 +2728,7 @@
       if (!state.audioSyncPending) {
         if (state.audioDriver.buffer && state.audioDriver.playing) {
           updateDriverAnimation(dt);
-        } else {
+        } else if (!isCrankManualDriveActive()) {
           state.masterPhase += (TAU * state.fundamentalFreq * state.driveDirection) * dt;
           state.masterPhase = ((state.masterPhase % TAU) + TAU) % TAU;
           applyCurrentMasterPhaseToGears();
@@ -2773,8 +2781,8 @@
       const crankGeo = getCrankToolGeometry();
       if (crankGeo) {
         const isActive = !!(state.dragState && state.dragState.mode === 'crank');
-        const lineColor = isActive || crankGeo.tool.hovered ? 'rgba(16,185,129,0.95)' : 'rgba(248,250,252,0.78)';
-        const hubColor = isActive ? '#10b981' : '#06b6d4';
+        const lineColor = isActive || crankGeo.tool.hoverPart === 'turn' ? 'rgba(16,185,129,0.95)' : 'rgba(248,250,252,0.78)';
+        const hubColor = crankGeo.tool.hoverPart === 'remove' ? '#ef4444' : (isActive ? '#10b981' : '#06b6d4');
         const diffColor = '#f59e0b';
         const mainLinkTargetX = crankGeo.main.x - crankGeo.main.outerRadius;
 
@@ -2822,8 +2830,17 @@
         ctx.strokeStyle = hubColor;
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(crankGeo.pivotX, crankGeo.pivotY, 18, 0, TAU);
+        ctx.arc(crankGeo.pivotX, crankGeo.pivotY, crankGeo.hubRadius, 0, TAU);
         ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = crankGeo.tool.hoverPart === 'remove' ? '#ef4444' : '#f8fafc';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(crankGeo.pivotX - 5, crankGeo.pivotY - 5);
+        ctx.lineTo(crankGeo.pivotX + 5, crankGeo.pivotY + 5);
+        ctx.moveTo(crankGeo.pivotX + 5, crankGeo.pivotY - 5);
+        ctx.lineTo(crankGeo.pivotX - 5, crankGeo.pivotY + 5);
         ctx.stroke();
 
         ctx.beginPath();
@@ -2973,18 +2990,22 @@
       canvas.setPointerCapture?.(e.pointerId);
       const rect = canvas.getBoundingClientRect();
       const mouse = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
-      const crankHit = getCrankToolHitTarget(mouse.x, mouse.y);
+      const crankHit = getCrankToolInteractionTarget(mouse.x, mouse.y);
       if (crankHit) {
+        if (crankHit.kind === 'remove') {
+          disableCrankTool();
+          updateInspector();
+          renderGearList();
+          return;
+        }
         state.selectedGearId = null;
         state.hoveredGearId = null;
-        state.crankTool.hovered = true;
+        state.crankTool.hoverPart = 'turn';
         state.crankTool.dragAngle = crankHit.angle;
         state.dragState = {
           mode: 'crank',
           pointerId: e.pointerId,
-          lastAngle: crankHit.angle,
-          lastTime: performance.now(),
-          angularVelocity: 0
+          lastAngle: crankHit.angle
         };
         updateInspector();
         renderGearList();
@@ -3027,7 +3048,8 @@
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const mouse = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
-      state.crankTool.hovered = !!getCrankToolHitTarget(mouse.x, mouse.y);
+      const crankHit = getCrankToolInteractionTarget(mouse.x, mouse.y);
+      state.crankTool.hoverPart = crankHit?.kind || null;
       state.hoveredGearId = getGearAtPosition(mouse.x, mouse.y)?.id || null;
       if (!state.dragState || state.dragState.pointerId !== e.pointerId) return;
 
@@ -3037,17 +3059,10 @@
       } else if (state.dragState.mode === 'crank') {
         const pointerAngle = Math.atan2(mouse.y - state.crankTool.pivotY, mouse.x - state.crankTool.pivotX);
         const deltaAngle = normalizeWrappedAngle(pointerAngle - state.dragState.lastAngle);
+        state.crankTool.hoverPart = 'turn';
         state.crankTool.dragAngle = pointerAngle;
         state.masterPhase = (state.masterPhase + deltaAngle + TAU) % TAU;
-        const nowMs = performance.now();
-        const dtSec = Math.max(0.001, (nowMs - state.dragState.lastTime) / 1000);
-        const instantaneousVelocity = Math.max(-TAU * 24, Math.min(TAU * 24, deltaAngle / dtSec));
-        state.dragState.angularVelocity = (state.dragState.angularVelocity * 0.52) + (instantaneousVelocity * 0.48);
         state.dragState.lastAngle = pointerAngle;
-        state.dragState.lastTime = nowMs;
-        if (Math.abs(state.dragState.angularVelocity) > 0.01) {
-          syncCrankToolSpeed(state.dragState.angularVelocity);
-        }
         applyCurrentMasterPhaseToGears();
       } else if (state.dragState.mode === 'gear') {
         const dx = mouse.x - state.dragState.startX;
@@ -3077,7 +3092,7 @@
         const releasedAngle = Number.isFinite(state.crankTool.dragAngle) ? state.crankTool.dragAngle : getCrankToolAngle();
         state.crankTool.phaseOffset = normalizeWrappedAngle(releasedAngle - state.masterPhase);
         state.crankTool.dragAngle = null;
-        state.crankTool.hovered = false;
+        state.crankTool.hoverPart = null;
       } else if (state.dragState.mode === 'gear') {
         const gear = state.dragState.gear;
         const snap = state.dragState.snapTarget;
