@@ -804,8 +804,13 @@
               <option value="triangle">Triangle</option>
               <option value="sawtooth" selected>Sawtooth</option>
               <option value="square">Square</option>
-              <option value="impulse">Impulse Spike (1-Sample Click per Rev)</option>
+              <option value="clockwork">Clockwork - Metallic mechanical ticks</option>
             </select>
+          </div>
+          <div id="clockwork-controls" class="control-group" style="display:none; margin-top:8px; border-top:1px solid var(--border-color); padding-top:7px;">
+            <label>Clockwork Tick Width <span id="val-clockwork-width" class="val">4 ms</span></label>
+            <input type="range" id="slider-clockwork-width" min="0.4" max="18" step="0.1" value="4">
+            <div style="font-size:0.66rem;color:var(--text-muted);margin-top:2px;">Short = sharp metallic escapement tick. Wide = more body.</div>
           </div>
         </div>
 
@@ -1124,6 +1129,7 @@
       masterGain: null,
       audioRunning: false,
       waveform: 'sawtooth',
+      clockworkTickWidthMs: 4.0,
       masterVolume: 0.3,
       spatialEnabled: true,       // 3D Binaural HRTF Enabled
       spatialMode: 'HRTF',        // 'HRTF' or 'equalpower'
@@ -1306,7 +1312,7 @@
         state.gears.forEach(g => {
           if (g.ratio === 0) return;
           const osc = state.audioCtx.createOscillator();
-          if (state.waveform === 'impulse') osc.setPeriodicWave(getImpulseWave(state.audioCtx));
+          if (state.waveform === 'clockwork') osc.setPeriodicWave(getClockworkWave(state.audioCtx, g));
           else osc.type = state.waveform;
           osc.frequency.setValueAtTime(Math.max(0.001, g.freq), startAt);
           osc.connect(g.delayNode);
@@ -1410,21 +1416,70 @@
     }
 
     /* WEB AUDIO ENGINE */
-    let impulseWaveCache = null;
+    const clockworkWaveCache = new Map();
 
-    function getImpulseWave(ctx) {
-      if (!impulseWaveCache) {
-        const numCoeffs = 256;
-        const real = new Float32Array(numCoeffs);
-        const imag = new Float32Array(numCoeffs);
-        // Uniform harmonic coefficients produce a band-limited Dirac impulse click per period
-        for (let i = 1; i < numCoeffs; i++) {
-          real[i] = 1.0;
-          imag[i] = 0;
-        }
-        impulseWaveCache = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+    function clockworkSeed(gear) {
+      const a = Math.abs(Number(gear?.teeth) || 1);
+      const b = Math.abs(Number(gear?.id) || 1);
+      return ((a * 1103515245 + b * 12345) >>> 0) / 4294967296;
+    }
+
+    function getClockworkWave(ctx, gear) {
+      const teeth = Math.max(1, Number(gear?.teeth) || 1);
+      const ratio = Math.abs(Number(gear?.ratio) || 1);
+      const sizeClass = ratio < 1 || teeth >= 80 ? 'big' : (ratio >= 5 || teeth < 24 ? 'watch' : 'medium');
+      const widthMs = Math.max(0.4, Math.min(18, Number(state.clockworkTickWidthMs) || 4));
+      const key = `${gear?.id || 0}:${teeth}:${sizeClass}:${ratio.toFixed(6)}:${widthMs.toFixed(1)}`;
+      if (clockworkWaveCache.has(key)) return clockworkWaveCache.get(key);
+
+      // Model a clock escapement as a very narrow metal strike. Smaller width means
+      // a much wider harmonic spectrum, which gives the bright, hard transient heard
+      // in real clocks and watches. A tiny body component remains, but is deliberately
+      // subordinate so even large/slow cogs stay metallic instead of wooden.
+      const bins = 256;
+      const real = new Float32Array(bins);
+      const imag = new Float32Array(bins);
+      const seed = clockworkSeed(gear);
+      const rand = (n) => {
+        const x = Math.sin((seed * 10000 + n * 12.9898) * 78.233) * 43758.5453;
+        return x - Math.floor(x);
+      };
+
+      const widthPhase = Math.max(0.0015, widthMs / 1000);
+      const baseDecay = sizeClass === 'watch' ? 0.018 : sizeClass === 'medium' ? 0.032 : 0.052;
+      const harmonicSpread = 1 / (1 + widthPhase * 48);
+      const metallicBias = sizeClass === 'watch' ? 1.35 : sizeClass === 'medium' ? 1.08 : 0.92;
+      const body = sizeClass === 'big' ? 0.055 : sizeClass === 'medium' ? 0.035 : 0.018;
+
+      for (let h = 1; h < bins; h++) {
+        // Gaussian-ish pulse spectrum: narrow ticks retain many very high harmonics.
+        const pulse = Math.exp(-h * h * baseDecay * harmonicSpread * 0.0022);
+        const metalComb = 0.58 + 0.42 * (0.5 + 0.5 * Math.sin(h * (1.91 + seed * 0.31)));
+        const highShelf = 0.72 + 0.55 * Math.pow(h / bins, 0.58);
+        const bodyTerm = h < 9 ? body * (1 - h / 10) : 0;
+        const jitter = 0.90 + rand(h) * 0.20;
+        const amp = (0.18 * pulse + 0.72 * pulse * highShelf * metalComb * metallicBias + bodyTerm) * jitter;
+        const phaseJitter = (rand(h + 900) - 0.5) * 1.1;
+        real[h] = amp * Math.cos(phaseJitter);
+        imag[h] = amp * Math.sin(phaseJitter);
       }
-      return impulseWaveCache;
+
+      // Deliberately bright inharmonic-looking comb emphasis. PeriodicWave must be
+      // harmonic, so these are chosen as clustered high partials with tiny variations.
+      const strike = sizeClass === 'big' ? [31, 47, 63, 79, 97, 127]
+                   : sizeClass === 'medium' ? [43, 61, 83, 107, 139, 173]
+                   : [71, 97, 127, 163, 191, 229];
+      strike.forEach((h, i) => {
+        if (h >= bins) return;
+        const a = (0.32 + 0.055 * i) * (0.88 + rand(1500 + i) * 0.24);
+        const ph = (rand(1700 + i) - 0.5) * 2.0;
+        real[h] += a * Math.cos(ph);
+        imag[h] += a * Math.sin(ph);
+      });
+
+      const wave = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+      clockworkWaveCache.set(key, wave);
+      return wave;
     }
 
     function initAudio() {
@@ -1561,14 +1616,14 @@
         } else {
           if (!gear.osc) {
             gear.osc = state.audioCtx.createOscillator();
-            if (state.waveform === 'impulse') gear.osc.setPeriodicWave(getImpulseWave(state.audioCtx));
+            if (state.waveform === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
             else gear.osc.type = state.waveform;
             gear.osc.frequency.setValueAtTime(Math.max(0.001, gear.freq), now);
             gear.osc.connect(gear.delayNode);
             gear.osc.start();
           }
 
-          if (state.waveform === 'impulse') gear.osc.setPeriodicWave(getImpulseWave(state.audioCtx));
+          if (state.waveform === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
           else gear.osc.type = state.waveform;
         }
 
@@ -2389,6 +2444,13 @@
         updateKinematicNetwork();
       }
 
+      // Keep POLY trains continuously driven by the current mechanical phase.
+      // Shape rate modulation (ellipse, square, hexagon, cardioid, heart, Möbius)
+      // must be evaluated every animation frame, not only when a note starts or
+      // the chord changes. This makes each hidden POLY train a true copy of the
+      // visible shaped machine.
+      if (state.polyMode && state.polyVoices.size) updatePolyVoices();
+
       if (state.audioSyncPending) {
         if (performance.now() >= state.audioSyncPerfMs) {
           state.audioSyncPending = false;
@@ -3149,7 +3211,7 @@
           voice.gears.set(gear.id, { source, delayNode, gainNode, pannerNode, gear });
         } else {
           const osc = state.audioCtx.createOscillator();
-          if (state.waveform === 'impulse') osc.setPeriodicWave(getImpulseWave(state.audioCtx));
+          if (state.waveform === 'clockwork') osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
           else osc.type = state.waveform;
           osc.frequency.setValueAtTime(gearFreq, now);
           osc.connect(delayNode);
@@ -3952,10 +4014,24 @@
       }
     });
 
+    const clockworkControls = document.getElementById('clockwork-controls');
+    const clockworkWidthSlider = document.getElementById('slider-clockwork-width');
+    const clockworkWidthVal = document.getElementById('val-clockwork-width');
+    function refreshClockworkControlVisibility() {
+      if (clockworkControls) clockworkControls.style.display = state.waveform === 'clockwork' ? 'block' : 'none';
+    }
     document.getElementById('select-waveform').addEventListener('change', (e) => {
       state.waveform = e.target.value;
+      refreshClockworkControlVisibility();
       updateAudioNodes();
     });
+    clockworkWidthSlider?.addEventListener('input', (e) => {
+      state.clockworkTickWidthMs = parseFloat(e.target.value);
+      if (clockworkWidthVal) clockworkWidthVal.textContent = `${state.clockworkTickWidthMs.toFixed(1)} ms`;
+      clockworkWaveCache.clear();
+      updateAudioNodes();
+    });
+    refreshClockworkControlVisibility();
 
     // AUDIO DRIVER SAMPLE EDITOR / RECORDER
     const DRIVER_CROSSFADE_MS = 25;
