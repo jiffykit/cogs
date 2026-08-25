@@ -1428,12 +1428,29 @@
       return !!state.crankTool.enabled;
     }
 
+    function setCrankDrivenSpeed(angularVelocity = 0) {
+      const safeVelocity = Number.isFinite(angularVelocity) ? angularVelocity : 0;
+      const direction = safeVelocity < 0 ? -1 : 1;
+      state.driveDirection = direction;
+      const turnsPerSecond = Math.max(0, Math.abs(safeVelocity) / TAU);
+      if (state.audioDriver.buffer) {
+        setDriverRPM(turnsPerSecond * 60, false, false, true, true);
+      } else {
+        setFundamentalFrequency(turnsPerSecond, false, true, true, true);
+      }
+    }
+
     function disableCrankTool() {
       state.crankTool.enabled = false;
       state.crankTool.hoverPart = null;
       state.crankTool.dragAngle = null;
       state.driveDirection = 1;
       if (state.dragState?.mode === 'crank') state.dragState = null;
+      if (state.audioDriver.buffer) {
+        setDriverRPM(state.audioDriver.driverRPMBase || DRIVER_NOMINAL_RPM, false, false);
+      } else {
+        setFundamentalFrequency(state.baseFundamentalFreq || 1.0, false);
+      }
     }
 
     function placeCrankTool(resetAngle = false) {
@@ -1452,6 +1469,7 @@
       if (resetAngle) {
         tool.phaseOffset = normalizeWrappedAngle((-Math.PI / 2) - state.masterPhase);
       }
+      setCrankDrivenSpeed(0);
     }
 
     function getCrankToolGeometry() {
@@ -1515,7 +1533,7 @@
       const source = state.audioCtx.createBufferSource();
       source.buffer = state.audioDriver.buffer;
       source.loop = true;
-      source.playbackRate.value = Math.max(0.000001, Math.abs(isGearBeingDragged(gear) ? (gear._dragHeldRatio || gear.ratio) : gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1));
+      source.playbackRate.value = Math.max(0, Math.abs(isGearBeingDragged(gear) ? (gear._dragHeldRatio || gear.ratio) : gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1));
       const loopEnd = state.audioDriver.buffer.duration;
       source.loopStart = 0;
       source.loopEnd = loopEnd;
@@ -1933,7 +1951,7 @@
         } else if (driverMode) {
           const source = state.audioDriver.sources.get(gear.id);
           if (source) {
-            source.playbackRate.setTargetAtTime(Math.max(0.000001, Math.abs(gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1)), now, 0.01);
+            source.playbackRate.setTargetAtTime(Math.max(0, Math.abs(gear.ratio) * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1)), now, 0.01);
           }
           // The buffer is the source in driver mode. Apply the same signed phase
           // convention as the visual hand, using the actual per-gear playback rate.
@@ -2368,7 +2386,7 @@
       }
       if (state.audioDriver.playing) {
         const source = state.audioDriver.sources.get(gear.id);
-        if (source) source.playbackRate.setTargetAtTime(Math.max(0.000001, Math.abs(gear.ratio) * motion.rate * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1)), now, 0.006);
+        if (source) source.playbackRate.setTargetAtTime(Math.max(0, Math.abs(gear.ratio) * motion.rate * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1)), now, 0.006);
       }
       if (gear.delayNode) {
         const idealPhase = gear.isMain ? state.masterPhase : gear.ratio * state.masterPhase;
@@ -3005,7 +3023,9 @@
         state.dragState = {
           mode: 'crank',
           pointerId: e.pointerId,
-          lastAngle: crankHit.angle
+          lastAngle: crankHit.angle,
+          lastTime: performance.now(),
+          angularVelocity: 0
         };
         updateInspector();
         renderGearList();
@@ -3062,7 +3082,13 @@
         state.crankTool.hoverPart = 'turn';
         state.crankTool.dragAngle = pointerAngle;
         state.masterPhase = (state.masterPhase + deltaAngle + TAU) % TAU;
+        const nowMs = performance.now();
+        const dtSec = Math.max(0.001, (nowMs - state.dragState.lastTime) / 1000);
+        const instantaneousVelocity = Math.max(-TAU * 24, Math.min(TAU * 24, deltaAngle / dtSec));
+        state.dragState.angularVelocity = (state.dragState.angularVelocity * 0.52) + (instantaneousVelocity * 0.48);
         state.dragState.lastAngle = pointerAngle;
+        state.dragState.lastTime = nowMs;
+        setCrankDrivenSpeed(state.dragState.angularVelocity);
         applyCurrentMasterPhaseToGears();
       } else if (state.dragState.mode === 'gear') {
         const dx = mouse.x - state.dragState.startX;
@@ -3093,6 +3119,7 @@
         state.crankTool.phaseOffset = normalizeWrappedAngle(releasedAngle - state.masterPhase);
         state.crankTool.dragAngle = null;
         state.crankTool.hoverPart = null;
+        setCrankDrivenSpeed(0);
       } else if (state.dragState.mode === 'gear') {
         const gear = state.dragState.gear;
         const snap = state.dragState.snapTarget;
@@ -3270,10 +3297,13 @@
       return bestDiff <= toleranceFraction ? best : rpm;
     }
 
-    function setDriverRPM(rpm, snap = false, updateBase = true, preserveDirection = false) {
+    function setDriverRPM(rpm, snap = false, updateBase = true, preserveDirection = false, allowZero = false) {
       const d = state.audioDriver;
-      rpm = Math.min(DRIVER_RPM_MAX, Math.max(DRIVER_RPM_MIN, Number(rpm) || DRIVER_NOMINAL_RPM));
-      if (snap) rpm = nearestDriverRpmSnap(rpm);
+      const minRpm = allowZero ? 0 : DRIVER_RPM_MIN;
+      const rawRpm = Number(rpm);
+      rpm = Math.min(DRIVER_RPM_MAX, Math.max(minRpm, Number.isFinite(rawRpm) ? rawRpm : (allowZero ? 0 : DRIVER_NOMINAL_RPM)));
+      if (!allowZero && rpm === 0) rpm = DRIVER_NOMINAL_RPM;
+      if (snap && rpm > 0) rpm = nearestDriverRpmSnap(rpm);
       if (!preserveDirection) state.driveDirection = 1;
       d.driverRPM = rpm;
       if (updateBase) d.driverRPMBase = rpm;
@@ -3287,20 +3317,20 @@
 
       slider.min = Math.log10(DRIVER_RPM_MIN);
       slider.max = Math.log10(DRIVER_RPM_MAX);
-      slider.value = Math.log10(rpm);
-      numInput.min = DRIVER_RPM_MIN;
+      slider.value = rpm > 0 ? Math.log10(rpm) : slider.min;
+      numInput.min = allowZero ? 0 : DRIVER_RPM_MIN;
       numInput.max = DRIVER_RPM_MAX;
-      numInput.value = rpm >= 100 ? rpm.toFixed(0) : rpm.toFixed(1);
+      numInput.value = rpm === 0 ? '0' : (rpm >= 100 ? rpm.toFixed(0) : rpm.toFixed(1));
       label.textContent = 'Audio Driver Speed';
       unit.textContent = 'RPM';
-      value.textContent = `${rpm < 100 ? rpm.toFixed(1) : rpm.toFixed(0)} RPM`;
+      value.textContent = rpm === 0 ? '0.0 RPM' : `${rpm < 100 ? rpm.toFixed(1) : rpm.toFixed(0)} RPM`;
 
       if (state.audioRunning && d.playing) {
         const now = state.audioCtx.currentTime;
         state.audioDriver.sources.forEach((source, id) => {
           const gear = state.gearMap.get(id);
           if (source && gear) source.playbackRate.setTargetAtTime(
-            Math.max(0.000001, Math.abs(gear.ratio) * d.driverRate), now, 0.005
+            Math.max(0, Math.abs(gear.ratio) * d.driverRate), now, 0.005
           );
         });
       }
@@ -3318,38 +3348,40 @@
       numInput.max = nyquist;
     }
 
-    function setFundamentalFrequency(freq, isBaseChange = true, preserveDirection = false) {
+    function setFundamentalFrequency(freq, isBaseChange = true, preserveDirection = false, allowZero = false, immediate = false) {
       const nyquist = getNyquist();
-      freq = Math.min(nyquist, Math.max(0.1, freq));
+      const minFreq = allowZero ? 0 : 0.1;
+      const rawFreq = Number(freq);
+      freq = Math.min(nyquist, Math.max(minFreq, Number.isFinite(rawFreq) ? rawFreq : (allowZero ? 0 : 1.0)));
+      if (!allowZero && freq === 0) freq = 0.1;
       if (!preserveDirection) state.driveDirection = 1;
 
       // In audio-driver mode, the same control is RPM. 33.3 RPM = normal playback.
       if (state.audioDriver.buffer) {
-        setDriverRPM(freq, false);
+        setDriverRPM(freq, false, isBaseChange, preserveDirection, allowZero);
         return;
       }
 
       if (isBaseChange) state.baseFundamentalFreq = freq;
       state.targetFundamentalFreq = freq;
-      if (!state.legato) state.fundamentalFreq = freq;
+      if (!state.legato || immediate || freq === 0) state.fundamentalFreq = freq;
 
-      const logVal = Math.log10(freq);
       const slider = document.getElementById('slider-fundamental');
       slider.min = -1;
       slider.max = Math.log10(nyquist).toFixed(3);
-      slider.value = logVal;
+      slider.value = freq > 0 ? Math.log10(freq) : slider.min;
 
       const numInput = document.getElementById('input-fundamental');
-      numInput.min = 0.1;
+      numInput.min = allowZero ? 0 : 0.1;
       numInput.max = nyquist;
-      numInput.value = freq >= 10 ? freq.toFixed(1) : freq.toFixed(2);
+      numInput.value = freq === 0 ? '0' : (freq >= 10 ? freq.toFixed(1) : freq.toFixed(2));
 
-      const freqLabel = freq >= 1000 ? `${(freq / 1000).toFixed(2)} kHz` : `${freq.toFixed(1)} Hz`;
+      const freqLabel = freq === 0 ? '0.0 Hz' : (freq >= 1000 ? `${(freq / 1000).toFixed(2)} kHz` : `${freq.toFixed(1)} Hz`);
       document.getElementById('fundamental-label').textContent = 'Fundamental Frequency';
       document.getElementById('fundamental-unit').textContent = 'Hz';
       document.getElementById('val-fundamental').textContent = freqLabel;
 
-      if (!state.legato) updateKinematicNetwork();
+      if (!state.legato || immediate || freq === 0) updateKinematicNetwork();
     }
 
     /* 12TET QWERTY KEYBOARD NOTE SYNTHESIS ENGINE */
@@ -3374,12 +3406,13 @@
     function applyKeyboardDriverPitch() {
       if (!state.audioCtx || !state.audioRunning || !state.audioDriver.buffer || !state.audioDriver.playing) return;
       const now = state.audioCtx.currentTime;
-      const baseRate = (state.audioDriver.driverRPMBase || DRIVER_NOMINAL_RPM) / state.audioDriver.driverNominalRPM;
+      const baseRpm = isCrankManualDriveActive() ? (state.audioDriver.driverRPM || 0) : (state.audioDriver.driverRPMBase || DRIVER_NOMINAL_RPM);
+      const baseRate = baseRpm / state.audioDriver.driverNominalRPM;
       const keyRate = baseRate * (state.audioDriver.keyboardKeyRatio || 1);
       state.audioDriver.sources.forEach((source, id) => {
         const gear = state.gearMap.get(id);
         if (source && gear) {
-          source.playbackRate.setTargetAtTime(Math.max(0.000001, Math.abs(gear.ratio) * keyRate), now, 0.005);
+          source.playbackRate.setTargetAtTime(Math.max(0, Math.abs(gear.ratio) * keyRate), now, 0.005);
         }
       });
     }
@@ -3576,7 +3609,7 @@
           const source = state.audioCtx.createBufferSource();
           source.buffer = state.audioDriver.buffer;
           source.loop = true;
-          const playbackRate = Math.max(0.000001,
+          const playbackRate = Math.max(0,
             Math.abs(gear.ratio) * shapeMotion.rate * state.audioDriver.driverRate * voiceRatio
           );
           source.playbackRate.setValueAtTime(playbackRate, now);
@@ -3650,7 +3683,7 @@
           pg.gainNode.gain.setTargetAtTime(getPolyGearVolume(gear, driverMode), now, 0.01);
 
           if (driverMode && pg.source) {
-            const playbackRate = Math.max(0.000001,
+            const playbackRate = Math.max(0,
               Math.abs(gear.ratio) * shapeMotion.rate * state.audioDriver.driverRate * voice.voiceRatio
             );
             pg.source.playbackRate.setTargetAtTime(playbackRate, now, state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005);
