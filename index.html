@@ -5232,9 +5232,10 @@
 
         function onDown(e) {
           if (!rs.buffer) return;
-          e.preventDefault();
+          // Prevent text selection during drag; only preventDefault for touch to avoid
+          // suppressing browser mouse default behaviors unnecessarily.
+          if (e.touches) e.preventDefault();
           const cx = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-          const t = getT(cx);
           const rect = canvas.getBoundingClientRect();
           const dur = rs.buffer.duration;
           const s1px = (rs.selStart / dur) * rect.width;
@@ -5260,6 +5261,7 @@
 
         function onUp() { rs.draggingHandle = null; }
 
+        // All window listeners are registered once here (guarded by canvas._rfftBound above).
         canvas.addEventListener('mousedown', onDown);
         window.addEventListener('mousemove', onMove);
         window.addEventListener('mouseup', onUp);
@@ -5491,7 +5493,10 @@
           used.add(i);
           for (let j = i + 1; j < sorted.length; j++) {
             if (used.has(j)) continue;
-            if (sorted[j].freq / group[0].freq < tol) {
+            // Compare against the last group member (running boundary), not the first,
+            // so only truly adjacent peaks are merged together.
+            const boundary = group[group.length - 1].freq;
+            if (sorted[j].freq / boundary < tol) {
               group.push(sorted[j]);
               used.add(j);
             }
@@ -5831,7 +5836,7 @@
       // Best-effort MIDI startup: browsers may require permission/user gesture.
       setTimeout(() => { try { initWebMIDI(); } catch (_) {} }, 100);
       // Initialize Reverse FFT / Machine Builder
-      try { RFFT.init(); } catch (_) {}
+      try { RFFT.init(); } catch (e) { console.error('RFFT init failed:', e); }
     }
 
     initApp();
