@@ -5117,6 +5117,7 @@
         draggingHandle: null,// 'start' | 'end'
         mediaRecorder: null,
         isRecording: false,
+        canvasEventsController: null,
       };
 
       // ——— DOM helpers ———
@@ -5148,6 +5149,12 @@
       function closeModal() {
         const modal = $('rfft-modal');
         if (modal) modal.classList.remove('rfft-open');
+        if (rs.canvasEventsController) {
+          rs.canvasEventsController.abort();
+          rs.canvasEventsController = null;
+        }
+        const canvas = $('rfft-waveform');
+        if (canvas) canvas._rfftBound = false;
         stopSourcePlayback();
         rs.buildAbort = true;
       }
@@ -5223,6 +5230,10 @@
         const canvas = $('rfft-waveform');
         if (!canvas || canvas._rfftBound) return;
         canvas._rfftBound = true;
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        rs.canvasEventsController = controller;
+        const listenerOpts = controller ? { signal: controller.signal } : undefined;
+        const touchOpts = controller ? { passive: false, signal: controller.signal } : { passive: false };
 
         function getT(clientX) {
           const rect = canvas.getBoundingClientRect();
@@ -5262,12 +5273,12 @@
         function onUp() { rs.draggingHandle = null; }
 
         // All window listeners are registered once here (guarded by canvas._rfftBound above).
-        canvas.addEventListener('mousedown', onDown);
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
-        canvas.addEventListener('touchstart', onDown, { passive: false });
-        window.addEventListener('touchmove', onMove, { passive: false });
-        window.addEventListener('touchend', onUp);
+        canvas.addEventListener('mousedown', onDown, listenerOpts);
+        window.addEventListener('mousemove', onMove, listenerOpts);
+        window.addEventListener('mouseup', onUp, listenerOpts);
+        canvas.addEventListener('touchstart', onDown, touchOpts);
+        window.addEventListener('touchmove', onMove, touchOpts);
+        window.addEventListener('touchend', onUp, listenerOpts);
       }
 
       // ——— Audio load ———
@@ -5994,7 +6005,8 @@
           rs.buildAbort = false;
           const resultBox = $('rfft-result');
           if (resultBox) resultBox.style.display = 'none';
-          $('rfft-playback-controls').style.display = 'none';
+          const playbackControls = $('rfft-playback-controls');
+          if (playbackControls) playbackControls.style.display = 'none';
           try {
             await buildMachine(msg => setStatus(msg));
           } finally {
