@@ -5118,6 +5118,7 @@
         mediaRecorder: null,
         isRecording: false,
         canvasEventsController: null,
+        canvasListenerCleanup: null,
       };
 
       // ——— DOM helpers ———
@@ -5152,6 +5153,10 @@
         if (rs.canvasEventsController) {
           rs.canvasEventsController.abort();
           rs.canvasEventsController = null;
+        }
+        if (rs.canvasListenerCleanup) {
+          rs.canvasListenerCleanup();
+          rs.canvasListenerCleanup = null;
         }
         const canvas = $('rfft-waveform');
         if (canvas) canvas._rfftBound = false;
@@ -5279,6 +5284,14 @@
         canvas.addEventListener('touchstart', onDown, touchOpts);
         window.addEventListener('touchmove', onMove, touchOpts);
         window.addEventListener('touchend', onUp, listenerOpts);
+        rs.canvasListenerCleanup = () => {
+          canvas.removeEventListener('mousedown', onDown, listenerOpts);
+          window.removeEventListener('mousemove', onMove, listenerOpts);
+          window.removeEventListener('mouseup', onUp, listenerOpts);
+          canvas.removeEventListener('touchstart', onDown, touchOpts);
+          window.removeEventListener('touchmove', onMove, touchOpts);
+          window.removeEventListener('touchend', onUp, listenerOpts);
+        };
       }
 
       // ——— Audio load ———
@@ -5563,6 +5576,8 @@
             if (sorted[j].freq / boundary < tol) {
               group.push(sorted[j]);
               used.add(j);
+            } else {
+              break;
             }
           }
           // Represent group by weighted mean frequency (mag-weighted) and merge
@@ -5818,10 +5833,14 @@
 
         // Set fundamental frequency to match the estimated source fundamental
         setFundamentalFrequency(fundamental);
-        state.waveform = 'sine';
         const waveformSelect = $('select-waveform');
-        if (waveformSelect) waveformSelect.value = 'sine';
-        if (typeof refreshClockworkControlVisibility === 'function') refreshClockworkControlVisibility();
+        if (waveformSelect) {
+          waveformSelect.value = 'sine';
+          waveformSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          state.waveform = 'sine';
+          if (typeof refreshClockworkControlVisibility === 'function') refreshClockworkControlVisibility();
+        }
         const mainGearObj = state.gears.find(g => g.isMain) || state.gears[0];
         if (mainGearObj) {
           mainGearObj.shape = chooseMainShape(analysisMode, analysis, fundamental);
