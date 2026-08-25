@@ -5506,8 +5506,8 @@
           winSize: WIN,
           rms,
           selDuration: selEnd - selStart,
-          refRe: refRe || new Float64Array(re),
-          refIm: refIm || new Float64Array(im),
+          refRe,
+          refIm,
           zeroCrossRate,
           centroidSec,
           peakAbs
@@ -5761,7 +5761,7 @@
         onStatus('Finding spectral components…');
         await tick();
 
-        const { mags, sr, winSize, rms, selDuration: dur, refRe, refIm, zeroCrossRate, centroidSec } = analysis;
+        const { mags, sr, winSize, rms, refRe, refIm, zeroCrossRate, centroidSec } = analysis;
 
         // Extract raw peaks — gather more than needed for clustering
         const rawPeaks = extractPeaks(mags, sr, winSize, complexity * 8 + 32, refRe, refIm);
@@ -5894,7 +5894,7 @@
         onStatus('Done. ✓ Machine is live — inspect and edit gears as normal.');
         await tick();
 
-        showResults(selected, fundamental, dur);
+        showResults(selected, fundamental, selDuration);
       }
 
       // ——— Results display ———
@@ -5909,7 +5909,7 @@
             `<span>Base: ${fundamental.toFixed(2)} Hz</span>` +
             `<span>Selection: ${selDur.toFixed(2)}s</span>` +
             `<span>Components: ${components.length}</span>` +
-            `<span>Playback: additive sine + shaped cams</span>`;
+            `<span>Playback: additive sine + shaped gears</span>`;
         }
 
         const listEl = $('rfft-component-list');
