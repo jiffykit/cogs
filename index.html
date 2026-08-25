@@ -801,6 +801,142 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
     }
+
+    /* ===== REVERSE FFT / MACHINE BUILDER ===== */
+    #rfft-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: rgba(0,0,0,0.75);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 24px 16px;
+      overflow-y: auto;
+    }
+    #rfft-modal.rfft-open { display: flex; }
+    .rfft-panel {
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      max-width: 620px;
+      width: 100%;
+      padding: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: auto;
+    }
+    .rfft-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .rfft-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--accent-main);
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .rfft-section {
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .rfft-section-title {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    #rfft-wave-wrap { display: none; margin-bottom: 4px; }
+    #rfft-waveform {
+      width: 100%;
+      height: 88px;
+      display: block;
+      background: rgba(0,0,0,0.28);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      cursor: ew-resize;
+      touch-action: none;
+    }
+    .rfft-time-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+    .rfft-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .rfft-row label { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; min-width: 110px; }
+    .rfft-row select, .rfft-row input[type="range"], .rfft-row input[type="number"] {
+      flex: 1;
+      font-size: 0.7rem;
+      background: rgba(0,0,0,0.2);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      padding: 4px 6px;
+    }
+    .rfft-complexity-val {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      min-width: 28px;
+      text-align: center;
+    }
+    #rfft-status {
+      font-size: 0.72rem;
+      color: var(--accent-cyan);
+      min-height: 18px;
+      padding: 4px 0;
+      font-weight: 600;
+    }
+    #rfft-result { display: none; }
+    .rfft-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 6px;
+    }
+    #rfft-playback-controls {
+      display: none;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .rfft-component-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.64rem;
+    }
+    .rfft-component-table th {
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 2px 4px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .rfft-component-table td {
+      padding: 2px 4px;
+      color: var(--text-main);
+    }
+    .rfft-component-table tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
+    /* ===== END REVERSE FFT ===== */
   </style>
 </head>
 <body>
@@ -915,6 +1051,93 @@
       </div>
     </section>
 
+    <!-- ===== REVERSE FFT / MACHINE BUILDER MODAL ===== -->
+    <div id="rfft-modal" role="dialog" aria-modal="true" aria-label="Reverse FFT Machine Builder">
+      <div class="rfft-panel">
+        <div class="rfft-header">
+          <div class="rfft-title">🔬 REVERSE FFT — MACHINE BUILDER</div>
+          <button id="rfft-close-btn" style="padding:3px 10px; font-size:0.8rem;" title="Close">×</button>
+        </div>
+        <p style="font-size:0.68rem; color:var(--text-muted); line-height:1.4; margin:0;">Analyze a short audio sample and construct a gear machine that approximates it. The result becomes a normal editable machine.</p>
+
+        <!-- SOURCE AUDIO -->
+        <div class="rfft-section">
+          <div class="rfft-section-title">Source Audio</div>
+          <div class="btn-group" style="margin-bottom:8px;">
+            <button id="rfft-load-btn" class="btn-primary" style="flex:1;">📂 Load Sample</button>
+            <button id="rfft-record-btn" style="flex:1;">● Record</button>
+            <button id="rfft-use-driver-btn" style="flex:1; font-size:0.65rem;">Use Driver Audio</button>
+            <input type="file" id="rfft-file-input" accept="audio/*" style="display:none;">
+          </div>
+          <div id="rfft-file-info" style="font-size:0.65rem; color:var(--text-muted); margin-bottom:6px;">No sample loaded</div>
+          <div id="rfft-wave-wrap">
+            <canvas id="rfft-waveform" width="560" height="88"></canvas>
+            <div class="rfft-time-row">
+              <span>START <b id="rfft-sel-start">0.00s</b></span>
+              <span style="color:var(--accent-main); font-weight:700;">← drag handles to select region (default 5s) →</span>
+              <span>END <b id="rfft-sel-end">5.00s</b></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- MACHINE COMPLEXITY -->
+        <div class="rfft-section">
+          <div class="rfft-section-title">Machine Complexity</div>
+          <div class="rfft-row">
+            <label>Gear Count</label>
+            <input type="range" id="rfft-complexity" min="1" max="64" step="1" value="6" style="flex:1;">
+            <span class="rfft-complexity-val" id="rfft-complexity-val">6</span>
+          </div>
+          <div style="font-size:0.62rem; color:var(--text-muted);">Lower = smaller, stranger, more distorted. Higher = more detail preserved.</div>
+        </div>
+
+        <!-- ANALYSIS SETTINGS -->
+        <div class="rfft-section">
+          <div class="rfft-section-title">Analysis Settings</div>
+          <div class="rfft-row" style="margin-bottom:4px;">
+            <label>Analysis Mode</label>
+            <select id="rfft-analysis-mode">
+              <option value="general">General</option>
+              <option value="speech">Speech — weight formants &amp; temporal</option>
+              <option value="music">Music — weight harmonics &amp; transients</option>
+            </select>
+          </div>
+          <div class="rfft-row">
+            <label>Spectral Compression</label>
+            <select id="rfft-spectral-compression">
+              <option value="raw">RAW — retain all spectral detail</option>
+              <option value="fine">Fine</option>
+              <option value="moderate" selected>Moderate</option>
+              <option value="aggressive">Aggressive</option>
+              <option value="extreme">EXTREME — collapse to broadest shapes</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- BUILD -->
+        <button id="rfft-build-btn" class="btn-primary" style="width:100%; padding:10px; font-size:0.85rem; font-weight:800; letter-spacing:1px;" disabled>⚙️ BUILD MACHINE</button>
+
+        <!-- PROGRESS -->
+        <div class="rfft-section">
+          <div class="rfft-section-title">Status</div>
+          <div id="rfft-status">Load a sample to begin.</div>
+        </div>
+
+        <!-- RESULT -->
+        <div id="rfft-result" class="rfft-section">
+          <div class="rfft-section-title">Result</div>
+          <div id="rfft-metrics-row" class="rfft-metrics"></div>
+          <div id="rfft-component-list"></div>
+          <div style="font-size:0.68rem; color:var(--text-muted); margin-top:6px; line-height:1.4;">Generated gears are now live in the machine. Inspect and edit them as normal.</div>
+          <div id="rfft-playback-controls" class="btn-group">
+            <button id="rfft-play-source" style="flex:1;" disabled>▶ SOURCE</button>
+            <button id="rfft-play-machine" class="btn-primary" style="flex:1;" disabled>▶ MACHINE</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ===== END REVERSE FFT MODAL ===== -->
+
     <!-- SIDEBAR -->
     <aside id="sidebar">
       <div class="sidebar-header">
@@ -974,6 +1197,7 @@
             <button id="btn-driver-clear" style="flex:1;">Clear</button>
           </div>
           <div id="audio-driver-status" style="font-size:0.68rem; color:var(--text-muted); margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">No audio file loaded</div>
+          <button id="btn-rfft-open" class="btn-primary" style="width:100%; margin-top:8px; background:rgba(245,158,11,0.15); border:1px solid var(--accent-main); color:var(--accent-main);" title="Analyze audio and construct a gear machine that approximates it">🔬 BUILD MACHINE FROM AUDIO</button>
         </div>
 
         <!-- MAIN GEAR / FUNDAMENTAL CONTROLS -->
@@ -4873,6 +5097,728 @@
       }
     });
 
+    // ==========================================
+    // REVERSE FFT / MACHINE BUILDER — Phase 1
+    // Analyzes a short audio sample and builds a gear machine that approximates it.
+    // Implements a clean end-to-end prototype: load → FFT → peaks → gears.
+    // ==========================================
+    const RFFT = (() => {
+      'use strict';
+
+      // ——— Internal state ———
+      const rs = {
+        buffer: null,        // AudioBuffer of the loaded sample
+        fileName: '',
+        selStart: 0,         // Selection start (seconds)
+        selEnd: 5,           // Selection end (seconds)
+        buildAbort: false,
+        srcNode: null,       // Currently playing source AudioNode
+        resultGearIds: [],
+        draggingHandle: null,// 'start' | 'end'
+        mediaRecorder: null,
+        isRecording: false,
+      };
+
+      // ——— DOM helpers ———
+      const $ = id => document.getElementById(id);
+      function setStatus(msg) { const el = $('rfft-status'); if (el) el.textContent = msg; }
+
+      // ——— Modal open/close ———
+      function openModal() {
+        const modal = $('rfft-modal');
+        if (!modal) return;
+        modal.classList.add('rfft-open');
+        // Pre-populate from Audio Driver if loaded and no RFFT sample yet
+        const driverBuf = state.audioDriver && state.audioDriver.buffer;
+        if (!rs.buffer && driverBuf) {
+          rs.buffer = driverBuf;
+          rs.fileName = state.audioDriver.fileName || 'Audio Driver';
+          rs.selStart = state.audioDriver.loopStart || 0;
+          rs.selEnd = Math.min(rs.selStart + 5, driverBuf.duration,
+                               state.audioDriver.loopEnd || driverBuf.duration);
+          updateFileInfo();
+          drawWaveform();
+          initCanvasEvents();
+        } else if (rs.buffer) {
+          drawWaveform();
+          initCanvasEvents();
+        }
+      }
+
+      function closeModal() {
+        const modal = $('rfft-modal');
+        if (modal) modal.classList.remove('rfft-open');
+        stopSourcePlayback();
+        rs.buildAbort = true;
+      }
+
+      // ——— File info display ———
+      function updateFileInfo() {
+        const buf = rs.buffer;
+        if (!buf) return;
+        const info = $('rfft-file-info');
+        if (info) {
+          const ch = buf.numberOfChannels === 1 ? 'mono' : (buf.numberOfChannels === 2 ? 'stereo' : buf.numberOfChannels + 'ch');
+          info.textContent = `${rs.fileName} — ${buf.duration.toFixed(2)}s, ${buf.sampleRate} Hz, ${ch}`;
+        }
+        $('rfft-wave-wrap').style.display = 'block';
+        $('rfft-build-btn').disabled = false;
+        setStatus('Ready. Adjust selection and click BUILD MACHINE.');
+      }
+
+      // ——— Waveform canvas ———
+      function drawWaveform() {
+        const canvas = $('rfft-waveform');
+        if (!canvas || !rs.buffer) return;
+        const ctx2d = canvas.getContext('2d');
+        const CW = canvas.width, CH = canvas.height;
+        const data = rs.buffer.getChannelData(0);
+        const dur = rs.buffer.duration;
+        ctx2d.clearRect(0, 0, CW, CH);
+        ctx2d.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx2d.fillRect(0, 0, CW, CH);
+
+        // Selection highlight
+        const sx1 = Math.round((rs.selStart / dur) * CW);
+        const sx2 = Math.round((rs.selEnd / dur) * CW);
+        ctx2d.fillStyle = 'rgba(245,158,11,0.12)';
+        ctx2d.fillRect(sx1, 0, sx2 - sx1, CH);
+
+        // Waveform (min/max per column)
+        ctx2d.strokeStyle = 'rgba(6,182,212,0.85)';
+        ctx2d.lineWidth = 1;
+        ctx2d.beginPath();
+        const samplesPerPx = data.length / CW;
+        for (let x = 0; x < CW; x++) {
+          let maxV = -Infinity, minV = Infinity;
+          const i0 = Math.floor(x * samplesPerPx);
+          const i1 = Math.min(data.length, Math.ceil((x + 1) * samplesPerPx));
+          for (let i = i0; i < i1; i++) {
+            if (data[i] > maxV) maxV = data[i];
+            if (data[i] < minV) minV = data[i];
+          }
+          if (!isFinite(maxV)) { maxV = 0; minV = 0; }
+          const y1 = ((1 - maxV) / 2) * CH;
+          const y2 = ((1 - minV) / 2) * CH;
+          if (x === 0) ctx2d.moveTo(x, y1);
+          else { ctx2d.lineTo(x, y1); ctx2d.lineTo(x, y2); }
+        }
+        ctx2d.stroke();
+
+        // Selection handles
+        ctx2d.strokeStyle = '#f59e0b';
+        ctx2d.lineWidth = 2;
+        ctx2d.beginPath();
+        ctx2d.moveTo(sx1, 0); ctx2d.lineTo(sx1, CH);
+        ctx2d.moveTo(sx2, 0); ctx2d.lineTo(sx2, CH);
+        ctx2d.stroke();
+
+        // Time labels
+        const startEl = $('rfft-sel-start'), endEl = $('rfft-sel-end');
+        if (startEl) startEl.textContent = rs.selStart.toFixed(2) + 's';
+        if (endEl)   endEl.textContent   = rs.selEnd.toFixed(2) + 's';
+      }
+
+      function initCanvasEvents() {
+        const canvas = $('rfft-waveform');
+        if (!canvas || canvas._rfftBound) return;
+        canvas._rfftBound = true;
+
+        function getT(clientX) {
+          const rect = canvas.getBoundingClientRect();
+          const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+          return frac * (rs.buffer ? rs.buffer.duration : 5);
+        }
+
+        function onDown(e) {
+          if (!rs.buffer) return;
+          e.preventDefault();
+          const cx = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+          const t = getT(cx);
+          const rect = canvas.getBoundingClientRect();
+          const dur = rs.buffer.duration;
+          const s1px = (rs.selStart / dur) * rect.width;
+          const s2px = (rs.selEnd / dur) * rect.width;
+          const xPx = cx - rect.left;
+          if (Math.abs(xPx - s2px) <= Math.abs(xPx - s1px)) rs.draggingHandle = 'end';
+          else rs.draggingHandle = 'start';
+        }
+
+        function onMove(e) {
+          if (!rs.buffer || !rs.draggingHandle) return;
+          e.preventDefault();
+          const cx = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+          const t = getT(cx);
+          const dur = rs.buffer.duration;
+          if (rs.draggingHandle === 'start') {
+            rs.selStart = Math.max(0, Math.min(rs.selEnd - 0.05, t));
+          } else {
+            rs.selEnd = Math.max(rs.selStart + 0.05, Math.min(dur, t));
+          }
+          drawWaveform();
+        }
+
+        function onUp() { rs.draggingHandle = null; }
+
+        canvas.addEventListener('mousedown', onDown);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+        canvas.addEventListener('touchstart', onDown, { passive: false });
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onUp);
+      }
+
+      // ——— Audio load ———
+      async function loadFile(file) {
+        if (!file) return;
+        setStatus('Loading audio…');
+        try {
+          ensureCtx();
+          const ab = await file.arrayBuffer();
+          const decoded = await state.audioCtx.decodeAudioData(ab);
+          rs.buffer = decoded;
+          rs.fileName = file.name;
+          rs.selStart = 0;
+          rs.selEnd = Math.min(5, decoded.duration);
+          updateFileInfo();
+          drawWaveform();
+          initCanvasEvents();
+        } catch (err) {
+          setStatus('Error loading file: ' + (err.message || 'decode failed'));
+        }
+      }
+
+      function ensureCtx() {
+        if (!state.audioCtx) {
+          state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          state.masterGain = state.audioCtx.createGain();
+          state.masterGain.gain.setValueAtTime(state.masterVolume || 0.7, state.audioCtx.currentTime);
+          state.masterGain.connect(state.audioCtx.destination);
+        }
+        if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+      }
+
+      // ——— Recording ———
+      async function startRecording() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const chunks = [];
+          const mr = new MediaRecorder(stream);
+          rs.mediaRecorder = mr;
+          rs.isRecording = true;
+          mr.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+          mr.onstop = async () => {
+            stream.getTracks().forEach(t => t.stop());
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            setStatus('Decoding recording…');
+            try {
+              ensureCtx();
+              const ab = await blob.arrayBuffer();
+              const decoded = await state.audioCtx.decodeAudioData(ab);
+              rs.buffer = decoded;
+              rs.fileName = 'Microphone recording';
+              rs.selStart = 0;
+              rs.selEnd = Math.min(5, decoded.duration);
+              updateFileInfo();
+              drawWaveform();
+              initCanvasEvents();
+            } catch (err) {
+              setStatus('Error decoding recording: ' + (err.message || err));
+            }
+          };
+          mr.start();
+          setStatus('Recording… click STOP to finish.');
+          $('rfft-record-btn').textContent = '■ STOP';
+        } catch (err) {
+          setStatus('Mic error: ' + (err.message || 'permission denied'));
+        }
+      }
+
+      function stopRecording() {
+        if (rs.mediaRecorder && rs.mediaRecorder.state !== 'inactive') rs.mediaRecorder.stop();
+        rs.isRecording = false;
+        $('rfft-record-btn').textContent = '● Record';
+      }
+
+      // ——— Cooley–Tukey in-place radix-2 FFT ———
+      // Input: re[] and im[] must have length that is a power of 2.
+      function fftInPlace(re, im) {
+        const N = re.length;
+        // Bit-reversal permutation
+        for (let i = 1, j = 0; i < N; i++) {
+          let bit = N >> 1;
+          for (; j & bit; bit >>= 1) j ^= bit;
+          j ^= bit;
+          if (i < j) {
+            let t = re[i]; re[i] = re[j]; re[j] = t;
+            t = im[i]; im[i] = im[j]; im[j] = t;
+          }
+        }
+        // Butterfly stages
+        for (let len = 2; len <= N; len <<= 1) {
+          const half = len >> 1;
+          const ang = -2 * Math.PI / len;
+          const wR = Math.cos(ang), wI = Math.sin(ang);
+          for (let i = 0; i < N; i += len) {
+            let uR = 1, uI = 0;
+            for (let j = 0; j < half; j++) {
+              const tR = uR * re[i+j+half] - uI * im[i+j+half];
+              const tI = uR * im[i+j+half] + uI * re[i+j+half];
+              re[i+j+half] = re[i+j] - tR;
+              im[i+j+half] = im[i+j] - tI;
+              re[i+j] += tR;
+              im[i+j] += tI;
+              const nR = uR * wR - uI * wI;
+              uI = uR * wI + uI * wR;
+              uR = nR;
+            }
+          }
+        }
+      }
+
+      // ——— STFT analysis: average magnitude spectrum over overlapping windows ———
+      // Returns { mags: Float64Array, sr, winSize, rms, selDuration } or null/error.
+      function analyzeBuffer(buffer, selStart, selEnd) {
+        const sr = buffer.sampleRate;
+        const i0 = Math.floor(selStart * sr);
+        const i1 = Math.min(buffer.length, Math.floor(selEnd * sr));
+        const len = i1 - i0;
+        if (len < 64) return null;
+
+        // Mix down to mono
+        const mono = new Float32Array(len);
+        for (let c = 0; c < buffer.numberOfChannels; c++) {
+          const ch = buffer.getChannelData(c);
+          for (let i = 0; i < len; i++) mono[i] += ch[i0 + i];
+        }
+        if (buffer.numberOfChannels > 1) {
+          const inv = 1 / buffer.numberOfChannels;
+          for (let i = 0; i < len; i++) mono[i] *= inv;
+        }
+
+        // Check RMS (silence guard)
+        let rms = 0;
+        for (let i = 0; i < len; i++) rms += mono[i] * mono[i];
+        rms = Math.sqrt(rms / len);
+        if (rms < 1e-6) return { silence: true };
+
+        // Choose window size: large for good frequency resolution, but ≤ len
+        let WIN = 8192;
+        while (WIN > len && WIN > 256) WIN >>= 1;
+        const HOP = WIN >> 2; // 75% overlap
+        const halfBins = WIN >> 1;
+        const magSum = new Float64Array(halfBins);
+        const hann = new Float32Array(WIN);
+        for (let i = 0; i < WIN; i++) hann[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (WIN - 1)));
+
+        const re = new Float64Array(WIN), im = new Float64Array(WIN);
+        let winCount = 0;
+
+        for (let off = 0; off + WIN <= len; off += HOP) {
+          for (let i = 0; i < WIN; i++) { re[i] = mono[off + i] * hann[i]; im[i] = 0; }
+          fftInPlace(re, im);
+          for (let i = 0; i < halfBins; i++) magSum[i] += Math.sqrt(re[i]*re[i] + im[i]*im[i]);
+          winCount++;
+        }
+
+        // Fallback: single padded window if audio shorter than WIN
+        if (winCount === 0) {
+          let sz = 64;
+          while (sz < len) sz <<= 1;
+          const re2 = new Float64Array(sz), im2 = new Float64Array(sz);
+          for (let i = 0; i < len; i++) re2[i] = mono[i];
+          fftInPlace(re2, im2);
+          const h2 = sz >> 1;
+          const m2 = new Float64Array(h2);
+          for (let i = 0; i < h2; i++) m2[i] = Math.sqrt(re2[i]*re2[i] + im2[i]*im2[i]);
+          return { mags: m2, sr, winSize: sz, rms, selDuration: selEnd - selStart };
+        }
+
+        for (let i = 0; i < halfBins; i++) magSum[i] /= winCount;
+        return { mags: magSum, sr, winSize: WIN, rms, selDuration: selEnd - selStart };
+      }
+
+      // ——— Spectral peak picking ———
+      // Returns array of { freq, mag, bin } sorted by magnitude descending.
+      function extractPeaks(mags, sr, winSize, maxRaw) {
+        const binHz = sr / winSize;
+        const peaks = [];
+        const minBin = Math.max(1, Math.ceil(20 / binHz));
+        const maxBin = mags.length - 2;
+
+        for (let i = minBin + 1; i < maxBin; i++) {
+          if (mags[i] > mags[i-1] && mags[i] > mags[i+1]) {
+            // Parabolic interpolation for sub-bin frequency accuracy
+            const a = mags[i-1], b = mags[i], c = mags[i+1];
+            const denom = a - 2*b + c;
+            const delta = (denom !== 0) ? 0.5 * (a - c) / denom : 0;
+            const freq = (i + Math.max(-0.5, Math.min(0.5, delta))) * binHz;
+            peaks.push({ freq, mag: b, bin: i });
+          }
+        }
+
+        peaks.sort((a, b) => b.mag - a.mag);
+
+        // De-duplicate: remove peaks within 8% of a stronger peak
+        const selected = [];
+        for (const pk of peaks) {
+          let masked = false;
+          for (const sp of selected) {
+            const r = pk.freq / sp.freq;
+            if (r > 0.92 && r < 1.08) { masked = true; break; }
+          }
+          if (!masked) {
+            selected.push(pk);
+            if (selected.length >= maxRaw) break;
+          }
+        }
+        return selected;
+      }
+
+      // ——— Spectral compression: merge nearby peaks based on compression level ———
+      // Compression factor c: 0 = RAW, 1 = EXTREME.
+      function compressPeaks(peaks, compressionFactor) {
+        if (compressionFactor < 0.05) return peaks; // RAW
+        // Merge peaks whose frequency ratio is within the tolerance band
+        const tol = 1 + compressionFactor * 0.6; // e.g. EXTREME=1.6 → merge within 60% ratio
+        const groups = [];
+        const used = new Set();
+        const sorted = [...peaks].sort((a, b) => a.freq - b.freq);
+
+        for (let i = 0; i < sorted.length; i++) {
+          if (used.has(i)) continue;
+          const group = [sorted[i]];
+          used.add(i);
+          for (let j = i + 1; j < sorted.length; j++) {
+            if (used.has(j)) continue;
+            if (sorted[j].freq / group[0].freq < tol) {
+              group.push(sorted[j]);
+              used.add(j);
+            }
+          }
+          // Represent group by weighted mean frequency (mag-weighted) and total mag
+          let wFreq = 0, totalMag = 0;
+          for (const p of group) { wFreq += p.freq * p.mag; totalMag += p.mag; }
+          groups.push({ freq: wFreq / totalMag, mag: totalMag, bin: group[0].bin });
+        }
+        return groups.sort((a, b) => b.mag - a.mag);
+      }
+
+      // ——— Nearest simple rational approximation ———
+      // Returns [numerator, denominator] such that num/den ≈ r,
+      // preferring simpler (smaller) ratios.
+      function nearestSimpleRatio(r, maxN, maxD) {
+        maxN = maxN || 32; maxD = maxD || 32;
+        let best = [1, 1];
+        let bestErr = Infinity;
+        // Search by total complexity (num+den), so simpler ratios win ties
+        for (let total = 2; total <= maxN + maxD; total++) {
+          for (let num = 1; num < total; num++) {
+            const den = total - num;
+            if (num > maxN || den < 1 || den > maxD) continue;
+            const err = Math.abs(num / den - r);
+            if (err < bestErr) { bestErr = err; best = [num, den]; }
+          }
+          if (bestErr < 0.005) break; // good enough — stop early
+        }
+        return best;
+      }
+
+      // ——— Estimate fundamental from peaks ———
+      // Tries to find f0 such that most peaks are near integer multiples of f0.
+      function estimateFundamental(peaks, selDuration) {
+        if (peaks.length === 0) return 1;
+
+        const sortedByFreq = [...peaks].sort((a, b) => a.freq - b.freq);
+
+        // Candidate fundamentals: each low-freq peak, plus 1/selDuration
+        const candidates = sortedByFreq
+          .slice(0, Math.min(6, sortedByFreq.length))
+          .map(p => p.freq);
+        if (selDuration > 0.2) candidates.push(1 / selDuration);
+
+        let bestFund = candidates[0];
+        let bestScore = -Infinity;
+
+        for (const f0 of candidates) {
+          if (f0 <= 0) continue;
+          let score = 0;
+          for (const pk of peaks) {
+            const k = pk.freq / f0;
+            const err = Math.abs(k - Math.round(k)) / Math.max(1, Math.round(k));
+            // Weight score by magnitude and harmonic alignment
+            score += pk.mag * Math.max(0, 1 - err * 10);
+          }
+          if (score > bestScore) { bestScore = score; bestFund = f0; }
+        }
+
+        return Math.max(0.001, bestFund);
+      }
+
+      // ——— Compression level string → numeric factor ———
+      const COMPRESSION_FACTORS = { raw: 0, fine: 0.15, moderate: 0.35, aggressive: 0.6, extreme: 0.9 };
+
+      // ——— async tick for non-blocking UI updates ———
+      function tick() { return new Promise(r => setTimeout(r, 0)); }
+
+      // ——— Main build pipeline ———
+      async function buildMachine(onStatus) {
+        if (!rs.buffer) { onStatus('No audio loaded.'); return; }
+
+        const complexity = Math.max(1, parseInt($('rfft-complexity').value) || 6);
+        const compressionKey = $('rfft-spectral-compression').value || 'moderate';
+        const compressionFactor = COMPRESSION_FACTORS[compressionKey] ?? 0.35;
+        const selDuration = rs.selEnd - rs.selStart;
+
+        if (selDuration < 0.05) { onStatus('Error: Selection too short (minimum 50 ms).'); return; }
+        if (selDuration > 60)   { onStatus('Error: Selection too long (maximum 60 s).'); return; }
+
+        onStatus('Analyzing sample…');
+        await tick();
+
+        const analysis = analyzeBuffer(rs.buffer, rs.selStart, rs.selEnd);
+        if (!analysis)          { onStatus('Error: Sample too short.'); return; }
+        if (analysis.silence)   { onStatus('Error: Sample is silence — nothing to analyze.'); return; }
+
+        onStatus('Finding spectral components…');
+        await tick();
+
+        const { mags, sr, winSize, rms, selDuration: dur } = analysis;
+
+        // Extract raw peaks — gather more than needed for clustering
+        const rawPeaks = extractPeaks(mags, sr, winSize, complexity * 8 + 32);
+        if (rawPeaks.length === 0) { onStatus('Error: No significant spectral content found.'); return; }
+
+        onStatus('Clustering frequencies…');
+        await tick();
+
+        // Apply spectral compression / adaptive clustering
+        const clustered = compressPeaks(rawPeaks, compressionFactor);
+
+        onStatus('Estimating fundamental…');
+        await tick();
+
+        // Estimate fundamental frequency
+        const fundamental = estimateFundamental(clustered, selDuration);
+
+        onStatus('Building carrier structures…');
+        await tick();
+
+        // Express each cluster as a ratio relative to fundamental, quantize to simple rational
+        const components = clustered.map(pk => {
+          const ratio = pk.freq / fundamental;
+          const [num, den] = nearestSimpleRatio(ratio);
+          const approxFreq = (num / den) * fundamental;
+          const freqErr = Math.abs(approxFreq - pk.freq) / Math.max(1, pk.freq);
+          return { freq: pk.freq, mag: pk.mag, ratio, num, den, approxFreq, freqErr };
+        });
+
+        // Sort by magnitude descending, deduplicate by (num:den)
+        components.sort((a, b) => b.mag - a.mag);
+        const seenRatio = new Set();
+        const unique = [];
+        for (const c of components) {
+          const key = `${c.num}:${c.den}`;
+          if (!seenRatio.has(key)) { seenRatio.add(key); unique.push(c); }
+        }
+
+        const selected = unique.slice(0, complexity);
+
+        onStatus('Testing gear ratios…');
+        await tick();
+
+        if (rs.buildAbort) { onStatus('Aborted.'); return; }
+
+        // ——— Construct the machine ———
+        // Clear existing secondary gears first
+        clearExtraGears();
+
+        // Set fundamental frequency to match the estimated source fundamental
+        setFundamentalFrequency(fundamental);
+
+        onStatus('Placing gears…');
+        await tick();
+
+        rs.resultGearIds = [];
+        const mainTeeth = state.mainTeeth || 120;
+        const maxMag = Math.max(...selected.map(c => c.mag)) || 1;
+
+        for (let gi = 0; gi < selected.length; gi++) {
+          if (rs.buildAbort) { onStatus('Aborted.'); return; }
+          const comp = selected[gi];
+          onStatus(`Gear ${gi + 1}/${selected.length}: ${comp.approxFreq.toFixed(1)} Hz  (${comp.num}:${comp.den})…`);
+          await tick();
+
+          // Teeth: ratio p/q means gearFreq = (p/q) * fundamental
+          // Kinematic formula: gearRatio = -mainTeeth / gearTeeth
+          // → |gearRatio| = mainTeeth / gearTeeth = p/q
+          // → gearTeeth = mainTeeth * q / p
+          const rawTeeth = mainTeeth * comp.den / comp.num;
+          const teeth = Math.max(1, Math.min(15015, Math.round(rawTeeth)));
+          if (teeth < 1 || !isFinite(teeth)) continue;
+
+          const gear = addGear(teeth);
+          // Volume proportional to spectral magnitude
+          gear.volume = Math.max(0.04, Math.min(0.85, (comp.mag / maxMag) * 0.65));
+          rs.resultGearIds.push(gear.id);
+        }
+
+        onStatus('Refining machine…');
+        await tick();
+
+        updateKinematicNetwork();
+        updateAudioNodes();
+
+        onStatus('Done. ✓ Machine is live — inspect and edit gears as normal.');
+        await tick();
+
+        showResults(selected, fundamental, dur);
+      }
+
+      // ——— Results display ———
+      function showResults(components, fundamental, selDur) {
+        const resultBox = $('rfft-result');
+        if (!resultBox) return;
+
+        const metricsEl = $('rfft-metrics-row');
+        if (metricsEl) {
+          metricsEl.innerHTML =
+            `<span>Gears: ${rs.resultGearIds.length}</span>` +
+            `<span>Base: ${fundamental.toFixed(2)} Hz</span>` +
+            `<span>Selection: ${selDur.toFixed(2)}s</span>` +
+            `<span>Components: ${components.length}</span>`;
+        }
+
+        const listEl = $('rfft-component-list');
+        if (listEl && components.length > 0) {
+          let html = '<table class="rfft-component-table"><thead><tr>' +
+            '<th>Freq (Hz)</th><th>Ratio</th><th>Approx (Hz)</th><th>Magnitude</th>' +
+            '</tr></thead><tbody>';
+          for (const c of components) {
+            html += `<tr>
+              <td>${c.freq.toFixed(1)}</td>
+              <td>${c.num}:${c.den}</td>
+              <td>${c.approxFreq.toFixed(1)}</td>
+              <td>${(c.mag).toFixed(3)}</td>
+            </tr>`;
+          }
+          html += '</tbody></table>';
+          listEl.innerHTML = html;
+        }
+
+        resultBox.style.display = 'block';
+        $('rfft-play-source').disabled = !rs.buffer;
+        $('rfft-play-machine').disabled = false;
+        $('rfft-playback-controls').style.display = 'flex';
+      }
+
+      // ——— Playback ———
+      function stopSourcePlayback() {
+        if (rs.srcNode) {
+          try { rs.srcNode.stop(); } catch (_) {}
+          try { rs.srcNode.disconnect(); } catch (_) {}
+          rs.srcNode = null;
+        }
+      }
+
+      function playSource() {
+        if (!rs.buffer) return;
+        stopSourcePlayback();
+        ensureCtx();
+        const node = state.audioCtx.createBufferSource();
+        node.buffer = rs.buffer;
+        const gain = state.audioCtx.createGain();
+        gain.gain.value = 0.8;
+        node.connect(gain);
+        gain.connect(state.masterGain || state.audioCtx.destination);
+        const dur = rs.selEnd - rs.selStart;
+        node.start(0, rs.selStart, dur > 0 ? dur : undefined);
+        rs.srcNode = node;
+        node.onended = () => { rs.srcNode = null; };
+      }
+
+      function playMachine() {
+        stopSourcePlayback();
+        if (!state.audioRunning) initAudio();
+      }
+
+      // ——— Public initializer ———
+      function init() {
+        // Open button
+        const openBtn = $('btn-rfft-open');
+        if (openBtn) openBtn.addEventListener('click', openModal);
+
+        // Close button
+        const closeBtn = $('rfft-close-btn');
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+        // Backdrop click to close
+        const modal = $('rfft-modal');
+        if (modal) modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+        // Load file
+        const fileInput = $('rfft-file-input');
+        if (fileInput) fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+        const loadBtn = $('rfft-load-btn');
+        if (loadBtn) loadBtn.addEventListener('click', () => fileInput && fileInput.click());
+
+        // Record
+        const recBtn = $('rfft-record-btn');
+        if (recBtn) recBtn.addEventListener('click', () => {
+          if (rs.isRecording) stopRecording();
+          else startRecording();
+        });
+
+        // Use Driver Audio
+        const useDriverBtn = $('rfft-use-driver-btn');
+        if (useDriverBtn) useDriverBtn.addEventListener('click', () => {
+          const dBuf = state.audioDriver && state.audioDriver.buffer;
+          if (!dBuf) { setStatus('No Audio Driver sample loaded. Load one in the Audio Driver panel first.'); return; }
+          rs.buffer = dBuf;
+          rs.fileName = state.audioDriver.fileName || 'Audio Driver';
+          rs.selStart = state.audioDriver.loopStart || 0;
+          rs.selEnd = Math.min(rs.selStart + 5, dBuf.duration,
+                               state.audioDriver.loopEnd || dBuf.duration);
+          updateFileInfo();
+          drawWaveform();
+          initCanvasEvents();
+          setStatus('Audio Driver loaded. Adjust selection and click BUILD MACHINE.');
+        });
+
+        // Complexity slider live display
+        const complexitySlider = $('rfft-complexity');
+        const complexityVal    = $('rfft-complexity-val');
+        if (complexitySlider && complexityVal) {
+          complexitySlider.addEventListener('input', () => {
+            complexityVal.textContent = complexitySlider.value;
+          });
+        }
+
+        // Build button
+        const buildBtn = $('rfft-build-btn');
+        if (buildBtn) buildBtn.addEventListener('click', async () => {
+          buildBtn.disabled = true;
+          rs.buildAbort = false;
+          const resultBox = $('rfft-result');
+          if (resultBox) resultBox.style.display = 'none';
+          $('rfft-playback-controls').style.display = 'none';
+          try {
+            await buildMachine(msg => setStatus(msg));
+          } finally {
+            buildBtn.disabled = false;
+          }
+        });
+
+        // Playback buttons
+        const playSrcBtn  = $('rfft-play-source');
+        const playMachBtn = $('rfft-play-machine');
+        if (playSrcBtn)  playSrcBtn.addEventListener('click',  playSource);
+        if (playMachBtn) playMachBtn.addEventListener('click', playMachine);
+      }
+
+      return { init };
+    })();
+
     // INITIALIZATION
     function initApp() {
       // First-use state: MAIN drive wheel only. The Ratio & Harmonic palette supplies the first cog.
@@ -4884,6 +5830,8 @@
       syncKeyboardAudioGate();
       // Best-effort MIDI startup: browsers may require permission/user gesture.
       setTimeout(() => { try { initWebMIDI(); } catch (_) {} }, 100);
+      // Initialize Reverse FFT / Machine Builder
+      try { RFFT.init(); } catch (_) {}
     }
 
     initApp();
