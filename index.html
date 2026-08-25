@@ -5514,6 +5514,78 @@
         };
       }
 
+      // ——— Full-selection FFT for precise frequency / phase analysis ———
+      // Applies a Hann window to the entire selection and zero-pads to the next
+      // power of 2, then computes a single FFT.  Unlike the STFT-averaging path
+      // (analyzeBuffer), this preserves absolute spectral phases and gives the
+      // highest possible frequency resolution (≈ 1/selDuration Hz per bin).
+      //
+      // Machine-period interpretation
+      // ─────────────────────────────
+      // Setting the synthesiser fundamental = 1/selDuration means the main gear
+      // completes exactly one revolution in selDuration seconds.  A gear whose
+      // oscillator runs at frequency f therefore needs ratio = f/(1/selDuration)
+      // = f × selDuration, i.e. it completes f × selDuration revolutions per
+      // main-wheel revolution.  With mainTeeth = BUILD_MAIN_TEETH the gear has
+      //   teeth = round(BUILD_MAIN_TEETH / (f × selDuration))
+      // Each gear produces an audible oscillator at its assigned frequency, and
+      // all gears return to their starting phase simultaneously after selDuration
+      // seconds — the machine loops perfectly in time with the sample.
+      function analyzeFullSelectionFFT(buffer, selStart, selEnd) {
+        const sr = buffer.sampleRate;
+        const i0 = Math.floor(selStart * sr);
+        const i1 = Math.min(buffer.length, Math.ceil(selEnd * sr));
+        const len = i1 - i0;
+        if (len < 64) return null;
+
+        // Mix to mono
+        const mono = new Float32Array(len);
+        for (let c = 0; c < buffer.numberOfChannels; c++) {
+          const ch = buffer.getChannelData(c);
+          for (let i = 0; i < len; i++) mono[i] += ch[i0 + i];
+        }
+        if (buffer.numberOfChannels > 1) {
+          const inv = 1 / buffer.numberOfChannels;
+          for (let i = 0; i < len; i++) mono[i] *= inv;
+        }
+
+        // Silence check
+        let rms = 0;
+        for (let i = 0; i < len; i++) rms += mono[i] * mono[i];
+        rms = Math.sqrt(rms / len);
+        if (rms < 1e-6) return { silence: true };
+
+        // Zero-pad to next power of 2 (cap at 2^19 = 524288 for performance)
+        let fftSize = 1;
+        while (fftSize < len && fftSize < 524288) fftSize <<= 1;
+        if (fftSize < len) fftSize <<= 1; // ensure fftSize >= len
+
+        const re = new Float64Array(fftSize);
+        const im = new Float64Array(fftSize);
+        // Hann window across the actual signal samples
+        for (let i = 0; i < len; i++) {
+          re[i] = mono[i] * 0.5 * (1 - Math.cos(2 * Math.PI * i / Math.max(1, len - 1)));
+        }
+
+        fftInPlace(re, im);
+
+        const halfBins = fftSize >> 1;
+        const mags = new Float64Array(halfBins);
+        const phases = new Float64Array(halfBins);
+        for (let i = 0; i < halfBins; i++) {
+          mags[i] = Math.sqrt(re[i] * re[i] + im[i] * im[i]);
+          phases[i] = Math.atan2(im[i], re[i]);
+        }
+
+        return {
+          mags, phases,
+          sr, fftSize,
+          binHz: sr / fftSize,    // frequency per bin (Hz)
+          selDuration: len / sr,  // actual duration in seconds
+          rms
+        };
+      }
+
       // ——— Spectral peak picking ———
       // Returns array of { freq, mag, bin } sorted by magnitude descending.
       function extractPeaks(mags, sr, winSize, maxRaw, refRe = null, refIm = null) {
@@ -5598,49 +5670,6 @@
           });
         }
         return groups.sort((a, b) => b.mag - a.mag);
-      }
-
-      // ——— Harmonic picking: extract harmonic series from raw magnitude spectrum ———
-      // Looks directly at bins near n*f0 for n = 1..maxCount, bypassing compression.
-      // Returns array of { n, freq, mag, phase, sharpness, num, den } sorted by magnitude.
-      function pickHarmonics(mags, sr, winSize, f0, maxCount, refRe, refIm) {
-        if (!f0 || f0 <= 0 || !mags) return [];
-        const binHz = sr / winSize;
-        const nyquist = (sr / 2) * 0.97;
-        const result = [];
-        // Search half-width in bins: wide enough to handle FFT smear but narrow
-        // enough not to grab the wrong harmonic.  Never wider than 0.45 × the
-        // inter-harmonic spacing.
-        const maxHalfWidthBins = Math.max(1.5, Math.min(4, (0.45 * f0) / binHz));
-
-        for (let n = 1; n <= maxCount; n++) {
-          const targetFreq = n * f0;
-          if (targetFreq > nyquist) break;
-          const centerBin = targetFreq / binHz;
-          const lo = Math.max(1, Math.floor(centerBin - maxHalfWidthBins));
-          const hi = Math.min(mags.length - 2, Math.ceil(centerBin + maxHalfWidthBins));
-
-          let bestMag = 0, bestBin = lo;
-          for (let b = lo; b <= hi; b++) {
-            if (mags[b] > bestMag) { bestMag = mags[b]; bestBin = b; }
-          }
-
-          // Parabolic sub-bin frequency refinement
-          const ma = mags[Math.max(0, bestBin - 1)];
-          const mb = mags[bestBin];
-          const mc = mags[Math.min(mags.length - 1, bestBin + 1)];
-          const denom2 = ma - 2 * mb + mc;
-          const delta = (denom2 !== 0) ? Math.max(-0.5, Math.min(0.5, 0.5 * (ma - mc) / denom2)) : 0;
-          const refinedFreq = (bestBin + delta) * binHz;
-          const phase = (refRe && refIm) ? Math.atan2(refIm[bestBin] || 0, refRe[bestBin] || 0) : 0;
-          const left = Math.max(ma, 1e-9), right = Math.max(mc, 1e-9);
-          const sharpness = mb / Math.max(1e-9, (left + right) * 0.5);
-
-          result.push({ n, freq: refinedFreq, mag: bestMag, phase, sharpness,
-                        num: n, den: 1, ratio: n, approxFreq: n * f0 });
-        }
-
-        return result.sort((a, b) => b.mag - a.mag);
       }
 
       // ——— Nearest simple rational approximation ———
@@ -5787,103 +5816,120 @@
 
         const complexity = Math.max(1, parseInt($('rfft-complexity').value) || 6);
         const analysisMode = $('rfft-analysis-mode').value || 'general';
-        const compressionKey = $('rfft-spectral-compression').value || 'moderate';
-        const compressionFactor = COMPRESSION_FACTORS[compressionKey] ?? 0.35;
         const selDuration = rs.selEnd - rs.selStart;
 
         if (selDuration < 0.05) { onStatus('Error: Selection too short (minimum 50 ms).'); return; }
         if (selDuration > 60)   { onStatus('Error: Selection too long (maximum 60 s).'); return; }
 
+        // ──────────────────────────────────────────────────────────────────────
+        // MACHINE-PERIOD ARCHITECTURE
+        // ──────────────────────────────────────────────────────────────────────
+        // fundamental = 1/selDuration (Hz)
+        //   → main gear revolves once per selDuration seconds
+        //   → after exactly selDuration seconds every gear has completed an
+        //     integer number of revolutions and the machine loops perfectly
+        //
+        // For a spectral peak at frequency f (Hz):
+        //   harmonic number h = round(f × selDuration)
+        //   gear teeth        = round(BUILD_MAIN_TEETH / h)
+        //   actual freq       = (BUILD_MAIN_TEETH / teeth) × fundamental  ≈ f
+        //
+        // With BUILD_MAIN_TEETH = 15015, a peak at 82 Hz in a 5 s sample gives
+        //   h = round(82 × 5) = 410, teeth = round(15015/410) = 37
+        //   actual freq = (15015/37) × 0.2 ≈ 81.2 Hz  (error ~1 %)
+        // ──────────────────────────────────────────────────────────────────────
+
+        const fundamental = 1 / selDuration;   // e.g. 0.2 Hz for a 5 s sample
+
         onStatus('Analyzing sample…');
         await tick();
 
-        const analysis = analyzeBuffer(rs.buffer, rs.selStart, rs.selEnd);
-        if (!analysis)          { onStatus('Error: Sample too short.'); return; }
-        if (analysis.silence)   { onStatus('Error: Sample is silence — nothing to analyze.'); return; }
+        // ── Full-resolution FFT of the entire selection ──────────────────────
+        // This gives bin resolution = 1/selDuration ≈ fundamental, so bin k
+        // corresponds almost exactly to the k-th harmonic of the machine period.
+        const fullSpec = analyzeFullSelectionFFT(rs.buffer, rs.selStart, rs.selEnd);
+        if (!fullSpec)        { onStatus('Error: Sample too short.'); return; }
+        if (fullSpec.silence) { onStatus('Error: Sample is silence — nothing to analyze.'); return; }
 
-        onStatus('Finding spectral components…');
+        // ── STFT pass for temporal descriptors (zeroCrossRate, centroid) ─────
+        const analysis = analyzeBuffer(rs.buffer, rs.selStart, rs.selEnd);
+        const zeroCrossRate = analysis ? analysis.zeroCrossRate : 0;
+        const centroidSec   = analysis ? analysis.centroidSec   : 0;
+        const { sr, mags, phases, binHz, fftSize } = fullSpec;
+
+        onStatus('Finding spectral peaks…');
         await tick();
 
-        const { mags, sr, winSize, rms, refRe, refIm, zeroCrossRate, centroidSec } = analysis;
+        // Extract candidate peaks from the full-resolution spectrum.
+        // Over-extract so we can afford to discard collisions later.
+        const rawPeaks = extractPeaks(mags, sr, fftSize, complexity * 12 + 64);
+        // Attach full-spectrum phases (extractPeaks doesn't have them yet)
+        rawPeaks.forEach(pk => { pk.phase = phases[pk.bin] || 0; });
 
-        // Extract raw peaks — gather more than needed for clustering
-        const rawPeaks = extractPeaks(mags, sr, winSize, complexity * 8 + 32, refRe, refIm);
-        if (rawPeaks.length === 0) { onStatus('Error: No significant spectral content found.'); return; }
+        if (rawPeaks.length === 0) {
+          onStatus('Error: No significant spectral content found.'); return;
+        }
 
         onStatus('Clustering frequencies…');
         await tick();
 
-        // Apply spectral compression / adaptive clustering
-        const clustered = compressPeaks(rawPeaks, compressionFactor);
+        // ── Map each peak to its nearest integer harmonic ────────────────────
+        // BUILD_MAIN_TEETH is the main gear's tooth count after generation.
+        // 15015 = 3 × 5 × 7 × 11 × 13 — divisible by many small integers.
+        const BUILD_MAIN_TEETH = 15015;
+        const candidates = [];
+        const usedHarmonics = new Set();
+        const usedTeeth     = new Set();
 
-        onStatus('Estimating fundamental…');
-        await tick();
+        for (const pk of rawPeaks) {
+          const f = pk.freq;
+          if (f < 20 || f > sr / 2 * 0.97) continue;  // skip sub-audio / near-Nyquist
 
-        // Estimate fundamental frequency
-        const fundamental = estimateFundamental(clustered, selDuration);
+          // harmonic number: how many machine-period cycles fit in one second at f
+          const h = Math.max(1, Math.round(f * selDuration));
+          if (usedHarmonics.has(h)) continue;          // deduplicate by harmonic
+          usedHarmonics.add(h);
+
+          // tooth count for this gear
+          const teeth = Math.max(1, Math.min(15015, Math.round(BUILD_MAIN_TEETH / h)));
+          if (usedTeeth.has(teeth)) continue;           // deduplicate by tooth count
+          usedTeeth.add(teeth);
+
+          // actual oscillator frequency after rounding
+          const actualFreq = (BUILD_MAIN_TEETH / teeth) * fundamental;
+          candidates.push({ freq: f, mag: pk.mag, phase: pk.phase,
+                             sharpness: pk.sharpness || 1,
+                             harmonic: h, teeth, actualFreq });
+        }
+
+        if (!candidates.length) {
+          onStatus('Error: No audible spectral peaks found. Try a louder or more tonal sample.'); return;
+        }
+
+        // Keep the N loudest distinct components
+        candidates.sort((a, b) => b.mag - a.mag);
+        const selected = candidates.slice(0, complexity);
 
         onStatus('Building carrier structures…');
         await tick();
 
-        // ——— Harmonic picking: directly scan the raw magnitude spectrum for the
-        // harmonic series of the estimated fundamental.  This avoids the spectral
-        // compression step collapsing upper harmonics (adjacent guitar/voice
-        // harmonics fall within the 21 % compression band and would otherwise
-        // merge, leaving only 2–3 components for 27+ harmonics).
-        // We search up to complexity × 4 harmonics and keep the loudest ones.
-        const harmonicCandidates = pickHarmonics(
-          mags, sr, winSize, fundamental, complexity * 4, refRe, refIm
-        );
-
-        // Fall back to clustered-peaks approach if harmonic picking found nothing
-        const sourceComponents = harmonicCandidates.length >= 2
-          ? harmonicCandidates
-          : clustered.map(pk => {
-              const ratio = pk.freq / fundamental;
-              const [num, den] = nearestSimpleRatio(ratio);
-              return {
-                freq: pk.freq, mag: pk.mag, ratio,
-                num, den, approxFreq: (num / den) * fundamental,
-                phase: pk.phase || 0, sharpness: pk.sharpness || 1
-              };
-            });
-
-        // Sort by magnitude descending, deduplicate by harmonic index / (num:den)
-        sourceComponents.sort((a, b) => b.mag - a.mag);
-        const seenKey = new Set();
-        const unique = [];
-        for (const c of sourceComponents) {
-          const key = c.n != null ? String(c.n) : `${c.num}:${c.den}`;
-          if (!seenKey.has(key)) { seenKey.add(key); unique.push(c); }
-        }
-
-        const selected = unique.slice(0, complexity);
-        if (!selected.length) { onStatus('Error: No distinct spectral components found. Try lower compression or a louder sample.'); return; }
-
-        // ——— Scale main wheel teeth so every harmonic gets a distinct, accurate
-        // integer tooth count.  For harmonic n and main-wheel M teeth:
-        //   gearTeeth = round(M / n)
-        // For consecutive harmonics n and n+1 to always round to different integers,
-        // the gap M/(n*(n+1)) must be ≥ 1, i.e. M ≥ n*(n+1).
-        // We also keep at least 6 teeth on the smallest gear (M >= N*6).
-        const maxHarmonicN = Math.max(...selected.map(c => c.n != null ? c.n : (c.num / Math.max(1, c.den))), 1);
-        const minTeethForUniqueness = maxHarmonicN * (maxHarmonicN + 1);
-        const minTeethForClearance = maxHarmonicN * 6;
-        const buildMainTeeth = Math.min(
-          15015,
-          Math.max(state.mainTeeth || 120, minTeethForUniqueness, minTeethForClearance)
-        );
-
-        const maxSelectedMag = Math.max(...selected.map(c => c.mag), 1);
+        // ── Derive per-gear parameters ───────────────────────────────────────
+        const maxMag = Math.max(...selected.map(c => c.mag)) || 1;
         selected.forEach(c => {
-          c.ratio = c.n != null ? c.n : (c.num / Math.max(1, c.den));
-          c.approxFreq = c.ratio * fundamental;
-          c.freqErr = Math.abs(c.approxFreq - c.freq) / Math.max(1, c.freq);
-          c.weight = c.mag / maxSelectedMag;
-          c.phaseBias = Math.abs(Math.sin(c.phase || 0));
-          c.brightness = clamp((c.ratio - 1) / Math.max(1, complexity * 0.75), 0, 1);
-          c.shape = chooseComponentShape(c, analysisMode);
-          c.shapeParams = buildShapeParams(c.shape, clamp(c.weight * 0.75 + (c.sharpness || 1) * 0.08, 0, 1), c.phase || 0);
+          c.weight     = c.mag / maxMag;
+          c.phaseBias  = Math.abs(Math.sin(c.phase || 0));
+          // brightness: gently scaled log of harmonic number
+          c.brightness = clamp(Math.log10(Math.max(1, c.harmonic)) / 4, 0, 1);
+          c.ratio      = BUILD_MAIN_TEETH / c.teeth;   // actual ratio after rounding
+          c.approxFreq = c.actualFreq;
+          // Choose shape and shape parameters from spectral character
+          c.shape       = chooseComponentShape(c, analysisMode);
+          c.shapeParams = buildShapeParams(
+            c.shape,
+            clamp(c.weight * 0.75 + c.sharpness * 0.08, 0, 1),
+            c.phase || 0
+          );
+          // Phase offset from FFT phase so the gear starts in the right position
           c.phaseOffsetDeg = wrapDegrees(-(c.phase || 0) * 180 / Math.PI);
         });
 
@@ -5892,12 +5938,10 @@
 
         if (rs.buildAbort) { onStatus('Aborted.'); return; }
 
-        // ——— Construct the machine ———
-        // Clear existing secondary gears first
+        // ── Construct the machine ─────────────────────────────────────────────
         clearExtraGears();
 
-        // Set fundamental frequency to match the estimated source fundamental
-        setFundamentalFrequency(fundamental);
+        // Set waveform to sine (cleanest for Phase 1 additive reconstruction)
         const waveformSelect = $('select-waveform');
         if (waveformSelect) {
           waveformSelect.value = 'sine';
@@ -5907,55 +5951,72 @@
           if (typeof refreshClockworkControlVisibility === 'function') refreshClockworkControlVisibility();
         }
 
-        // Update the main gear's tooth count if a larger wheel is needed for
-        // the gear train to represent all harmonics with distinct, accurate teeth.
-        const mainGearObj = state.gears.find(g => g.isMain) || state.gears[0];
-        if (mainGearObj && buildMainTeeth > mainGearObj.teeth) {
-          mainGearObj.teeth = buildMainTeeth;
-          state.mainTeeth = buildMainTeeth;
-          const mainTeethInput = document.getElementById('input-main-teeth');
-          if (mainTeethInput) mainTeethInput.value = buildMainTeeth;
-          const mainTeethPreset = document.getElementById('select-main-teeth-preset');
-          if (mainTeethPreset) mainTeethPreset.value = '';
+        // ── Set fundamental = 1/selDuration directly ─────────────────────────
+        // We bypass setFundamentalFrequency() here because that function
+        // redirects to setDriverRPM() when an audio driver is loaded, which
+        // would corrupt the driver state.  We update state and the UI manually.
+        state.fundamentalFreq     = fundamental;
+        state.baseFundamentalFreq = fundamental;
+        state.targetFundamentalFreq = fundamental;
+        {
+          const sl = document.getElementById('slider-fundamental');
+          const ni = document.getElementById('input-fundamental');
+          const vl = document.getElementById('val-fundamental');
+          const lb = document.getElementById('fundamental-label');
+          const un = document.getElementById('fundamental-unit');
+          if (sl) { sl.min = -1; sl.value = Math.log10(Math.max(0.001, fundamental)); }
+          if (ni) { ni.min = 0.1; ni.value = fundamental.toFixed(4); }
+          if (vl) vl.textContent = `${fundamental.toFixed(4)} Hz`;
+          if (lb) lb.textContent = 'Fundamental Frequency';
+          if (un) un.textContent = 'Hz';
         }
+
+        // ── Resize the main wheel ─────────────────────────────────────────────
+        const mainGearObj = state.gears.find(g => g.isMain) || state.gears[0];
         if (mainGearObj) {
-          mainGearObj.shape = chooseMainShape(analysisMode, analysis, fundamental);
-          mainGearObj.shapeParams = buildShapeParams(
-            mainGearObj.shape,
-            clamp((zeroCrossRate * sr) / Math.max(40, fundamental * 20), 0, 1),
-            centroidSec * fundamental * Math.PI * 2
+          mainGearObj.teeth = BUILD_MAIN_TEETH;
+          state.mainTeeth   = BUILD_MAIN_TEETH;
+          const mainTeethInput  = document.getElementById('input-main-teeth');
+          const mainTeethPreset = document.getElementById('select-main-teeth-preset');
+          if (mainTeethInput)  mainTeethInput.value  = BUILD_MAIN_TEETH;
+          if (mainTeethPreset) mainTeethPreset.value = '';
+
+          // Give the main wheel a shape that matches the source's broad character
+          mainGearObj.shape = chooseMainShape(
+            analysisMode,
+            analysis || {},
+            fundamental
           );
+          if (analysis) {
+            mainGearObj.shapeParams = buildShapeParams(
+              mainGearObj.shape,
+              clamp((zeroCrossRate * sr) / Math.max(40, fundamental * 20), 0, 1),
+              centroidSec * fundamental * Math.PI * 2
+            );
+          }
+
+          // Mute the main gear: at fundamental ≈ 0.2 Hz it oscillates well below
+          // the audible threshold.  Leaving it unmuted adds a very slow
+          // amplitude modulation to the whole mix.
+          if (fundamental < 20) mainGearObj.muted = true;
         }
 
         onStatus('Placing gears…');
         await tick();
 
         rs.resultGearIds = [];
-        const mainTeeth = mainGearObj ? mainGearObj.teeth : (state.mainTeeth || 120);
-        const maxMag = Math.max(...selected.map(c => c.mag)) || 1;
-
         for (let gi = 0; gi < selected.length; gi++) {
           if (rs.buildAbort) { onStatus('Aborted.'); return; }
           const comp = selected[gi];
-          const harmonicN = comp.n != null ? comp.n : comp.num;
-          const harmonicD = comp.n != null ? 1 : Math.max(1, comp.den);
-          onStatus(`Gear ${gi + 1}/${selected.length}: ${comp.approxFreq.toFixed(1)} Hz  (${harmonicN}:${harmonicD})…`);
+          onStatus(`Gear ${gi + 1}/${selected.length}: ${comp.actualFreq.toFixed(1)} Hz (harmonic ${comp.harmonic})…`);
           await tick();
 
-          // Kinematic formula: |ratio| = mainTeeth / gearTeeth = harmonicN / harmonicD
-          // → gearTeeth = mainTeeth * harmonicD / harmonicN
-          const rawTeeth = mainTeeth * harmonicD / harmonicN;
-          const teeth = Math.max(1, Math.min(15015, Math.round(rawTeeth)));
-          if (!isFinite(teeth)) continue;
-
-          const gear = addGear(teeth);
-          // Volume proportional to spectral magnitude
-          gear.volume = Math.max(0.04, Math.min(0.85, (comp.mag / maxMag) * 0.65));
-          gear.ratioLock = true;
-          // Keep tooth editing available after generation so the resulting machine
-          // stays musical/editable while still preserving the analyzed ratio.
-          gear.teethLock = false;
-          gear.shape = comp.shape;
+          const gear = addGear(comp.teeth);
+          // Volume: sqrt of relative magnitude gives a gentler perceptual scaling
+          gear.volume     = Math.max(0.04, Math.min(0.85, Math.sqrt(comp.weight) * 0.72));
+          gear.ratioLock  = true;
+          gear.teethLock  = false;
+          gear.shape      = comp.shape;
           gear.shapeParams = normalizedShapeParams(comp.shapeParams);
           gear.setPhaseOffsetDeg(comp.phaseOffsetDeg);
           rs.resultGearIds.push(gear.id);
@@ -5982,27 +6043,24 @@
         if (metricsEl) {
           metricsEl.innerHTML =
             `<span>Gears: ${rs.resultGearIds.length}</span>` +
-            `<span>Base: ${fundamental.toFixed(2)} Hz</span>` +
-            `<span>Selection: ${selDur.toFixed(2)}s</span>` +
+            `<span>Fundamental: ${(1/selDur).toFixed(4)} Hz (period ${selDur.toFixed(2)}s)</span>` +
             `<span>Components: ${components.length}</span>` +
-            `<span>Playback: additive sine + shaped gears</span>`;
+            `<span>Main wheel: 15015 T</span>`;
         }
 
         const listEl = $('rfft-component-list');
         if (listEl && components.length > 0) {
           let html = '<table class="rfft-component-table"><thead><tr>' +
-            '<th>Freq (Hz)</th><th>Harmonic</th><th>Approx (Hz)</th><th>Phase</th><th>Shape</th><th>Magnitude</th>' +
+            '<th>Peak (Hz)</th><th>Harmonic</th><th>Gear (Hz)</th><th>Teeth</th><th>Phase</th><th>Shape</th>' +
             '</tr></thead><tbody>';
           for (const c of components) {
-            const harmonicN = c.n != null ? c.n : c.num;
-            const harmonicD = c.n != null ? 1 : Math.max(1, c.den);
             html += `<tr>
               <td>${c.freq.toFixed(1)}</td>
-              <td>${harmonicN}:${harmonicD}</td>
-              <td>${(c.approxFreq || 0).toFixed(1)}</td>
+              <td>${c.harmonic}</td>
+              <td>${(c.actualFreq || c.approxFreq || 0).toFixed(1)}</td>
+              <td>${c.teeth}</td>
               <td>${wrapDegrees(-(c.phase || 0) * 180 / Math.PI).toFixed(0)}°</td>
               <td>${c.shape || 'circular'}</td>
-              <td>${(c.mag).toFixed(3)}</td>
             </tr>`;
           }
           html += '</tbody></table>';
