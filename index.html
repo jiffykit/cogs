@@ -5379,7 +5379,8 @@
       }
 
       // ——— STFT analysis: average magnitude spectrum over overlapping windows ———
-      // Returns { mags: Float64Array, sr, winSize, rms, selDuration } or null/error.
+      // Returns averaged magnitudes plus a phase reference frame and broad temporal
+      // descriptors so the builder can choose gears/cams more intelligently.
       function analyzeBuffer(buffer, selStart, selEnd) {
         const sr = buffer.sampleRate;
         const i0 = Math.floor(selStart * sr);
@@ -5399,10 +5400,25 @@
         }
 
         // Check RMS (silence guard)
-        let rms = 0;
-        for (let i = 0; i < len; i++) rms += mono[i] * mono[i];
+        let rms = 0, zeroCross = 0, absSum = 0, weightedIndex = 0, peakAbs = 0;
+        let prev = mono[0] >= 0;
+        for (let i = 0; i < len; i++) {
+          const s = mono[i];
+          rms += s * s;
+          const abs = Math.abs(s);
+          absSum += abs;
+          weightedIndex += abs * i;
+          if (abs > peakAbs) peakAbs = abs;
+          if (i > 0) {
+            const sign = s >= 0;
+            if (sign !== prev) zeroCross++;
+            prev = sign;
+          }
+        }
         rms = Math.sqrt(rms / len);
         if (rms < 1e-6) return { silence: true };
+        const centroidSec = absSum > 1e-9 ? (weightedIndex / absSum) / sr : 0;
+        const zeroCrossRate = len > 1 ? zeroCross / (len - 1) : 0;
 
         // Choose window size: large for good frequency resolution, but ≤ len
         let WIN = 8192;
@@ -5414,12 +5430,24 @@
         for (let i = 0; i < WIN; i++) hann[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (WIN - 1)));
 
         const re = new Float64Array(WIN), im = new Float64Array(WIN);
+        let refRe = null, refIm = null, refEnergy = -Infinity;
         let winCount = 0;
 
         for (let off = 0; off + WIN <= len; off += HOP) {
-          for (let i = 0; i < WIN; i++) { re[i] = mono[off + i] * hann[i]; im[i] = 0; }
+          let winEnergy = 0;
+          for (let i = 0; i < WIN; i++) {
+            const sample = mono[off + i] * hann[i];
+            re[i] = sample;
+            im[i] = 0;
+            winEnergy += sample * sample;
+          }
           fftInPlace(re, im);
           for (let i = 0; i < halfBins; i++) magSum[i] += Math.sqrt(re[i]*re[i] + im[i]*im[i]);
+          if (winEnergy > refEnergy) {
+            refEnergy = winEnergy;
+            refRe = new Float64Array(re);
+            refIm = new Float64Array(im);
+          }
           winCount++;
         }
 
@@ -5433,16 +5461,38 @@
           const h2 = sz >> 1;
           const m2 = new Float64Array(h2);
           for (let i = 0; i < h2; i++) m2[i] = Math.sqrt(re2[i]*re2[i] + im2[i]*im2[i]);
-          return { mags: m2, sr, winSize: sz, rms, selDuration: selEnd - selStart };
+          return {
+            mags: m2,
+            sr,
+            winSize: sz,
+            rms,
+            selDuration: selEnd - selStart,
+            refRe: re2,
+            refIm: im2,
+            zeroCrossRate,
+            centroidSec,
+            peakAbs
+          };
         }
 
         for (let i = 0; i < halfBins; i++) magSum[i] /= winCount;
-        return { mags: magSum, sr, winSize: WIN, rms, selDuration: selEnd - selStart };
+        return {
+          mags: magSum,
+          sr,
+          winSize: WIN,
+          rms,
+          selDuration: selEnd - selStart,
+          refRe: refRe || new Float64Array(re),
+          refIm: refIm || new Float64Array(im),
+          zeroCrossRate,
+          centroidSec,
+          peakAbs
+        };
       }
 
       // ——— Spectral peak picking ———
       // Returns array of { freq, mag, bin } sorted by magnitude descending.
-      function extractPeaks(mags, sr, winSize, maxRaw) {
+      function extractPeaks(mags, sr, winSize, maxRaw, refRe = null, refIm = null) {
         const binHz = sr / winSize;
         const peaks = [];
         const minBin = Math.max(1, Math.ceil(20 / binHz));
@@ -5455,7 +5505,10 @@
             const denom = a - 2*b + c;
             const delta = (denom !== 0) ? 0.5 * (a - c) / denom : 0;
             const freq = (i + Math.max(-0.5, Math.min(0.5, delta))) * binHz;
-            peaks.push({ freq, mag: b, bin: i });
+            const phase = refRe && refIm ? Math.atan2(refIm[i] || 0, refRe[i] || 0) : 0;
+            const left = Math.max(a, 1e-9), right = Math.max(c, 1e-9);
+            const sharpness = b / Math.max(1e-9, (left + right) * 0.5);
+            peaks.push({ freq, mag: b, bin: i, phase, sharpness });
           }
         }
 
@@ -5501,10 +5554,23 @@
               used.add(j);
             }
           }
-          // Represent group by weighted mean frequency (mag-weighted) and total mag
-          let wFreq = 0, totalMag = 0;
-          for (const p of group) { wFreq += p.freq * p.mag; totalMag += p.mag; }
-          groups.push({ freq: wFreq / totalMag, mag: totalMag, bin: group[0].bin });
+          // Represent group by weighted mean frequency (mag-weighted) and merge
+          // phase/sharpness so downstream gear shaping still has useful data.
+          let wFreq = 0, totalMag = 0, phaseX = 0, phaseY = 0, sharpness = 0;
+          for (const p of group) {
+            wFreq += p.freq * p.mag;
+            totalMag += p.mag;
+            phaseX += Math.cos(p.phase || 0) * p.mag;
+            phaseY += Math.sin(p.phase || 0) * p.mag;
+            sharpness = Math.max(sharpness, p.sharpness || 1);
+          }
+          groups.push({
+            freq: wFreq / totalMag,
+            mag: totalMag,
+            bin: group[0].bin,
+            phase: Math.atan2(phaseY, phaseX),
+            sharpness
+          });
         }
         return groups.sort((a, b) => b.mag - a.mag);
       }
@@ -5536,28 +5602,109 @@
 
         const sortedByFreq = [...peaks].sort((a, b) => a.freq - b.freq);
 
-        // Candidate fundamentals: each low-freq peak, plus 1/selDuration
-        const candidates = sortedByFreq
-          .slice(0, Math.min(6, sortedByFreq.length))
-          .map(p => p.freq);
+        // Candidate fundamentals: low peaks and harmonic divisors of strong peaks,
+        // so a missing fundamental can still be inferred.
+        const candidates = [];
+        const candidateSet = new Set();
+        const pushCandidate = f0 => {
+          const c = Number(f0);
+          if (!isFinite(c) || c <= 0.1 || c > 5000) return;
+          const key = c.toFixed(6);
+          if (candidateSet.has(key)) return;
+          candidateSet.add(key);
+          candidates.push(c);
+        };
+        sortedByFreq.slice(0, Math.min(10, sortedByFreq.length)).forEach(p => {
+          pushCandidate(p.freq);
+          for (let h = 2; h <= 8; h++) pushCandidate(p.freq / h);
+        });
         if (selDuration > 0.2) candidates.push(1 / selDuration);
 
-        let bestFund = candidates[0];
+        let bestFund = candidates[0] || sortedByFreq[0].freq;
         let bestScore = -Infinity;
 
         for (const f0 of candidates) {
           if (f0 <= 0) continue;
-          let score = 0;
+          let score = 0, harmonicHits = 0;
           for (const pk of peaks) {
             const k = pk.freq / f0;
-            const err = Math.abs(k - Math.round(k)) / Math.max(1, Math.round(k));
+            const nearest = Math.max(1, Math.round(k));
+            const err = Math.abs(k - nearest) / nearest;
             // Weight score by magnitude and harmonic alignment
-            score += pk.mag * Math.max(0, 1 - err * 10);
+            const aligned = Math.max(0, 1 - err * 11);
+            score += pk.mag * aligned;
+            if (aligned > 0.6) harmonicHits++;
           }
+          score += harmonicHits * peaks[0].mag * 0.08;
           if (score > bestScore) { bestScore = score; bestFund = f0; }
         }
 
         return Math.max(0.001, bestFund);
+      }
+
+      function wrapDegrees(deg) {
+        return ((deg + 540) % 360) - 180;
+      }
+
+      function clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+      }
+
+      function buildShapeParams(shape, intensity, phaseBias) {
+        const amt = clamp(intensity, 0, 1);
+        const pb = clamp((phaseBias + Math.PI) / (2 * Math.PI), 0, 1);
+        switch (shape) {
+          case 'ellipse':
+            return normalizedShapeParams({
+              ellipseA: 1 - 0.45 * amt,
+              ellipseEccentricity: 0.18 + 0.62 * amt
+            });
+          case 'square':
+          case 'hexagon':
+            return normalizedShapeParams({
+              polygonSharpness: 0.22 + 0.72 * amt
+            });
+          case 'cardioid':
+            return normalizedShapeParams({
+              cardioidDepth: 0.42 + 0.72 * amt,
+              cardioidBias: pb
+            });
+          case 'heart':
+            return normalizedShapeParams({
+              heartWidth: 1.04 - 0.35 * amt,
+              heartPoint: 0.28 + 0.62 * amt
+            });
+          default:
+            return normalizedShapeParams({});
+        }
+      }
+
+      function chooseMainShape(analysisMode, analysis, fundamental) {
+        const temporalRatio = fundamental > 0 ? clamp((analysis.zeroCrossRate * analysis.sr) / (fundamental * 18), 0, 1) : 0;
+        if (analysisMode === 'speech') return temporalRatio > 0.55 ? 'cardioid' : 'ellipse';
+        if (analysisMode === 'music') return temporalRatio > 0.72 ? 'hexagon' : 'ellipse';
+        return temporalRatio > 0.65 ? 'cardioid' : 'ellipse';
+      }
+
+      function chooseComponentShape(component, analysisMode) {
+        const harmonic = Math.max(1, Math.round(component.ratio));
+        const harmonicError = Math.abs(component.ratio - harmonic);
+        const intensity = clamp(component.weight * 0.9 + component.brightness * 0.5, 0, 1);
+        if (analysisMode === 'speech') {
+          if (component.phaseBias > 0.62) return intensity > 0.55 ? 'heart' : 'cardioid';
+          if (harmonic <= 2 || harmonicError < 0.08) return 'ellipse';
+          return intensity > 0.65 ? 'hexagon' : 'cardioid';
+        }
+        if (analysisMode === 'music') {
+          if (harmonic <= 2 && harmonicError < 0.06) return intensity > 0.5 ? 'ellipse' : 'circular';
+          if (harmonic % 2 === 1 && intensity > 0.6) return 'square';
+          if (component.brightness > 0.55) return 'hexagon';
+          return component.phaseBias > 0.58 ? 'cardioid' : 'ellipse';
+        }
+        if (harmonic <= 2 && harmonicError < 0.08) return intensity > 0.45 ? 'ellipse' : 'circular';
+        if (component.brightness > 0.62) return 'hexagon';
+        if (component.phaseBias > 0.62) return 'heart';
+        return intensity > 0.55 ? 'cardioid' : 'ellipse';
       }
 
       // ——— Compression level string → numeric factor ———
@@ -5571,6 +5718,7 @@
         if (!rs.buffer) { onStatus('No audio loaded.'); return; }
 
         const complexity = Math.max(1, parseInt($('rfft-complexity').value) || 6);
+        const analysisMode = $('rfft-analysis-mode').value || 'general';
         const compressionKey = $('rfft-spectral-compression').value || 'moderate';
         const compressionFactor = COMPRESSION_FACTORS[compressionKey] ?? 0.35;
         const selDuration = rs.selEnd - rs.selStart;
@@ -5588,10 +5736,10 @@
         onStatus('Finding spectral components…');
         await tick();
 
-        const { mags, sr, winSize, rms, selDuration: dur } = analysis;
+        const { mags, sr, winSize, rms, selDuration: dur, refRe, refIm, zeroCrossRate, centroidSec } = analysis;
 
         // Extract raw peaks — gather more than needed for clustering
-        const rawPeaks = extractPeaks(mags, sr, winSize, complexity * 8 + 32);
+        const rawPeaks = extractPeaks(mags, sr, winSize, complexity * 8 + 32, refRe, refIm);
         if (rawPeaks.length === 0) { onStatus('Error: No significant spectral content found.'); return; }
 
         onStatus('Clustering frequencies…');
@@ -5615,7 +5763,17 @@
           const [num, den] = nearestSimpleRatio(ratio);
           const approxFreq = (num / den) * fundamental;
           const freqErr = Math.abs(approxFreq - pk.freq) / Math.max(1, pk.freq);
-          return { freq: pk.freq, mag: pk.mag, ratio, num, den, approxFreq, freqErr };
+          return {
+            freq: pk.freq,
+            mag: pk.mag,
+            ratio,
+            num,
+            den,
+            approxFreq,
+            freqErr,
+            phase: pk.phase || 0,
+            sharpness: pk.sharpness || 1
+          };
         });
 
         // Sort by magnitude descending, deduplicate by (num:den)
@@ -5628,6 +5786,15 @@
         }
 
         const selected = unique.slice(0, complexity);
+        const maxSelectedMag = Math.max(...selected.map(c => c.mag), 1);
+        selected.forEach(c => {
+          c.weight = c.mag / maxSelectedMag;
+          c.phaseBias = Math.abs(Math.sin(c.phase || 0));
+          c.brightness = clamp((c.ratio - 1) / Math.max(1, complexity * 0.75), 0, 1);
+          c.shape = chooseComponentShape(c, analysisMode);
+          c.shapeParams = buildShapeParams(c.shape, clamp(c.weight * 0.75 + c.sharpness * 0.08, 0, 1), c.phase || 0);
+          c.phaseOffsetDeg = wrapDegrees(-(c.phase || 0) * 180 / Math.PI);
+        });
 
         onStatus('Testing gear ratios…');
         await tick();
@@ -5640,6 +5807,19 @@
 
         // Set fundamental frequency to match the estimated source fundamental
         setFundamentalFrequency(fundamental);
+        state.waveform = 'sine';
+        const waveformSelect = $('select-waveform');
+        if (waveformSelect) waveformSelect.value = 'sine';
+        if (typeof refreshClockworkControlVisibility === 'function') refreshClockworkControlVisibility();
+        const mainGearObj = state.gears.find(g => g.isMain) || state.gears[0];
+        if (mainGearObj) {
+          mainGearObj.shape = chooseMainShape(analysisMode, analysis, fundamental);
+          mainGearObj.shapeParams = buildShapeParams(
+            mainGearObj.shape,
+            clamp((zeroCrossRate * sr) / Math.max(40, fundamental * 20), 0, 1),
+            centroidSec * fundamental * Math.PI * 2
+          );
+        }
 
         onStatus('Placing gears…');
         await tick();
@@ -5665,6 +5845,11 @@
           const gear = addGear(teeth);
           // Volume proportional to spectral magnitude
           gear.volume = Math.max(0.04, Math.min(0.85, (comp.mag / maxMag) * 0.65));
+          gear.ratioLock = true;
+          gear.teethLock = false;
+          gear.shape = comp.shape;
+          gear.shapeParams = normalizedShapeParams(comp.shapeParams);
+          gear.setPhaseOffsetDeg(comp.phaseOffsetDeg);
           rs.resultGearIds.push(gear.id);
         }
 
@@ -5691,19 +5876,22 @@
             `<span>Gears: ${rs.resultGearIds.length}</span>` +
             `<span>Base: ${fundamental.toFixed(2)} Hz</span>` +
             `<span>Selection: ${selDur.toFixed(2)}s</span>` +
-            `<span>Components: ${components.length}</span>`;
+            `<span>Components: ${components.length}</span>` +
+            `<span>Playback: additive sine + shaped cams</span>`;
         }
 
         const listEl = $('rfft-component-list');
         if (listEl && components.length > 0) {
           let html = '<table class="rfft-component-table"><thead><tr>' +
-            '<th>Freq (Hz)</th><th>Ratio</th><th>Approx (Hz)</th><th>Magnitude</th>' +
+            '<th>Freq (Hz)</th><th>Ratio</th><th>Approx (Hz)</th><th>Phase</th><th>Shape</th><th>Magnitude</th>' +
             '</tr></thead><tbody>';
           for (const c of components) {
             html += `<tr>
               <td>${c.freq.toFixed(1)}</td>
               <td>${c.num}:${c.den}</td>
               <td>${c.approxFreq.toFixed(1)}</td>
+              <td>${wrapDegrees(-(c.phase || 0) * 180 / Math.PI).toFixed(0)}°</td>
+              <td>${c.shape || 'circular'}</td>
               <td>${(c.mag).toFixed(3)}</td>
             </tr>`;
           }
