@@ -6,7 +6,7 @@
   <title>JI Gear Synth</title>
   <style>
     :root {
-      --bg-dark: #0f172a;
+      --bg-dark: #070605;
       --bg-sidebar: #1e293b;
       --bg-card: #334155;
       --accent-main: #f59e0b;
@@ -230,7 +230,8 @@
       gap: 1px;
       cursor: grab;
       user-select: none;
-      touch-action: none;
+      /* Allow vertical touch swipes to scroll the parent palette. */
+      touch-action: pan-y;
     }
     .rational-gear-thumb:active { cursor: grabbing; }
     .rational-gear-thumb:hover { border-color: var(--accent-cyan); background: rgba(56,189,248,.11); }
@@ -246,7 +247,8 @@
     #ratio-palette-modal {
       position: fixed;
       top: 72px;
-      right: 18px;
+      left: 18px;
+      right: auto;
       width: min(430px, calc(100vw - 36px));
       max-height: min(72vh, 620px);
       z-index: 2000;
@@ -277,12 +279,96 @@
       min-height:0;
       overflow:auto;
       overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      touch-action:pan-y;
     }
     #ratio-palette-modal .rational-palette { max-height: none; }
     .shape-generator { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); }
     .shape-generator select { width:100%; background:rgba(0,0,0,.22); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; padding:6px 7px; font-size:.7rem; }
     .shape-generator .toolbar-check { justify-content:flex-start; }
     #btn-open-ratio-palette { white-space:nowrap; }
+
+
+    /* Detached selected-gear inspector: primary information panel. */
+    #selected-gear-detail {
+      position:absolute; top:18px; right:18px; width:min(360px,calc(100% - 36px));
+      max-height:min(68%, 680px); overflow:hidden; z-index:1200;
+      background:rgba(18,12,7,.96); border:1px solid #8a6230;
+      box-shadow:0 14px 36px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,224,150,.16);
+    }
+    #selected-gear-detail #inspector-panel { max-height:calc(min(68vh,680px) - 42px); overflow-y:auto; }
+    #selected-gear-detail .selected-gear-header { color:#f1d184; letter-spacing:.4px; }
+    #hud-top-right { z-index:3000 !important; top:auto !important; bottom:18px !important; right:18px !important; }
+    #hud-top-right.hno-collapsed { z-index:3050 !important; }
+    #hud-top-right:not(.hno-collapsed) { z-index:3100 !important; max-height:min(60vh,620px); overflow:auto; }
+    @media (max-width:900px) and (orientation:portrait) {
+      #selected-gear-detail { top:8px; right:8px; width:min(340px,calc(100vw - 16px)); max-height:42vh; }
+      #selected-gear-detail #inspector-panel { max-height:calc(42vh - 42px); }
+      #hud-top-right { top:auto !important; right:8px !important; bottom:8px !important; }
+      #hud-top-right:not(.hno-collapsed) { max-height:55vh !important; z-index:3100 !important; }
+      #ratio-palette-modal { z-index:2300 !important; }
+    }
+
+    /* Canvas-mounted steampunk frequency control. */
+    #canvas-crank-control {
+      position:absolute;
+      z-index:25;
+      width:132px;
+      min-height:64px;
+      padding:5px 7px 6px;
+      border:1px solid #705021;
+      border-radius:8px;
+      background:linear-gradient(145deg,rgba(64,43,19,.96),rgba(18,14,10,.96));
+      box-shadow:0 7px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,222,143,.35);
+      color:#f1d184;
+      pointer-events:auto;
+      user-select:none;
+      transform:translate(-50%, 0);
+      display:none;
+    }
+    #canvas-crank-control.is-visible { display:block; }
+    .crank-control-title {
+      display:flex; align-items:center; justify-content:center; gap:5px;
+      font:900 11px Georgia,serif; letter-spacing:2px; color:#f4d17d;
+      text-shadow:0 1px 2px #000;
+      margin-bottom:3px;
+    }
+    .crank-control-screw {
+      width:5px; height:5px; border-radius:50%;
+      background:radial-gradient(circle at 30% 30%,#fff0b0,#a77529 58%,#2b1808);
+      box-shadow:0 0 0 1px #6e481b;
+    }
+    .crank-control-body { display:flex; align-items:center; gap:5px; }
+    .crank-control-cog {
+      font-size:17px; line-height:1; color:#d3a64e;
+      text-shadow:0 1px 2px #000;
+    }
+    #canvas-crank-slider {
+      flex:1; width:auto; min-width:0; margin:0;
+      accent-color:#c99a43; cursor:pointer;
+    }
+    #canvas-crank-slider::-webkit-slider-runnable-track {
+      height:5px; border-radius:4px;
+      background:linear-gradient(90deg,#3a260f,#c79b43,#5b3a15);
+      border:1px solid #8b642a;
+    }
+    #canvas-crank-slider::-webkit-slider-thumb {
+      appearance:none; width:15px; height:15px; margin-top:-6px;
+      border-radius:50%; border:1px solid #f5d78b;
+      background:radial-gradient(circle at 30% 25%,#fff0b0,#c9983d 42%,#5a3610 78%,#1b0e04);
+      box-shadow:0 2px 4px rgba(0,0,0,.6);
+    }
+    #canvas-crank-value {
+      text-align:center; margin-top:2px;
+      font:700 9px system-ui,sans-serif; color:#d7c4a0;
+    }
+
+    .ratio-carousel-nav {
+      display:none; min-width:28px; min-height:28px; padding:0;
+      font-size:1.15rem; line-height:1; border:1px solid #705021;
+      background:rgba(113,77,29,.48); color:#f4d17d;
+    }
+
     @media (max-width: 900px) and (orientation: portrait) {
       #app-container {
         flex-direction: column;
@@ -307,22 +393,51 @@
         left: auto;
         width: 100%;
         max-width: none;
-        flex: 0.98 1 0;
+        flex: 0 0 auto;
         min-height: 0;
         max-height: none;
         border-radius: 10px;
         box-shadow: 0 10px 28px rgba(0,0,0,.35);
       }
-      #ratio-palette-modal.is-hidden { display:flex; }
+      #ratio-palette-modal.is-hidden { display:none; }
       #ratio-palette-modal .floating-header { padding: 8px; }
       #ratio-palette-modal .floating-title { font-size: .76rem; }
       #ratio-palette-modal .floating-actions { gap: 8px; }
-      #ratio-palette-modal .floating-body { padding: 8px; }
-      #ratio-palette-modal .rational-palette { gap: 5px; }
-      #btn-close-ratio-palette { display: none; }
-      .rational-gear-thumb { min-height: 80px; }
-      .rational-gear-thumb .thumb-gear { width: 66px; height: 66px; }
-      .rational-gear-thumb .thumb-ratio { font-size: .92rem; }
+      #ratio-palette-modal .floating-body {
+        padding: 6px 8px 8px;
+        display:flex; flex-direction:column;
+        overflow:visible;
+      }
+      #ratio-palette-modal .floating-body > #rational-gear-palette { order:1; }
+      #ratio-palette-modal .floating-body > .shape-generator { order:2; }
+      #ratio-palette-modal .floating-body > .panel-title { order:3; }
+      #ratio-palette-modal .floating-body > .btn-group { order:4; }
+      #ratio-palette-modal .rational-palette {
+        display:flex; flex-direction:row; flex-wrap:nowrap;
+        gap:4px; width:100%; max-width:100%;
+        max-height:none; height:57px;
+        overflow-x:auto; overflow-y:hidden;
+        padding:1px 2px 5px;
+        -webkit-overflow-scrolling:touch;
+        scroll-snap-type:x proximity;
+        touch-action:pan-x;
+      }
+      #ratio-palette-modal .rational-palette::-webkit-scrollbar { height:4px; }
+      #ratio-palette-modal .rational-palette::-webkit-scrollbar-thumb { background:#725027; border-radius:3px; }
+      #btn-close-ratio-palette { display:inline-flex; min-width:32px; min-height:30px; padding:2px 8px; font-size:1.1rem; }
+      .ratio-carousel-nav { display:inline-flex; }
+      .rational-gear-thumb {
+        flex:0 0 44px; width:44px; min-width:44px; min-height:48px; height:49px;
+        padding:2px; border-radius:6px; gap:0; scroll-snap-align:start;
+      }
+      .rational-gear-thumb .thumb-gear {
+        max-width:40px; max-height:40px; width:auto; height:auto;
+        margin:0 auto;
+      }
+      .rational-gear-thumb .thumb-ratio { font-size:.68rem; line-height:.9; }
+      .rational-gear-thumb .thumb-name, .rational-gear-thumb .thumb-meta { display:none; }
+      #ratio-palette-modal .shape-generator { margin-top:6px; margin-bottom:0; padding-top:2px; }
+      #canvas-crank-control { width:122px; min-height:60px; }
       #sidebar {
         order: 3;
         width: 100%;
@@ -354,7 +469,7 @@
         flex-wrap: wrap;
       }
       #btn-open-ratio-palette {
-        display: none;
+        display: block;
       }
       #hud-top-right {
         top: 8px;
@@ -552,6 +667,42 @@
       padding: 2px 7px;
       min-width: 28px;
       font-size: 0.7rem;
+    }
+    #hud-top-right {
+      position:fixed; z-index:1200;
+      width:280px; max-height:min(70vh,560px);
+      overflow:visible;
+    }
+    #hud-top-right.hno-collapsed {
+      width:48px; height:48px; padding:4px; border-radius:50%; overflow:visible;
+    }
+    .hno-magnifier {
+      width:38px; height:38px; padding:0; border-radius:50%;
+      position:relative; display:flex; align-items:center; justify-content:center;
+      background:radial-gradient(circle at 35% 30%,#f0d58a 0 18%,#b7802f 40%,#4a2f12 72%);
+      border:2px solid #c89b4a; box-shadow:inset 0 1px 2px rgba(255,245,190,.55),0 2px 6px rgba(0,0,0,.55);
+    }
+    .hno-magnifier::before { content:""; width:17px; height:17px; border:3px solid #1a120a; border-radius:50%; box-shadow:inset 0 1px 4px rgba(255,255,255,.18); }
+    .hno-magnifier::after { content:""; position:absolute; width:12px; height:4px; background:#1a120a; border-radius:3px; transform:rotate(45deg); right:6px; bottom:8px; }
+    #hud-top-right.hno-collapsed .hno-header,
+    #hud-top-right.hno-collapsed #hud-network-body,
+    #hud-top-right.hno-collapsed #loop-conflict-warning { display:none; }
+    .hno-header { margin-bottom:8px; }
+
+    @media (max-width: 900px) and (orientation: portrait) {
+      #hud-top-right { top:82px; right:8px; width:calc(100vw - 16px); max-width:320px; }
+      #hud-top-right.hno-collapsed { width:48px; }
+      #hud-top-right.hno-collapsed { height:48px; }
+    }
+
+    @media (max-width: 900px) and (orientation: portrait) and (pointer: coarse) {
+      .keyboard-panel-pinned {
+        position:fixed !important; inset:auto 0 0 0 !important; width:100vw !important; max-width:100vw !important;
+        z-index:5000 !important; margin:0 !important; border-radius:12px 12px 0 0 !important;
+        box-shadow:0 -8px 24px rgba(0,0,0,.6) !important;
+      }
+      .keyboard-panel-pinned .keyboard-container { width:100%; height:92px; }
+      .keyboard-panel-pinned .keyboard-panel-title { margin-bottom:4px; }
     }
 
     /* MAIN CANVAS AREA */
@@ -801,6 +952,135 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
     }
+  
+    /* ================= STEAMPUNK UI SKIN ================= */
+    :root {
+      --bg-dark:#120e09;
+      --bg-sidebar:#1b140d;
+      --bg-card:#2a1d12;
+      --accent-main:#d59b42;
+      --accent-cyan:#e1b866;
+      --accent-green:#9fbc68;
+      --text-main:#f3e6cb;
+      --text-muted:#b59d78;
+      --border-color:#604826;
+      --danger:#b84a35;
+    }
+    html, body, button, input, select, textarea {
+      font-family: Georgia, 'Times New Roman', serif;
+    }
+    body {
+      background:
+        radial-gradient(circle at 50% 40%, rgba(92,62,26,.16), transparent 48%),
+        linear-gradient(135deg, #0e0a06 0%, #171008 48%, #0b0906 100%);
+    }
+    #gear-add-toolbar {
+      background:linear-gradient(180deg,rgba(34,24,14,.98),rgba(12,9,6,.98));
+      border-bottom:1px solid #7e5a28;
+      box-shadow:0 4px 18px rgba(0,0,0,.62), inset 0 1px 0 rgba(240,193,102,.15);
+    }
+    #gear-add-toolbar .toolbar-title, .panel-title { color:#ddb15b; text-shadow:0 1px 2px #000; }
+    #sidebar { background:linear-gradient(180deg,#20160d,#130e09 70%,#0c0906); border-color:#614624; }
+    .sidebar-header { background:linear-gradient(180deg,rgba(80,56,27,.30),rgba(0,0,0,.20)); border-color:#614624; }
+    .sidebar-header h1 { color:#e3b864; text-shadow:0 2px 3px #000; }
+    .panel-box, #ratio-palette-modal, .hud-panel {
+      background:
+        linear-gradient(145deg,rgba(70,48,25,.78),rgba(24,17,11,.96));
+      border:1px solid #684a28;
+      box-shadow:0 6px 18px rgba(0,0,0,.42), inset 0 1px 0 rgba(247,216,145,.10);
+    }
+    input[type="number"], input[type="text"], select {
+      background:#120d08;
+      border-color:#6c4d29;
+      color:#f0dfbd;
+    }
+    button {
+      background:linear-gradient(180deg,#6f512c,#382511);
+      border:1px solid #8a632f;
+      color:#f1dfbd;
+      box-shadow:inset 0 1px 0 rgba(255,234,177,.16), 0 2px 5px rgba(0,0,0,.35);
+    }
+    button.btn-primary { background:linear-gradient(180deg,#d3a04a,#754b18); color:#140d05; border-color:#e1bb72; }
+    button.btn-main { background:linear-gradient(180deg,#e0b65c,#8b591a); color:#160d04; border-color:#edca82; }
+    button.btn-danger { background:linear-gradient(180deg,#a94b36,#642719); border-color:#d07057; }
+    .rational-gear-thumb {
+      border-color:#704f28;
+      background:radial-gradient(circle at 35% 28%,rgba(229,181,91,.17),rgba(34,23,13,.96) 72%);
+    }
+    .rational-gear-thumb:hover { border-color:#ddb15b; background:rgba(126,87,34,.26); }
+    #ratio-palette-modal .floating-header { background:linear-gradient(180deg,rgba(84,57,28,.36),rgba(18,12,7,.25)); border-color:#674927; }
+    .badge-ultrasonic { background:rgba(177,57,37,.22); color:#ff8165; border-color:#c94a34; }
+    /* Lower the canvas CRANK control so the handle can rotate without colliding with it. */
+    #canvas-crank-control { transform:translate(-50%, 0); }
+    @media (max-width:900px) and (orientation:portrait) {
+      #canvas-crank-control { width:122px; min-height:60px; }
+      #hud-bottom-left button, #hud-top-right button { font-family:Georgia,'Times New Roman',serif; }
+    }
+
+
+    /* FINAL ANDROID STEAMPUNK UI OVERRIDES */
+    #hud-top-right {
+      position:fixed !important;
+      top:84px; right:18px; z-index:1200;
+      width:280px; max-width:calc(100vw - 36px);
+      max-height:min(70vh,560px);
+      overflow:visible !important;
+    }
+    #hud-top-right.hno-collapsed {
+      width:48px !important; height:48px !important;
+      padding:4px !important; border-radius:50% !important;
+      overflow:visible !important;
+    }
+    #hud-top-right.hno-collapsed #hud-network-body,
+    #hud-top-right.hno-collapsed #loop-conflict-warning,
+    #hud-top-right.hno-collapsed .hno-header { display:none !important; }
+    #hud-top-right .hno-magnifier { display:flex; }
+    #hud-top-right:not(.hno-collapsed) .hno-magnifier { display:none; }
+    .hno-magnifier {
+      position:relative; width:38px !important; height:38px !important;
+      min-width:38px !important; min-height:38px !important; padding:0 !important;
+      border-radius:50% !important; border:2px solid #d0a24d !important;
+      background:radial-gradient(circle at 34% 28%,#f2dfa6 0 17%,#b57b2b 43%,#4a2d0d 74%) !important;
+      box-shadow:inset 0 1px 2px rgba(255,245,190,.6),0 2px 8px rgba(0,0,0,.6) !important;
+    }
+    .hno-magnifier::before { content:""; width:17px; height:17px; border:3px solid #191008; border-radius:50%; }
+    .hno-magnifier::after { content:""; position:absolute; width:12px; height:4px; right:5px; bottom:7px; border-radius:3px; background:#191008; transform:rotate(45deg); }
+    #btn-toggle-network-overview-inner {
+      border:1px solid #8a6230; background:rgba(92,61,22,.5); color:#f1d184;
+      min-width:28px; padding:2px 7px;
+    }
+    @media (max-width:900px) and (orientation:portrait) {
+      #hud-top-right { top:82px; right:8px; width:min(320px,calc(100vw - 16px)); }
+      #hud-top-right.hno-collapsed { width:48px !important; height:48px !important; }
+    }
+    @media (max-width:900px) and (orientation:portrait) and (pointer:coarse) {
+      .keyboard-panel-pinned {
+        position:fixed !important; inset:auto 0 0 0 !important;
+        width:100vw !important; max-width:100vw !important;
+        z-index:5000 !important; margin:0 !important;
+        max-height:min(45vh,340px); overflow-y:auto;
+        border-radius:12px 12px 0 0 !important;
+        box-shadow:0 -10px 28px rgba(0,0,0,.72) !important;
+      }
+      .keyboard-panel-pinned .keyboard-container { width:100% !important; height:92px !important; }
+      .keyboard-panel-pinned .keyboard-panel-title { display:flex; }
+    }
+    /* Final detached-panel positioning overrides. */
+    #hud-top-right { top:auto !important; bottom:18px !important; right:18px !important; left:auto !important; }
+    #hud-top-right:not(.hno-collapsed) { z-index:3100 !important; }
+    @media (max-width:900px) and (orientation:portrait) {
+      #hud-top-right { top:auto !important; bottom:8px !important; right:8px !important; left:auto !important; width:min(320px,calc(100vw - 16px)) !important; }
+      #hud-top-right.hno-collapsed { width:48px !important; height:48px !important; }
+    }
+    @media (max-width:900px) and (orientation:portrait) and (pointer:coarse) {
+      body > .keyboard-panel-pinned {
+        position:fixed !important; inset:auto 0 0 0 !important;
+        width:100vw !important; max-width:100vw !important;
+        z-index:5000 !important; margin:0 !important;
+        max-height:min(45vh,340px) !important;
+        border-radius:12px 12px 0 0 !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -875,6 +1155,7 @@
     <div class="toolbar-group">
       <span class="toolbar-title">Chain Tools</span>
       <button id="btn-add-crank-tool" class="btn-primary toolbar-button" title="Add or reposition a crank-handle and transmission rod away from the gear train">↻ CRANK HANDLE</button>
+      <button id="btn-stop-animation" class="toolbar-button" title="Freeze all mechanical and orbit animation so fast-moving gears can be inspected">■ STOP ANIMATION</button>
     </div>
   </div>
 
@@ -883,9 +1164,8 @@
       <div class="floating-header" id="ratio-palette-header">
         <div class="floating-title">Ratio & Harmonic Presets <span id="rational-palette-count" style="font-weight:400; color:var(--text-muted); font-size:0.68rem;"></span></div>
         <div class="floating-actions">
-          <label style="font-size:.64rem; display:flex; align-items:center; gap:4px; cursor:pointer;" title="Keep this palette floating above the machine">
-            <input type="checkbox" id="chk-ratio-palette-pinned" checked> Pin
-          </label>
+          <button id="btn-ratio-scroll-left" class="ratio-carousel-nav" title="Scroll harmonic presets left" aria-label="Scroll harmonic presets left">‹</button>
+          <button id="btn-ratio-scroll-right" class="ratio-carousel-nav" title="Scroll harmonic presets right" aria-label="Scroll harmonic presets right">›</button>
           <button id="btn-close-ratio-palette" title="Hide palette" style="padding:2px 7px;">×</button>
         </div>
       </div>
@@ -912,13 +1192,6 @@
           </div>
         </div>
         <div id="rational-gear-palette" class="rational-palette" aria-label="Available rational gears"></div>
-        <div class="panel-title" style="margin-top:10px;">Macro Systems</div>
-        <div class="btn-group" style="flex-wrap:wrap;">
-          <button id="preset-ji-456" style="flex:1;">JI 4:5:6 Triad</button>
-          <button id="preset-7limit" style="flex:1;">7-Limit Set</button>
-          <button id="preset-prime" style="flex:1;">Prime Harmonics</button>
-          <button id="preset-chain" style="width:100%; margin-top:4px;">Linear Chain Test</button>
-        </div>
       </div>
     </section>
 
@@ -1045,29 +1318,26 @@
           <div id="main-shape-description" style="font-size:.62rem;color:var(--text-muted);line-height:1.35;margin-top:4px;"></div>
         </div>
 
-        <!-- QWERTY 12TET PIANO KEYBOARD -->
+        <!-- PIANO KEYBOARD -->
         <div class="panel-box">
-          <div class="panel-title">
-            <span>🎹 QWERTY Synth Keys</span>
+          <div class="panel-title keyboard-panel-title">
             <span id="hud-current-note" style="color: var(--accent-cyan); font-weight: bold;">C (1.00x)</span>
+            <button id="btn-pin-keyboard" type="button" title="Pin keyboard to the bottom of the Android screen" style="padding:3px 8px;font-size:.65rem;">PIN</button>
           </div>
-          <p style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px;">
-            Play notes: <b>ASDFGHJK</b> (white) &amp; <b>WETYU</b> (black) relative to <i>f</i>.
-          </p>
           <div class="keyboard-container" id="virtual-keyboard">
-            <div class="key white-key" data-note="0" data-key="KeyA"><span>A<br>C</span></div>
-            <div class="key black-key" data-note="1" data-key="KeyW" style="left: 8.5%;"><span>W<br>C#</span></div>
-            <div class="key white-key" data-note="2" data-key="KeyS"><span>S<br>D</span></div>
-            <div class="key black-key" data-note="3" data-key="KeyE" style="left: 21%;"><span>E<br>D#</span></div>
-            <div class="key white-key" data-note="4" data-key="KeyD"><span>D<br>E</span></div>
-            <div class="key white-key" data-note="5" data-key="KeyF"><span>F<br>F</span></div>
-            <div class="key black-key" data-note="6" data-key="KeyT" style="left: 46%;"><span>T<br>F#</span></div>
-            <div class="key white-key" data-note="7" data-key="KeyG"><span>G<br>G</span></div>
-            <div class="key black-key" data-note="8" data-key="KeyY" style="left: 58.5%;"><span>Y<br>G#</span></div>
-            <div class="key white-key" data-note="9" data-key="KeyH"><span>H<br>A</span></div>
-            <div class="key black-key" data-note="10" data-key="KeyU" style="left: 71%;"><span>U<br>A#</span></div>
-            <div class="key white-key" data-note="11" data-key="KeyJ"><span>J<br>B</span></div>
-            <div class="key white-key" data-note="12" data-key="KeyK"><span>K<br>C</span></div>
+            <div class="key white-key" data-note="0" data-key="KeyA"><span></span></div>
+            <div class="key black-key" data-note="1" data-key="KeyW" style="left: 8.5%;"><span></span></div>
+            <div class="key white-key" data-note="2" data-key="KeyS"><span></span></div>
+            <div class="key black-key" data-note="3" data-key="KeyE" style="left: 21%;"><span></span></div>
+            <div class="key white-key" data-note="4" data-key="KeyD"><span></span></div>
+            <div class="key white-key" data-note="5" data-key="KeyF"><span></span></div>
+            <div class="key black-key" data-note="6" data-key="KeyT" style="left: 46%;"><span></span></div>
+            <div class="key white-key" data-note="7" data-key="KeyG"><span></span></div>
+            <div class="key black-key" data-note="8" data-key="KeyY" style="left: 58.5%;"><span></span></div>
+            <div class="key white-key" data-note="9" data-key="KeyH"><span></span></div>
+            <div class="key black-key" data-note="10" data-key="KeyU" style="left: 71%;"><span></span></div>
+            <div class="key white-key" data-note="11" data-key="KeyJ"><span></span></div>
+            <div class="key white-key" data-note="12" data-key="KeyK"><span></span></div>
           </div>
           <div style="display: flex; gap: 6px; margin-top: 8px; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 4px;">
@@ -1172,6 +1442,14 @@
     <main id="canvas-container">
       <canvas id="synthCanvas"></canvas>
       <div id="startup-tooltip">Drag the cog to the drive wheel to listen to the ratio</div>
+      <div id="canvas-crank-control" aria-label="Crank frequency control">
+        <div class="crank-control-title"><span class="crank-control-screw"></span><span>CRANK</span><span class="crank-control-screw"></span></div>
+        <div class="crank-control-body">
+          <div class="crank-control-cog" aria-hidden="true">⚙</div>
+          <input id="canvas-crank-slider" type="range" min="-1" max="4.38" step="0.005" value="0" aria-label="Crank frequency">
+        </div>
+        <div id="canvas-crank-value">1.0 Hz</div>
+      </div>
 
       <!-- HUD BOTTOM LEFT: CONTROLS -->
       <div id="hud-bottom-left" class="hud-panel">
@@ -1180,12 +1458,23 @@
         <button id="btn-sync-phase" style="background: var(--accent-green); color: #000;">⚡ Sync Phase (Mod 0)</button>
       </div>
 
-      <!-- HUD TOP RIGHT: NETWORK INFORMATION -->
-      <div id="hud-top-right" class="hud-panel">
+      <!-- SELECTED GEAR DETAIL: PRIMARY CANVAS INSPECTOR -->
+      <div id="selected-gear-detail" class="hud-panel" aria-label="Selected Gear Detail">
+        <div class="panel-title selected-gear-header">
+          <span>Selected Gear Detail</span>
+        </div>
+        <div id="inspector-panel" style="display:none;">
+          <div id="inspector-content" style="font-size:0.72rem; display:flex; flex-direction:column; gap:3px;"></div>
+        </div>
+      </div>
+
+      <!-- HARMONIC NETWORK OVERVIEW: DETACHED, SECONDARY -->
+      <div id="hud-top-right" class="hud-panel hno-collapsed">
+        <button id="btn-toggle-network-overview" class="hno-magnifier" title="Open Harmonic Network Overview" aria-label="Open Harmonic Network Overview"></button>
         <div id="loop-conflict-warning">⚠️ Gear loop ratio conflict! Loop motion is locked or invalid.</div>
-        <div class="panel-title">
+        <div class="panel-title hno-header">
           <span>Harmonic Network Overview</span>
-          <button id="btn-toggle-network-overview" title="Minimize Harmonic Network Overview">−</button>
+          <button id="btn-toggle-network-overview-inner" title="Minimize Harmonic Network Overview">−</button>
         </div>
         <div id="hud-network-body">
         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;">
@@ -1212,11 +1501,6 @@
           </tbody>
         </table>
 
-        <!-- INSPECTOR PANEL FOR SELECTED GEAR -->
-        <div id="inspector-panel" style="margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 8px; display: none;">
-          <div class="panel-title" style="color: var(--accent-main); font-size: 0.75rem;">Selected Gear Detail</div>
-          <div id="inspector-content" style="font-size: 0.72rem; display: flex; flex-direction: column; gap: 3px;"></div>
-        </div>
         </div>
       </div>
     </main>
@@ -1301,6 +1585,8 @@
       isSlidingFreq: false, // Instant pitch feedback mode during slider drag
       audioSyncPending: false,
       audioSyncPerfMs: 0,
+      animationStopped: false, // Freeze mechanical/orbit animation without disabling audio
+      visualFXTime: 0, // Steampunk visual effects clock; freezes with animation
       crankTool: {
         enabled: false,
         pivotX: -300,
@@ -1361,6 +1647,7 @@
         this.teethLock = false;
         this.orbitEnabled = false;
         this.orbitPeriodSec = 8.0;
+        this.orbitDirection = 1;
         this.orbitAngle = 0;
         this.orbitRadius = 0;
         this.orbitPhase = 0;
@@ -2164,10 +2451,24 @@
     const ctx = canvas.getContext('2d');
 
     function resizeCanvas() {
-      canvas.width = canvas.parentElement.clientWidth;
-      canvas.height = canvas.parentElement.clientHeight;
+      if (!canvas || !canvas.parentElement) return;
+      const parent = canvas.parentElement;
+      const width = Math.max(1, Math.round(parent.clientWidth));
+      const height = Math.max(1, Math.round(parent.clientHeight));
+      // Keep the backing canvas in lockstep with its grid/flex panel. Closing the
+      // ratio palette changes the panel width without necessarily firing a window
+      // resize event; if the backing bitmap is left at the old size, the browser
+      // stretches it into the new panel and circular gears become elliptical.
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
     }
     window.addEventListener('resize', resizeCanvas);
+    const canvasParentResizeObserver = new ResizeObserver(() => {
+      resizeCanvas();
+    });
+    canvasParentResizeObserver.observe(canvas.parentElement);
     resizeCanvas();
 
     function ratioIntervalName(num, den) {
@@ -2226,7 +2527,7 @@
       });
     }
 
-    function drawThumbGearSVG(teeth, color = '#38bdf8', shape = 'circular', rawParams = {}) {
+    function drawThumbGearSVG(teeth, color = '#38bdf8', shape = 'circular', rawParams = {}, relativeToTeeth = 120) {
       const params = normalizedShapeParams(rawParams);
       const points = shape === 'mobius' ? 180 : (shape === 'square' ? 48 : (shape === 'hexagon' ? 54 : 120));
       const cx = 36, cy = 36, baseR = 27;
@@ -2246,7 +2547,14 @@
         spokes += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.25)" stroke-width="2"/>`;
       }
       const extra = shape === 'mobius' ? `<path d="M ${cx-22} ${cy} Q ${cx} ${cy-9} ${cx+22} ${cy} Q ${cx} ${cy+9} ${cx-22} ${cy}" fill="none" stroke="rgba(255,255,255,.42)" stroke-width="1.5"/>` : '';
-      return `<svg class="thumb-gear" viewBox="0 0 72 72" aria-hidden="true"><path d="${d}" fill="${color}" fill-opacity=".22" stroke="${color}" stroke-width="2"/>${spokes}<circle cx="${cx}" cy="${cy}" r="7" fill="#0f172a" stroke="${color}" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="3" fill="${color}"/>${extra}</svg>`;
+      const relativeScale = Math.max(0.28, Math.min(1.35, Number(teeth) / Math.max(1, Number(relativeToTeeth) || 120)));
+      const thumbSize = Math.max(12, Math.min(42, 42 * relativeScale));
+      const gid = `g${Math.abs(Math.round(teeth*97 + (shape||'circular').length*13))}`;
+      const tone = teeth % 5 === 0 ? ['#e2b45d','#8b5a24','#3d2510'] : teeth % 3 === 0 ? ['#d18a62','#70402b','#24120a'] : ['#cbd2d8','#5b6670','#171b1f'];
+      const defs = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${tone[0]}"/><stop offset=".48" stop-color="${tone[1]}"/><stop offset="1" stop-color="${tone[2]}"/></linearGradient></defs>`;
+      const ring = `<circle cx="36" cy="36" r="21" fill="none" stroke="${tone[0]}" stroke-opacity=".55" stroke-width="2"/>`;
+      const bolts = Array.from({length:6},(_,i)=>{const a=i*Math.PI/3;const x=(36+21*Math.cos(a)).toFixed(1),y=(36+21*Math.sin(a)).toFixed(1);return `<circle cx="${x}" cy="${y}" r="2.1" fill="${tone[0]}" stroke="${tone[2]}" stroke-width=".9"/>`;}).join('');
+      return `<svg class="thumb-gear" style="width:${thumbSize.toFixed(1)}px;height:${thumbSize.toFixed(1)}px" viewBox="0 0 72 72" aria-hidden="true">${defs}<path d="${d}" fill="url(#${gid})" stroke="${tone[0]}" stroke-width="2"/>${spokes}${ring}${bolts}<circle cx="${cx}" cy="${cy}" r="7" fill="${tone[2]}" stroke="${tone[0]}" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="3" fill="${tone[0]}"/>${extra}</svg>`;
     }
 
     let firstUseToastTimer = null;
@@ -2278,7 +2586,7 @@
         card.dataset.ratioNum = String(c.num);
         card.dataset.ratioDen = String(c.den);
         card.title = `Drag ${c.num}:${c.den} (${c.name}) - ${c.teeth} teeth - harmonic ${c.num}`;
-        card.innerHTML = `${drawThumbGearSVG(c.teeth, '#38bdf8', previewShape, previewParams)}<div class="thumb-ratio">${c.num}:${c.den}</div><div class="thumb-name">${c.name}</div><div class="thumb-meta">${c.teeth}T • H${c.num}</div>`;
+        card.innerHTML = `${drawThumbGearSVG(c.teeth, '#38bdf8', previewShape, previewParams, mainTeeth)}<div class="thumb-ratio">${c.num}:${c.den}</div><div class="thumb-name">${c.name}</div><div class="thumb-meta">${c.teeth}T • H${c.num}</div>`;
         card.addEventListener('dragstart', e => {
           e.dataTransfer.setData('text/plain', JSON.stringify({ teeth: c.teeth, num: c.num, den: c.den, shape: paletteShapeSelect?.value || 'circular', shapeParams: { ...PALETTE_SHAPE_PARAMS }, volume: PALETTE_GEAR_VOLUME }));
           e.dataTransfer.effectAllowed = 'copy';
@@ -2433,6 +2741,210 @@
       }
     }
 
+    // STEAMPUNK VISUAL SYSTEM - deterministic ornament/material per gear.
+    const STEAMPUNK_MATERIALS = [
+      { name:'brass', body:'#9a6a24', dark:'#3a2410', light:'#f3c76a', edge:'#d7a84c', hole:'#1b1208' },
+      { name:'aged-brass', body:'#7d5b25', dark:'#2b1f12', light:'#d9b45b', edge:'#b88936', hole:'#18110a' },
+      { name:'copper', body:'#9b4f2d', dark:'#3a1710', light:'#e49a62', edge:'#c97745', hole:'#170b08' },
+      { name:'bronze', body:'#76583b', dark:'#211a13', light:'#c9a16b', edge:'#9d7b4c', hole:'#120d09' },
+      { name:'steel', body:'#56606a', dark:'#181c20', light:'#cbd5dc', edge:'#8d9aa5', hole:'#0b0e11' },
+      { name:'black-steel', body:'#34383b', dark:'#0b0c0d', light:'#8d9498', edge:'#5e666b', hole:'#050607' },
+    ];
+    function gearVisualStyle(gear) {
+      if (!gear) return STEAMPUNK_MATERIALS[0];
+      if (!gear.visualStyleIndex) {
+        const seed = (gear.id * 17 + gear.teeth * 7 + (gear.isMain ? 11 : 0)) % STEAMPUNK_MATERIALS.length;
+        gear.visualStyleIndex = seed + 1;
+      }
+      return STEAMPUNK_MATERIALS[(gear.visualStyleIndex - 1) % STEAMPUNK_MATERIALS.length];
+    }
+    function seededValue(id, salt=0) {
+      const x = Math.sin((id * 12.9898) + salt * 78.233) * 43758.5453;
+      return x - Math.floor(x);
+    }
+    function gearPath(ctx, gear, rOuter, rInner) {
+      const teeth = Math.max(3, gear.teeth|0);
+      if (gear.shape !== 'circular') {
+        const points = gear.shape === 'mobius' ? 160 : (gear.shape === 'square' ? 32 : (gear.shape === 'hexagon' ? 36 : 96));
+        ctx.beginPath();
+        for (let i = 0; i <= points; i++) {
+          const a = (i / points) * TAU;
+          const rr = Math.min(rOuter * 1.22, shapeRadius(gear.shape, a, rOuter * 0.88, gear.shapeParams));
+          const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        return;
+      }
+      if (teeth > 160) { ctx.beginPath(); ctx.arc(0,0,rOuter,0,TAU); ctx.closePath(); return; }
+      if (teeth <= 5) {
+        ctx.beginPath();
+        for (let i=0;i<teeth;i++) {
+          const a1=(i/teeth)*TAU, a2=((i+.5)/teeth)*TAU, a3=((i+1)/teeth)*TAU;
+          if(i===0) ctx.moveTo(Math.cos(a1)*rOuter,Math.sin(a1)*rOuter);
+          ctx.quadraticCurveTo(Math.cos(a2)*rInner*.4,Math.sin(a2)*rInner*.4,Math.cos(a3)*rOuter,Math.sin(a3)*rOuter);
+        }
+        ctx.closePath(); return;
+      }
+      ctx.beginPath();
+      const step=TAU/teeth, toothWidth=step*.35;
+      for(let i=0;i<teeth;i++){
+        const a=i*step;
+        const a0=a-toothWidth*.5,a1=a-toothWidth*.3,a2=a+toothWidth*.3,a3=a+toothWidth*.5;
+        const pts=[[a0,rInner],[a1,rOuter],[a2,rOuter],[a3,rInner]];
+        pts.forEach(([aa,rr],j)=>{const x=Math.cos(aa)*rr,y=Math.sin(aa)*rr;if(i===0&&j===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+      }
+      ctx.closePath();
+    }
+    function drawSteampunkOrnament(ctx, gear, rOuter, rInner, mat) {
+      const span = Math.max(0, rInner - 3);
+      if (span < 8) return;
+      const style = (gear.visualStyleIndex || 1) - 1;
+      const spokeCount = 4 + ((gear.teeth + style) % 4); // 4-7, symmetric
+      const hub = Math.min(rInner * 0.30, 24);
+      const ring1 = Math.max(hub + 3, rInner * (0.54 + seededValue(gear.id, 1)*0.10));
+      const ring2 = Math.max(ring1 + 2, rInner * 0.78);
+
+      ctx.save();
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      // Inner brass/steel race rings.
+      ctx.strokeStyle = mat.edge;
+      ctx.globalAlpha=.72;
+      ctx.lineWidth=Math.max(1.2, rOuter*.012);
+      ctx.beginPath(); ctx.arc(0,0,ring1,0,TAU); ctx.stroke();
+      ctx.globalAlpha=.46;
+      ctx.beginPath(); ctx.arc(0,0,ring2,0,TAU); ctx.stroke();
+
+      // Ornate symmetrical spokes with alternating double-line geometry.
+      for(let i=0;i<spokeCount;i++){
+        const a=(i/spokeCount)*TAU;
+        const ux=Math.cos(a),uy=Math.sin(a),vx=-uy,vy=ux;
+        const spread = Math.max(2.5, rOuter*.028);
+        ctx.globalAlpha=.9;
+        ctx.strokeStyle=mat.dark;
+        ctx.lineWidth=Math.max(3, rOuter*.055);
+        ctx.beginPath();
+        ctx.moveTo(ux*hub,uy*hub);
+        ctx.lineTo(ux*(ring2*.96)-vx*spread,uy*(ring2*.96)-vy*spread);
+        ctx.stroke();
+        ctx.strokeStyle=mat.light;
+        ctx.globalAlpha=.52;
+        ctx.lineWidth=Math.max(1, rOuter*.018);
+        ctx.beginPath();
+        ctx.moveTo(ux*hub,uy*hub);
+        ctx.lineTo(ux*(ring2*.93)+vx*spread*.35,uy*(ring2*.93)+vy*spread*.35);
+        ctx.stroke();
+
+        // Decorative rivet at each spoke root.
+        const rx=ux*(ring1*.98), ry=uy*(ring1*.98);
+        const rr=Math.max(2.1, Math.min(5.5,rOuter*.032));
+        const g=ctx.createRadialGradient(rx-rr*.35,ry-rr*.4,rr*.1,rx,ry,rr);
+        g.addColorStop(0, mat.light); g.addColorStop(.45,mat.edge); g.addColorStop(1,mat.dark);
+        ctx.fillStyle=g; ctx.globalAlpha=.95; ctx.beginPath();ctx.arc(rx,ry,rr,0,TAU);ctx.fill();
+      }
+
+      // Alternating circular/rosette cutouts give each wheel a different watch-like silhouette.
+      const cutCount = 5 + ((gear.teeth + style*3) % 5);
+      for(let i=0;i<cutCount;i++){
+        const a=(i/cutCount)*TAU + (style%2 ? Math.PI/cutCount : 0);
+        const rr=ring1*.68;
+        const cx=Math.cos(a)*rr,cy=Math.sin(a)*rr;
+        const holeR=Math.max(2.5,Math.min(7,rOuter*.042 + seededValue(gear.id,i)*rOuter*.018));
+        ctx.fillStyle=mat.hole; ctx.globalAlpha=.85;
+        ctx.beginPath(); ctx.arc(cx,cy,holeR,0,TAU);ctx.fill();
+        ctx.strokeStyle=mat.edge; ctx.globalAlpha=.62; ctx.lineWidth=Math.max(1,rOuter*.012);
+        ctx.beginPath();ctx.arc(cx,cy,holeR*1.45,0,TAU);ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function drawSteampunkHub(ctx, gear, rHub, mat, selected) {
+      const outer = Math.max(6, rHub);
+      const grad = ctx.createRadialGradient(-outer*.32,-outer*.34,outer*.1,0,0,outer*1.08);
+      grad.addColorStop(0,mat.light); grad.addColorStop(.35,mat.body); grad.addColorStop(.78,mat.dark); grad.addColorStop(1,'#050505');
+      ctx.fillStyle=grad; ctx.beginPath();ctx.arc(0,0,outer,0,TAU);ctx.fill();
+      ctx.strokeStyle=mat.light;ctx.globalAlpha=.72;ctx.lineWidth=Math.max(1.5,outer*.11);ctx.stroke();
+      ctx.globalAlpha=1;
+      const cap=outer*.42;
+      const cg=ctx.createRadialGradient(-cap*.3,-cap*.4,cap*.08,0,0,cap);
+      cg.addColorStop(0,mat.light);cg.addColorStop(.55,mat.edge);cg.addColorStop(1,mat.dark);
+      ctx.fillStyle=cg;ctx.beginPath();ctx.arc(0,0,cap,0,TAU);ctx.fill();
+      ctx.strokeStyle=mat.light;ctx.lineWidth=Math.max(1,outer*.055);ctx.stroke();
+      ctx.fillStyle=mat.hole;ctx.beginPath();ctx.arc(0,0,Math.max(3,cap*.4),0,TAU);ctx.fill();
+      if(selected){ctx.strokeStyle='#f8fafc';ctx.globalAlpha=.9;ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,outer*1.16,0,TAU);ctx.stroke();ctx.globalAlpha=1;}
+    }
+
+
+    function gearHeatIntensity(gear) {
+      const hz = Math.abs(Number(gear?.freq) || 0);
+      const rpm = hz * 60;
+      const start = 1000;
+      const ultra = 20000 * 60;
+      if (rpm <= start) return { rpm, t:0 };
+      const t = Math.max(0, Math.min(1, Math.log(rpm / start) / Math.log(ultra / start)));
+      return { rpm, t };
+    }
+
+    function drawGearHeatGlow(ctx, gear, rOuter) {
+      const { rpm, t } = gearHeatIntensity(gear);
+      if (t <= 0) return;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const glowR = rOuter * (1.10 + t * 0.20);
+      const grad = ctx.createRadialGradient(0,0,rOuter*.35,0,0,glowR);
+      grad.addColorStop(0, `rgba(255,95,36,${0.05 + t*.11})`);
+      grad.addColorStop(.58, `rgba(255,48,24,${0.08 + t*.16})`);
+      grad.addColorStop(.82, `rgba(218,30,16,${0.05 + t*.19})`);
+      grad.addColorStop(1, 'rgba(150,15,8,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(0,0,glowR,0,TAU); ctx.fill();
+
+      ctx.strokeStyle = `rgba(255,${Math.round(112 - 58*t)},${Math.round(58 - 40*t)},${0.12 + .48*t})`;
+      ctx.shadowColor = `rgba(255,46,20,${.25 + .70*t})`;
+      ctx.shadowBlur = 7 + 24*t;
+      ctx.lineWidth = 1.5 + 3.5*t;
+      ctx.beginPath(); ctx.arc(0,0,rOuter*(1.015 + .03*t),0,TAU); ctx.stroke();
+
+      if (t > .22) {
+        ctx.strokeStyle = `rgba(255,72,31,${.10 + .32*t})`;
+        ctx.lineWidth = 2 + 5*t;
+        ctx.shadowBlur = 14 + 28*t;
+        ctx.beginPath(); ctx.arc(0,0,rOuter*.88,0,TAU); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawUltrasonicSteam(ctx, gear, rOuter) {
+      if (!gear?.isUltrasonic) return;
+      const t = state.visualFXTime;
+      const baseR = rOuter * .68;
+      const count = 4 + (gear.id % 3);
+      ctx.save();
+      ctx.translate(0, -rOuter*.12);
+      ctx.globalCompositeOperation = 'screen';
+      for (let i=0; i<count; i++) {
+        const phase = t*(.75 + (gear.id%5)*.06) + i*1.47 + gear.id*.31;
+        const drift = Math.sin(phase*1.7 + i)*rOuter*.18;
+        const rise = ((phase*0.42 + i*0.17) % 1.45) * rOuter*.95;
+        const x = ((i-(count-1)/2) * rOuter*.16) + drift;
+        const y = -rise;
+        const alpha = Math.max(0, .30 * (1 - rise/(rOuter*1.45)));
+        const rr = rOuter*(.035 + .018*Math.sin(phase+i));
+        const sg = ctx.createRadialGradient(x-rr*0.2,y-rr*0.2,1,x,y,rr*1.8);
+        sg.addColorStop(0,`rgba(255,246,226,${alpha})`);
+        sg.addColorStop(.55,`rgba(212,210,199,${alpha*.55})`);
+        sg.addColorStop(1,'rgba(195,195,195,0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath(); ctx.arc(x,y,rr*1.8,0,TAU); ctx.fill();
+        ctx.strokeStyle=`rgba(237,233,219,${alpha*.65})`;
+        ctx.lineWidth=Math.max(1,rOuter*.012);
+        ctx.beginPath();
+        ctx.moveTo(x-rr*.7,y+rr*.3);
+        ctx.bezierCurveTo(x-rr*1.8,y-rr*.8,x+rr*1.8,y-rr*1.6,x+rr*.4,y-rr*2.2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     function drawGear(gear) {
       const rPitch = gear.pitchRadius;
       const teeth = gear.teeth;
@@ -2440,172 +2952,94 @@
       const dedendum = Math.min(6, rPitch * 0.18);
       const rOuter = rPitch + addendum;
       const rInner = Math.max(2, rPitch - dedendum);
-
       const isSelected = gear.id === state.selectedGearId;
       const isHovered = gear.id === state.hoveredGearId;
+      const mat = gearVisualStyle(gear);
+      const heat = gearHeatIntensity(gear);
 
-      // 12 o'clock Vertical Alignment Reference Notch (Frame Fixed)
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 2;
+      // 12 o'clock phase reference remains crisp and functional.
+      ctx.save();
+      ctx.strokeStyle = isHovered || isSelected ? mat.light : 'rgba(226,180,84,.78)';
+      ctx.lineWidth = isHovered || isSelected ? 2.5 : 1.5;
       ctx.beginPath();
       ctx.moveTo(gear.x, gear.y - rInner);
       ctx.lineTo(gear.x, gear.y - rOuter - 6);
       ctx.stroke();
-
-      // Check if radial indicator line is aligned with 12 o'clock vertical notch
-      const normalizedAngle = (gear.angle + Math.PI / 2) % (2 * Math.PI);
+      const normalizedAngle = (gear.angle + Math.PI / 2) % TAU;
       const isVertical = Math.abs(Math.sin(normalizedAngle)) < 0.08 && Math.cos(normalizedAngle) > 0.9;
-
       if (isVertical) {
-        ctx.fillStyle = '#10b981';
-        ctx.beginPath();
-        ctx.arc(gear.x, gear.y - rOuter - 6, 4, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillStyle = '#ffd166';
+        ctx.shadowColor = '#ffcf5a'; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.arc(gear.x, gear.y - rOuter - 6, 3.5, 0, TAU); ctx.fill();
       }
+      ctx.restore();
 
       ctx.save();
       ctx.translate(gear.x, gear.y);
+      drawUltrasonicSteam(ctx, gear, rOuter);
       ctx.rotate(gear.angle);
+      drawGearHeatGlow(ctx, gear, rOuter);
+      ctx.shadowColor = 'rgba(0,0,0,.72)';
+      ctx.shadowBlur = Math.max(5, rOuter*.16);
+      ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 3;
 
-      // 1. PROCEDURAL TEETH GEOMETRY
-      ctx.fillStyle = gear.color;
-      ctx.strokeStyle = gear.isMain ? '#fef08a' : '#ffffff';
-      ctx.lineWidth = 1.5;
+      // Metallic radial gradient gives the procedural teeth a cast-metal body.
+      const body = ctx.createLinearGradient(-rOuter*.7,-rOuter*.75,rOuter*.8,rOuter*.75);
+      body.addColorStop(0, mat.light);
+      body.addColorStop(.17, mat.body);
+      body.addColorStop(.52, mat.dark);
+      body.addColorStop(.72, mat.body);
+      body.addColorStop(1, mat.light);
+      gearPath(ctx, gear, rOuter, rInner);
+      ctx.fillStyle = body;
+      ctx.fill();
+      ctx.shadowBlur=0; ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;
+      ctx.strokeStyle = mat.edge;
+      ctx.lineWidth = Math.max(1.2, rOuter*.022);
+      ctx.stroke();
 
-      if (gear.shape !== 'circular') {
-        ctx.beginPath();
-        const points = gear.shape === 'mobius' ? 160 : (gear.shape === 'square' ? 32 : (gear.shape === 'hexagon' ? 36 : 96));
-        for (let i = 0; i <= points; i++) {
-          const a = (i / points) * Math.PI * 2;
-          const rr = Math.min(rOuter * 1.22, shapeRadius(gear.shape, a, rOuter * 0.88, gear.shapeParams));
-          const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
-          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        if (gear.shape === 'mobius') {
-          ctx.strokeStyle = 'rgba(255,255,255,.55)';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          for (let i = 0; i <= 160; i++) {
-            const a = (i / 160) * Math.PI * 2;
-            const twist = a / 2;
-            const rr = rOuter * (0.72 + 0.12 * Math.cos(twist));
-            const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
-            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-          }
-          ctx.stroke();
-        }
-      } else if (teeth > 160) {
-        // High Tooth Count Optimization
-        ctx.beginPath();
-        ctx.arc(0, 0, rOuter, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, rPitch, 0, Math.PI * 2);
-        ctx.stroke();
-      } else if (teeth <= 5) {
-        // Low Tooth Organic Profile
-        ctx.beginPath();
-        for (let i = 0; i < teeth; i++) {
-          const a1 = (i / teeth) * Math.PI * 2;
-          const a2 = ((i + 0.5) / teeth) * Math.PI * 2;
-          const a3 = ((i + 1) / teeth) * Math.PI * 2;
-          if (i === 0) ctx.moveTo(Math.cos(a1) * rOuter, Math.sin(a1) * rOuter);
-          ctx.quadraticCurveTo(
-            Math.cos(a2) * rInner * 0.4, Math.sin(a2) * rInner * 0.4,
-            Math.cos(a3) * rOuter, Math.sin(a3) * rOuter
-          );
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      } else {
-        // Involute Trapezoidal Tooth Geometry
-        ctx.beginPath();
-        const step = (Math.PI * 2) / teeth;
-        const toothWidth = step * 0.35;
-        for (let i = 0; i < teeth; i++) {
-          const a = i * step;
-          const a0 = a - toothWidth * 0.5;
-          const a1 = a - toothWidth * 0.3;
-          const a2 = a + toothWidth * 0.3;
-          const a3 = a + toothWidth * 0.5;
+      // A warm highlight rim creates the watchmaker/forged-metal feel.
+      ctx.globalAlpha=.58;
+      ctx.strokeStyle=mat.light;
+      ctx.lineWidth=Math.max(1,rOuter*.012);
+      ctx.beginPath();ctx.arc(0,0,rOuter*.94,0,TAU);ctx.stroke();
+      ctx.globalAlpha=1;
 
-          const x0 = Math.cos(a0) * rInner, y0 = Math.sin(a0) * rInner;
-          const x1 = Math.cos(a1) * rOuter, y1 = Math.sin(a1) * rOuter;
-          const x2 = Math.cos(a2) * rOuter, y2 = Math.sin(a2) * rOuter;
-          const x3 = Math.cos(a3) * rInner, y3 = Math.sin(a3) * rInner;
+      // Ornamental interior is deliberately different per gear but always symmetric.
+      drawSteampunkOrnament(ctx, gear, rOuter, rInner, mat);
 
-          if (i === 0) ctx.moveTo(x0, y0);
-          else ctx.lineTo(x0, y0);
-          ctx.lineTo(x1, y1);
-          ctx.lineTo(x2, y2);
-          ctx.lineTo(x3, y3);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      }
-
-      // 2. CENTRAL HUB & SPOKES
       const rHub = Math.min(rPitch * 0.35, 24);
-      if (rPitch > 35) {
-        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-        ctx.lineWidth = Math.max(2, rHub * 0.25);
-        const spokeCount = teeth % 2 === 0 ? 4 : 3;
-        for (let i = 0; i < spokeCount; i++) {
-          const sa = (i / spokeCount) * Math.PI * 2;
-          ctx.beginPath();
-          ctx.moveTo(Math.cos(sa) * rHub, Math.sin(sa) * rHub);
-          ctx.lineTo(Math.cos(sa) * (rInner - 2), Math.sin(sa) * (rInner - 2));
-          ctx.stroke();
+      drawSteampunkHub(ctx, gear, rHub, mat, isSelected);
+
+      // Functional rotation indicator, now made from a narrow polished pointer.
+      ctx.strokeStyle = mat.light;
+      ctx.globalAlpha=.9;
+      ctx.lineWidth=Math.max(1.5,rOuter*.018);
+      ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(rPitch*.78,0);ctx.stroke();
+      ctx.globalAlpha=1;
+
+      // Teeth-edge tick accents add visual life without changing the mechanical geometry.
+      if (teeth >= 6 && teeth <= 160) {
+        const ticks = Math.min(24, Math.max(8, Math.floor(teeth/2)));
+        ctx.strokeStyle=mat.light;ctx.globalAlpha=.35;ctx.lineWidth=Math.max(0.7,rOuter*.008);
+        for(let i=0;i<ticks;i++){
+          const a=(i/ticks)*TAU;
+          const x1=Math.cos(a)*(rPitch+1),y1=Math.sin(a)*(rPitch+1);
+          const x2=Math.cos(a)*(rOuter-1),y2=Math.sin(a)*(rOuter-1);
+          ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
         }
+        ctx.globalAlpha=1;
       }
 
-      // Hub Body
-      ctx.fillStyle = gear.isMain ? '#b45309' : '#1e293b';
-      ctx.beginPath();
-      ctx.arc(0, 0, Math.max(6, rHub), 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = gear.color;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Shaft Center Hole
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.arc(0, 0, Math.max(3, rHub * 0.35), 0, Math.PI * 2);
-      ctx.fill();
-
-      // Rotation Indicator Line
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(rPitch, 0);
-      ctx.stroke();
-
-      // Pitch Circle Outline
+      // Selected/hovered pitch guide only, keeping diagnostics available.
       if (isSelected || isHovered) {
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.arc(0, 0, rPitch, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.strokeStyle = isSelected ? '#f8fafc' : mat.light;
+        ctx.globalAlpha=.78;ctx.lineWidth=1.2;ctx.setLineDash([4,4]);
+        ctx.beginPath();ctx.arc(0,0,rPitch,0,TAU);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
       }
-
       ctx.restore();
 
-      // 3. INFORMATION PANEL: anchored to the gear center, with screen-sized text.
-      // The label uses the exact same world transform as the gear, then cancels the
-      // camera zoom for its contents. This keeps it physically attached to the wheel
-      // regardless of sidebar width, canvas size, zoom, or camera position.
+      // Labels: retain labels on comfortably large gears; small gears reveal them only on hover/select.
       const screenRadius = Math.max(10, rOuter * state.camera.zoom);
       const ratioStr = gear.ratio !== 0 ? floatToFraction(gear.ratio) : '—';
       const ratioParts = ratioStr.replace('-', '').split(':').map(Number);
@@ -2613,35 +3047,22 @@
       const intervalName = gear.isMain ? 'Fundamental' : (ratioParts.length === 2 ? ratioIntervalName(ratioParts[0], ratioParts[1]) : 'Unpowered');
       const baseFont = Math.max(9, Math.min(22, screenRadius * 0.19));
       const labelW = Math.max(70, Math.min(screenRadius * 1.35, 170));
-      const line1 = ratioStr;
-      const line2 = intervalName;
-      const line3 = `${gear.teeth}T  •  H${harmonicNum}`;
+      const line1 = ratioStr, line2 = intervalName, line3 = `${gear.teeth}T  •  H${harmonicNum}`;
       const line4 = gear.isUltrasonic ? 'ULTRASONIC' : `${Math.max(0, Number(gear.freq) || 0).toFixed(1)} Hz`;
+      const labelTooSmall = (screenRadius * 2) < labelW;
+      if (labelTooSmall && !isHovered && !isSelected) return;
       const labelScale = Math.max(0.0001, state.camera.zoom);
       ctx.save();
-      ctx.translate(gear.x, gear.y);
-      ctx.scale(1 / labelScale, 1 / labelScale);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor = '#000';
-      ctx.shadowBlur = 5;
-      ctx.fillStyle = 'rgba(2,6,23,.72)';
-      const boxH = baseFont * 3.9;
-      ctx.beginPath();
-      ctx.roundRect(-labelW / 2, -boxH / 2, labelW, boxH, Math.min(12, boxH * .25));
-      ctx.fill();
-      ctx.fillStyle = gear.isMain ? '#fef08a' : '#67e8f9';
-      ctx.font = `900 ${Math.max(12, baseFont * 1.35).toFixed(1)}px system-ui, sans-serif`;
-      ctx.fillText(line1, 0, -baseFont * 1.28);
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = `700 ${Math.max(8, baseFont * .78).toFixed(1)}px system-ui, sans-serif`;
-      ctx.fillText(line2, 0, -baseFont * .32);
-      ctx.fillStyle = '#cbd5e1';
-      ctx.font = `600 ${Math.max(8, baseFont * .72).toFixed(1)}px system-ui, sans-serif`;
-      ctx.fillText(line3, 0, baseFont * .52);
-      ctx.fillStyle = gear.isUltrasonic ? '#ef4444' : '#94a3b8';
-      ctx.font = `500 ${Math.max(7, baseFont * .62).toFixed(1)}px system-ui, sans-serif`;
-      ctx.fillText(line4, 0, baseFont * 1.15);
+      ctx.translate(gear.x, gear.y); ctx.scale(1/labelScale,1/labelScale);
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=7;
+      const boxH=baseFont*3.9;
+      ctx.fillStyle='rgba(5,5,4,.78)';ctx.beginPath();ctx.roundRect(-labelW/2,-boxH/2,labelW,boxH,Math.min(10,boxH*.24));ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.fillStyle=gear.isMain?'#f5d07a':'#f0d39b';ctx.font=`900 ${Math.max(12,baseFont*1.35).toFixed(1)}px Georgia, serif`;ctx.fillText(line1,0,-baseFont*1.28);
+      ctx.fillStyle='#f5f1e8';ctx.font=`700 ${Math.max(8,baseFont*.78).toFixed(1)}px system-ui,sans-serif`;ctx.fillText(line2,0,-baseFont*.32);
+      ctx.fillStyle='#d6c8ae';ctx.font=`600 ${Math.max(8,baseFont*.72).toFixed(1)}px system-ui,sans-serif`;ctx.fillText(line3,0,baseFont*.52);
+      ctx.fillStyle=gear.isUltrasonic?'#ef6b5f':'#a89b86';ctx.font=`500 ${Math.max(7,baseFont*.62).toFixed(1)}px system-ui,sans-serif`;ctx.fillText(line4,0,baseFont*1.15);
       ctx.restore();
     }
 
@@ -2653,7 +3074,7 @@
         if (gear.isMain || !gear.orbitEnabled || isGearBeingDragged(gear)) return;
         const period = Math.max(0.25, Number(gear.orbitPeriodSec) || 8.0);
         const previousOrbitPhase = gear.orbitPhase;
-        gear.orbitPhase += (2 * Math.PI * dt) / period;
+        gear.orbitPhase += (2 * Math.PI * dt) / period * (gear.orbitDirection || 1);
         const a = gear.orbitAngle + gear.orbitPhase;
         const minRadius = mainGear.pitchRadius + gear.pitchRadius + 2;
         const radius = Math.max(minRadius, gear.orbitRadius || minRadius);
@@ -2753,10 +3174,12 @@
     function renderLoop(now) {
       const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
       lastTime = now;
-      updateOrbitPositions(dt);
-      updatePolyOrbitPanners();
+      if (!state.animationStopped) state.visualFXTime += dt;
+      if (!state.animationStopped) {
+        updateOrbitPositions(dt);
+        updatePolyOrbitPanners();
 
-      // Legato Glissando Smooth Pitch Interpolation for Mechanical Gears
+        // Legato Glissando Smooth Pitch Interpolation for Mechanical Gears
       if (state.legato && Math.abs(state.fundamentalFreq - state.targetFundamentalFreq) > 0.0001) {
         const timeConstant = Math.max(0.005, state.glissTime / 3);
         const factor = 1 - Math.exp(-dt / timeConstant);
@@ -2789,6 +3212,7 @@
           applyCurrentMasterPhaseToGears();
         }
       }
+      } // animationStopped guard
 
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2836,83 +3260,52 @@
       const crankGeo = getCrankToolGeometry();
       if (crankGeo) {
         const isActive = !!(state.dragState && state.dragState.mode === 'crank');
-        const lineColor = isActive || crankGeo.tool.hovered ? 'rgba(16,185,129,0.95)' : 'rgba(248,250,252,0.78)';
-        const hubColor = isActive ? '#10b981' : '#06b6d4';
-        const diffColor = '#f59e0b';
-        const mainLinkTargetX = crankGeo.main.x - crankGeo.main.outerRadius;
+        const brass = isActive || crankGeo.tool.hovered;
+        const mainX = crankGeo.main.x, mainY = crankGeo.main.y;
+        const handleR = crankGeo.tool.handleRadius;
+        const beltHalfWidth = handleR * .72;
+        ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round';
 
-        ctx.save();
-        ctx.lineCap = 'round';
-
-        ctx.strokeStyle = 'rgba(148,163,184,0.42)';
-        ctx.lineWidth = 4;
+        // Leather/chain-belt runs from the crank hub to the main wheel.
+        const beltGrad=ctx.createLinearGradient(crankGeo.pivotX,crankGeo.pivotY,mainX,mainY);
+        beltGrad.addColorStop(0,'#d7b56a');beltGrad.addColorStop(.45,'#4a3215');beltGrad.addColorStop(1,'#b8873d');
+        ctx.strokeStyle=beltGrad;ctx.lineWidth=4.5;
         ctx.beginPath();
-        ctx.moveTo(crankGeo.diffX, crankGeo.diffY);
-        ctx.lineTo(mainLinkTargetX, crankGeo.main.y);
-        ctx.stroke();
+        ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY-beltHalfWidth);ctx.lineTo(mainX,mainY);
+        ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY+beltHalfWidth);ctx.lineTo(mainX,mainY);ctx.stroke();
+        ctx.strokeStyle='rgba(247,211,130,.42)';ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY-beltHalfWidth+1.5);ctx.lineTo(mainX,mainY);ctx.stroke();
 
-        ctx.strokeStyle = lineColor;
-        ctx.lineWidth = 5;
+        // Forged crank arm and simple X handle.
+        const metal=ctx.createLinearGradient(crankGeo.pivotX-handleR,crankGeo.pivotY-handleR,crankGeo.pivotX+handleR,crankGeo.pivotY+handleR);
+        metal.addColorStop(0,'#f0cc70');metal.addColorStop(.35,'#986421');metal.addColorStop(.7,'#4a2c11');metal.addColorStop(1,'#d8a94d');
+        ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=10;ctx.shadowOffsetY=3;
+        ctx.strokeStyle=metal;ctx.lineWidth=7;
         ctx.beginPath();
-        ctx.moveTo(crankGeo.pivotX, crankGeo.pivotY);
-        ctx.lineTo(crankGeo.knobX, crankGeo.knobY);
-        ctx.stroke();
+        ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY);ctx.lineTo(crankGeo.knobX,crankGeo.knobY);ctx.stroke();
+        ctx.strokeStyle=brass?'#f1d17b':'#b8893f';ctx.lineWidth=5;
+        ctx.beginPath();
+        ctx.moveTo(crankGeo.pivotX-handleR,crankGeo.pivotY);ctx.lineTo(crankGeo.pivotX+handleR,crankGeo.pivotY);
+        ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY-handleR);ctx.lineTo(crankGeo.pivotX,crankGeo.pivotY+handleR);ctx.stroke();
+        ctx.shadowBlur=0;ctx.shadowOffsetY=0;
 
-        ctx.strokeStyle = 'rgba(245,158,11,0.9)';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(crankGeo.knobX, crankGeo.knobY);
-        ctx.lineTo(crankGeo.diffX, crankGeo.diffY);
-        ctx.stroke();
+        // Ornate crank hub.
+        const hg=ctx.createRadialGradient(crankGeo.pivotX-7,crankGeo.pivotY-8,2,crankGeo.pivotX,crankGeo.pivotY,20);
+        hg.addColorStop(0,'#f5d988');hg.addColorStop(.35,'#a26d24');hg.addColorStop(.8,'#4b2d12');hg.addColorStop(1,'#1a0e06');
+        ctx.fillStyle=hg;ctx.beginPath();ctx.arc(crankGeo.pivotX,crankGeo.pivotY,19,0,TAU);ctx.fill();
+        ctx.strokeStyle='#edc76b';ctx.lineWidth=2.5;ctx.stroke();
+        ctx.strokeStyle='#3b2410';ctx.lineWidth=3;
+        ctx.beginPath();ctx.moveTo(crankGeo.pivotX-6,crankGeo.pivotY-6);ctx.lineTo(crankGeo.pivotX+6,crankGeo.pivotY+6);ctx.moveTo(crankGeo.pivotX+6,crankGeo.pivotY-6);ctx.lineTo(crankGeo.pivotX-6,crankGeo.pivotY+6);ctx.stroke();
 
-        ctx.save();
-        ctx.translate(crankGeo.diffX, crankGeo.diffY);
-        ctx.rotate(crankGeo.angle);
-        ctx.fillStyle = 'rgba(245,158,11,0.18)';
-        ctx.strokeStyle = diffColor;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(0, 0, crankGeo.tool.diffRadius, 0, TAU);
-        ctx.fill();
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(crankGeo.tool.diffRadius - 6, 0);
-        ctx.stroke();
-        ctx.restore();
+        // Knob: polished brass, clearly grabbable.
+        const kg=ctx.createRadialGradient(crankGeo.knobX-4,crankGeo.knobY-5,1,crankGeo.knobX,crankGeo.knobY,crankGeo.tool.knobRadius);
+        kg.addColorStop(0,'#ffe69a');kg.addColorStop(.35,'#c58d34');kg.addColorStop(1,'#4b2b0b');
+        ctx.fillStyle=kg;ctx.beginPath();ctx.arc(crankGeo.knobX,crankGeo.knobY,crankGeo.tool.knobRadius+1,0,TAU);ctx.fill();
+        ctx.strokeStyle='#f4d277';ctx.lineWidth=1.5;ctx.stroke();
 
-        ctx.fillStyle = 'rgba(15,23,42,0.98)';
-        ctx.strokeStyle = hubColor;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(crankGeo.pivotX, crankGeo.pivotY, 18, 0, TAU);
-        ctx.fill();
-        ctx.stroke();
-
-        // Delete control is built directly into the crank hub.
-        ctx.strokeStyle = crankGeo.tool.deleteHovered ? '#ef4444' : '#94a3b8';
-        ctx.lineWidth = crankGeo.tool.deleteHovered ? 3 : 2;
-        ctx.beginPath();
-        ctx.moveTo(crankGeo.pivotX - 6, crankGeo.pivotY - 6);
-        ctx.lineTo(crankGeo.pivotX + 6, crankGeo.pivotY + 6);
-        ctx.moveTo(crankGeo.pivotX + 6, crankGeo.pivotY - 6);
-        ctx.lineTo(crankGeo.pivotX - 6, crankGeo.pivotY + 6);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.fillStyle = isActive ? '#10b981' : '#f8fafc';
-        ctx.arc(crankGeo.knobX, crankGeo.knobY, crankGeo.tool.knobRadius, 0, TAU);
-        ctx.fill();
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = '700 11px system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText('CRANK', crankGeo.pivotX, crankGeo.pivotY + crankGeo.tool.armLength + 24);
-        ctx.fillText('DIFF', crankGeo.diffX, crankGeo.diffY + crankGeo.tool.diffRadius + 12);
+        if (crankGeo.tool.deleteHovered) {
+          ctx.strokeStyle='#ef6b5f';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(crankGeo.pivotX-7,crankGeo.pivotY-7);ctx.lineTo(crankGeo.pivotX+7,crankGeo.pivotY+7);ctx.moveTo(crankGeo.pivotX+7,crankGeo.pivotY-7);ctx.lineTo(crankGeo.pivotX-7,crankGeo.pivotY+7);ctx.stroke();
+        }
         ctx.restore();
       }
 
@@ -2973,6 +3366,7 @@
       }
 
       ctx.restore();
+      positionCanvasCrankControl();
 
       requestAnimationFrame(renderLoop);
     }
@@ -3055,19 +3449,20 @@
 
       const crankHit = getCrankToolHitTarget(mouse.x, mouse.y);
       if (crankHit) {
-        // A crank touch is itself a user gesture. Start the audio engine through
-        // the exact same path as START AUDIO so all oscillators/routing are fully
-        // initialized first. Then immediately move the fundamental control to 0.
-        // This leaves a live audio engine with a stopped generator, ready for the
-        // first physical movement of the handle to produce the first tick.
+        // The crank itself is a complete user-gesture audio start. Do not require
+        // prior interaction with the main wheel. Keep the audio gate open while
+        // the handle is held, and explicitly resume the AudioContext from this
+        // pointer event so Android/touch browsers treat it as an approved gesture.
         if (!state.audioRunning) {
-          initAudio();
-          setFundamentalFrequency(0, false, true);
-          updateAudioNodes();
-        } else if (state.fundamentalFreq !== 0) {
-          setFundamentalFrequency(0, false, true);
-          updateAudioNodes();
+          initAudio(true);
         }
+        if (state.audioCtx && state.audioCtx.state === 'suspended') {
+          const resumePromise = state.audioCtx.resume();
+          if (resumePromise?.catch) resumePromise.catch(() => {});
+        }
+        state.keyboardAudioActive = true;
+        setFundamentalFrequency(0, false, true);
+        updateAudioNodes();
 
         state.selectedGearId = null;
         state.hoveredGearId = null;
@@ -3179,6 +3574,12 @@
         state.crankTool.deleteHovered = false;
         // A hand crank is not a flywheel control: releasing it stops the machine.
         syncCrankToolSpeed(0);
+        // Release the temporary crank audio gate unless another performance input
+        // is still actively holding the synth open.
+        if (state.pressedKeys.size === 0 && state.midiHeldNotes.size === 0 && !state.audioDriver.playing) {
+          state.keyboardAudioActive = false;
+          updateAudioNodes();
+        }
       } else if (state.dragState.mode === 'gear') {
         const gear = state.dragState.gear;
         const snap = state.dragState.snapTarget;
@@ -3380,6 +3781,7 @@
       label.textContent = 'Audio Driver Speed';
       unit.textContent = 'RPM';
       value.textContent = `${rpm < 100 ? rpm.toFixed(1) : rpm.toFixed(0)} RPM`;
+      syncCanvasCrankControl();
 
       if (state.audioRunning && d.playing) {
         const now = state.audioCtx.currentTime;
@@ -3402,6 +3804,45 @@
       slider.max = Math.log10(nyquist).toFixed(3);
       numInput.min = 0;
       numInput.max = nyquist;
+    }
+
+    function syncCanvasCrankControl() {
+      if (!canvasCrankSlider) return;
+      if (state.audioDriver.buffer) {
+        const rpm = Math.max(DRIVER_RPM_MIN, Number(state.audioDriver.driverRPM) || DRIVER_NOMINAL_RPM);
+        canvasCrankSlider.min = Math.log10(DRIVER_RPM_MIN);
+        canvasCrankSlider.max = Math.log10(DRIVER_RPM_MAX);
+        canvasCrankSlider.value = Math.log10(rpm);
+        if (canvasCrankValue) canvasCrankValue.textContent = `${rpm < 100 ? rpm.toFixed(1) : rpm.toFixed(0)} RPM`;
+      } else {
+        const nyquist = getNyquist();
+        const freq = Math.max(0, Number(state.fundamentalFreq) || 0);
+        canvasCrankSlider.min = -1;
+        canvasCrankSlider.max = Math.log10(nyquist);
+        canvasCrankSlider.value = freq <= 0 ? -1 : Math.log10(Math.min(nyquist, freq));
+        if (canvasCrankValue) canvasCrankValue.textContent = freq >= 1000 ? `${(freq/1000).toFixed(2)} kHz` : `${freq.toFixed(freq < 10 ? 1 : 0)} Hz`;
+      }
+    }
+
+    function positionCanvasCrankControl() {
+      if (!canvasCrankControl || !canvas || !state.crankTool.enabled) {
+        canvasCrankControl?.classList.remove('is-visible');
+        return;
+      }
+      const geo = getCrankToolGeometry();
+      if (!geo) { canvasCrankControl.classList.remove('is-visible'); return; }
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width / Math.max(1, canvas.width);
+      const scaleY = rect.height / Math.max(1, canvas.height);
+      let x = rect.width / 2 + (state.camera.x + geo.pivotX) * state.camera.zoom * scaleX;
+      let y = rect.height / 2 + (state.camera.y + geo.pivotY) * state.camera.zoom * scaleY + 86;
+      const w = canvasCrankControl.offsetWidth || 122;
+      x = Math.max(w/2 + 5, Math.min(rect.width - w/2 - 5, x));
+      y = Math.max(8, Math.min(rect.height - 72, y));
+      canvasCrankControl.style.left = `${x}px`;
+      canvasCrankControl.style.top = `${y}px`;
+      canvasCrankControl.classList.add('is-visible');
+      syncCanvasCrankControl();
     }
 
     function setFundamentalFrequency(freq, isBaseChange = true, preserveDirection = false) {
@@ -3437,6 +3878,7 @@
       document.getElementById('fundamental-label').textContent = 'Fundamental Frequency';
       document.getElementById('fundamental-unit').textContent = 'Hz';
       document.getElementById('val-fundamental').textContent = freqLabel;
+      syncCanvasCrankControl();
 
       if (!state.legato) updateKinematicNetwork();
     }
@@ -4065,8 +4507,64 @@
     document.getElementById('btn-midi-refresh').addEventListener('click', () => state.midi.access ? populateMidiInputs() : initWebMIDI());
     document.getElementById('select-midi-input').addEventListener('change', e => attachMidiInput(e.target.value));
 
+    const keyboardPanel = document.getElementById('virtual-keyboard')?.closest('.panel-box');
+    const pinKeyboardBtn = document.getElementById('btn-pin-keyboard');
+    const keyboardOriginalParent = keyboardPanel?.parentElement || null;
+    const keyboardOriginalNextSibling = keyboardPanel?.nextSibling || null;
+    const isAndroidPortrait = () => /Android/i.test(navigator.userAgent) && window.matchMedia('(orientation: portrait)').matches;
+    const syncKeyboardPinButton = () => {
+      const pinned = keyboardPanel?.classList.contains('keyboard-panel-pinned');
+      if (pinKeyboardBtn) {
+        pinKeyboardBtn.textContent = pinned ? 'UNPIN' : 'PIN';
+        pinKeyboardBtn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+      }
+    };
+    const setKeyboardPinned = pinned => {
+      if (!keyboardPanel) return;
+      if (pinned) {
+        document.body.appendChild(keyboardPanel);
+        keyboardPanel.classList.add('keyboard-panel-pinned');
+      } else {
+        keyboardPanel.classList.remove('keyboard-panel-pinned');
+        if (keyboardOriginalParent) {
+          if (keyboardOriginalNextSibling && keyboardOriginalNextSibling.parentNode === keyboardOriginalParent) keyboardOriginalParent.insertBefore(keyboardPanel, keyboardOriginalNextSibling);
+          else keyboardOriginalParent.appendChild(keyboardPanel);
+        }
+      }
+      syncKeyboardPinButton();
+      requestAnimationFrame(() => { if (typeof resizeCanvasToDisplaySize === 'function') resizeCanvasToDisplaySize(); });
+    };
+    pinKeyboardBtn?.addEventListener('click', () => {
+      if (!isAndroidPortrait()) return;
+      setKeyboardPinned(!keyboardPanel?.classList.contains('keyboard-panel-pinned'));
+    });
+    syncKeyboardPinButton();
+
     // Fundamental Frequency / Audio Driver RPM Slider
     const fundSlider = document.getElementById('slider-fundamental');
+    const canvasCrankControl = document.getElementById('canvas-crank-control');
+    const canvasCrankSlider = document.getElementById('canvas-crank-slider');
+    const canvasCrankValue = document.getElementById('canvas-crank-value');
+    const ratioScrollLeftBtn = document.getElementById('btn-ratio-scroll-left');
+    const ratioScrollRightBtn = document.getElementById('btn-ratio-scroll-right');
+
+    canvasCrankSlider?.addEventListener('input', (e) => {
+      const value = Number(e.target.value);
+      const freq = value <= Number(canvasCrankSlider.min) ? 0 : Math.pow(10, value);
+      if (state.audioDriver.buffer) setDriverRPM(freq, false);
+      else setFundamentalFrequency(freq);
+      state.isSlidingFreq = true;
+    });
+    canvasCrankSlider?.addEventListener('pointerup', () => {
+      state.isSlidingFreq = false;
+      if (!state.audioDriver.buffer) { state.masterPhase = 0; updateKinematicNetwork(); }
+    });
+    ratioScrollLeftBtn?.addEventListener('click', () => {
+      document.getElementById('rational-gear-palette')?.scrollBy({ left: -210, behavior: 'smooth' });
+    });
+    ratioScrollRightBtn?.addEventListener('click', () => {
+      document.getElementById('rational-gear-palette')?.scrollBy({ left: 210, behavior: 'smooth' });
+    });
 
     const stopSliderDrag = () => {
       if (state.isSlidingFreq) {
@@ -4238,10 +4736,13 @@
             <button id="btn-inspector-teeth-up" type="button" style="padding:3px 9px; font-size:0.9rem; line-height:1;">+</button>
           </div>
         </div>
-        <input type="range" id="slider-inspector-teeth" min="1" max="15015" step="1" value="${gear.teeth}" style="width:100%; margin-top:5px;">
         <div style="margin-top:6px;">
           <label style="font-size:.7rem;display:flex;justify-content:space-between"><span>Gear Volume</span><span id="val-inspector-volume" style="color:var(--accent-cyan)">${Math.round(Math.max(0,Math.min(1,gear.volume))*100)}%</span></label>
           <input type="range" id="slider-inspector-volume" min="0" max="1" step="0.01" value="${Math.max(0,Math.min(1,gear.volume))}" style="width:100%;">
+        </div>
+        <div style="margin-top:6px;">
+          <label style="font-size:.7rem;display:flex;justify-content:space-between"><span>Ratio Target</span><span id="val-inspector-ratio" style="color:var(--accent-cyan)">${gear.isMain ? '1:1' : floatToFraction(gear.ratio)}</span></label>
+          <input type="range" id="slider-inspector-ratio" min="0.0625" max="16" step="0.0001" value="${Math.min(16, Math.max(0.0625, Math.abs(gear.ratio || 1)))}" ${gear.isMain ? 'disabled' : ''} style="width:100%;">
         </div>
         <div><strong>Absolute Ratio:</strong> ${floatToFraction(gear.ratio)} (${gear.ratio.toFixed(6)})</div>
         <div><strong>Calculated Freq:</strong> ${gear.freq.toFixed(3)} Hz</div>
@@ -4278,6 +4779,7 @@
             <label style="display:flex; align-items:center; gap:5px; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="chk-orbit" ${gear.isMain ? 'disabled' : ''} ${gear.orbitEnabled ? 'checked' : ''}><span>Orbit</span></label>
             <input type="range" id="slider-orbit-time" min="0.25" max="60" step="0.05" value="${Math.min(60, Math.max(0.25, gear.orbitPeriodSec || 8))}" ${gear.isMain ? 'disabled' : ''} style="flex:1; min-width:0;">
             <span id="val-orbit-time" style="min-width:58px; text-align:right; color:var(--accent-cyan);">${(gear.orbitPeriodSec || 8).toFixed(2)}s</span>
+            <button id="btn-orbit-direction" type="button" ${gear.isMain ? 'disabled' : ''} title="Reverse orbit direction" style="padding:3px 7px;">${gear.orbitDirection < 0 ? '↺' : '↻'}</button>
           </div>
           <div style="display:flex; align-items:center; gap:7px; margin-top:5px; font-size:0.7rem;">
             <label style="display:flex; align-items:center; gap:5px; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="chk-orbit-preserve-phase" ${gear.isMain ? 'disabled' : ''} ${gear.orbitPreservePhase !== false ? 'checked' : ''}><span>Preserve Phase</span></label>
@@ -4371,13 +4873,21 @@
 
       teethDown.addEventListener('click', () => changeSelectedGearTeeth(-1));
       teethUp.addEventListener('click', () => changeSelectedGearTeeth(1));
-      const teethSlider = document.getElementById('slider-inspector-teeth');
-      teethSlider?.addEventListener('input', (e) => {
-        const selected = state.gearMap.get(state.selectedGearId);
-        if (!selected) return;
-        const target = Math.min(15015, Math.max(1, Math.round(Number(e.target.value) || selected.teeth)));
-        const delta = target - selected.teeth;
-        if (delta) changeSelectedGearTeeth(delta);
+
+      const inspectorRatioSlider = document.getElementById('slider-inspector-ratio');
+      const inspectorRatioValue = document.getElementById('val-inspector-ratio');
+      inspectorRatioSlider?.addEventListener('input', e => {
+        if (gear.isMain) return;
+        const main = state.gears.find(g => g.isMain) || state.gears[0];
+        const targetRatio = Math.max(0.0625, Math.min(16, Number(e.target.value) || Math.abs(gear.ratio || 1)));
+        if (!main) return;
+        gear.teeth = Math.min(15015, Math.max(1, Math.round(main.teeth / targetRatio)));
+        gear.ratioLock = true;
+        if (inspectorRatioValue) inspectorRatioValue.textContent = floatToFraction(main.teeth / gear.teeth);
+        updateKinematicNetwork();
+        updateAudioNodes();
+        updateInspector();
+        renderGearList();
       });
 
       const inspectorVolumeSlider = document.getElementById('slider-inspector-volume');
@@ -4412,6 +4922,11 @@
       orbitSlider?.addEventListener('input', e => {
         gear.orbitPeriodSec = Math.max(0.25, Math.min(60, Number(e.target.value) || 8));
         if (orbitVal) orbitVal.textContent = `${gear.orbitPeriodSec.toFixed(2)}s`;
+      });
+      const orbitDirectionBtn = document.getElementById('btn-orbit-direction');
+      orbitDirectionBtn?.addEventListener('click', () => {
+        gear.orbitDirection = (gear.orbitDirection || 1) * -1;
+        orbitDirectionBtn.textContent = gear.orbitDirection < 0 ? '↺' : '↻';
       });
       orbitPreserveChk?.addEventListener('change', e => {
         gear.orbitPreservePhase = !!e.target.checked;
@@ -4922,7 +5437,6 @@
     // Floating Ratio / Harmonic Palette
     const ratioPaletteModal = document.getElementById('ratio-palette-modal');
     const ratioPaletteHeader = document.getElementById('ratio-palette-header');
-    const ratioPalettePinned = document.getElementById('chk-ratio-palette-pinned');
     const openRatioPaletteBtn = document.getElementById('btn-open-ratio-palette');
     const closeRatioPaletteBtn = document.getElementById('btn-close-ratio-palette');
     const paletteShapeSelect = document.getElementById('select-palette-gear-shape');
@@ -4964,7 +5478,7 @@
     function syncRatioPaletteResponsiveState() {
       if (!ratioPaletteModal) return;
       if (isMobilePortraitLayout()) {
-        ratioPaletteModal.classList.remove('is-hidden');
+        /* Preserve the user's open/closed state so closing removes this panel. */
         ratioPaletteModal.style.left = '';
         ratioPaletteModal.style.top = '';
         ratioPaletteModal.style.right = '';
@@ -5004,9 +5518,22 @@
       fitMachineToView(true);
       document.getElementById('startup-tooltip')?.remove();
     });
-    closeRatioPaletteBtn?.addEventListener('click', () => { if (isMobilePortraitLayout() || ratioPalettePinned?.checked) return; ratioPaletteModal?.classList.add('is-hidden'); });
-    ratioPalettePinned?.addEventListener('change', () => {
-      if (ratioPalettePinned.checked) ratioPaletteModal?.classList.remove('is-hidden');
+
+    document.getElementById('btn-stop-animation')?.addEventListener('click', () => {
+      state.animationStopped = !state.animationStopped;
+      const btn = document.getElementById('btn-stop-animation');
+      if (btn) {
+        btn.textContent = state.animationStopped ? '▶ RESUME ANIMATION' : '■ STOP ANIMATION';
+        btn.title = state.animationStopped
+          ? 'Resume mechanical and orbit animation'
+          : 'Freeze all mechanical and orbit animation so fast-moving gears can be inspected';
+      }
+      lastTime = performance.now();
+    });
+    closeRatioPaletteBtn?.addEventListener('click', () => {
+      if (!ratioPaletteModal) return;
+      ratioPaletteModal.classList.add('is-hidden');
+      requestAnimationFrame(() => { if (typeof resizeCanvasToDisplaySize === 'function') resizeCanvasToDisplaySize(); });
     });
     if (ratioPaletteHeader && ratioPaletteModal) {
       let drag = null;
@@ -5036,13 +5563,18 @@
 
     document.getElementById('btn-clear-all').addEventListener('click', clearExtraGears);
 
-    document.getElementById('btn-toggle-network-overview').addEventListener('click', () => {
-      const body = document.getElementById('hud-network-body');
-      const btn = document.getElementById('btn-toggle-network-overview');
-      const collapsed = body.classList.toggle('is-collapsed');
-      btn.textContent = collapsed ? '+' : '−';
-      btn.title = collapsed ? 'Expand Harmonic Network Overview' : 'Minimize Harmonic Network Overview';
-    });
+    const hnoPanel = document.getElementById('hud-top-right');
+    const hnoBody = document.getElementById('hud-network-body');
+    const hnoOpenBtn = document.getElementById('btn-toggle-network-overview');
+    const hnoInnerBtn = document.getElementById('btn-toggle-network-overview-inner');
+    const setHnoOpen = open => {
+      hnoPanel?.classList.toggle('hno-collapsed', !open);
+      hnoBody?.classList.toggle('is-collapsed', !open);
+      if (hnoOpenBtn) hnoOpenBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    hnoOpenBtn?.addEventListener('click', e => { e.stopPropagation(); setHnoOpen(true); });
+    hnoInnerBtn?.addEventListener('click', () => setHnoOpen(false));
+    setHnoOpen(false);
 
     function fitMachineToView(includeCrank = !!state.crankTool.enabled) {
       if (!canvas || !state.gears.length) {
@@ -5064,10 +5596,10 @@
       if (includeCrank) {
         const crankGeo = getCrankToolGeometry();
         if (crankGeo) {
-          const crankMinX = Math.min(crankGeo.pivotX - 22, crankGeo.knobX - crankGeo.tool.knobRadius - 6, crankGeo.diffX - crankGeo.tool.diffRadius - 6);
-          const crankMaxX = Math.max(crankGeo.pivotX + 22, crankGeo.knobX + crankGeo.tool.knobRadius + 6, crankGeo.diffX + crankGeo.tool.diffRadius + 6);
-          const crankMinY = Math.min(crankGeo.pivotY - crankGeo.tool.armLength - crankGeo.tool.knobRadius - 16, crankGeo.diffY - crankGeo.tool.diffRadius - 6);
-          const crankMaxY = Math.max(crankGeo.pivotY + crankGeo.tool.armLength + crankGeo.tool.knobRadius + 32, crankGeo.diffY + crankGeo.tool.diffRadius + 22);
+          const crankMinX = Math.min(crankGeo.pivotX - crankGeo.tool.handleRadius - 8, crankGeo.knobX - crankGeo.tool.knobRadius - 6, crankGeo.main.x - crankGeo.main.outerRadius - 6);
+          const crankMaxX = Math.max(crankGeo.pivotX + crankGeo.tool.handleRadius + 8, crankGeo.knobX + crankGeo.tool.knobRadius + 6, crankGeo.main.x + crankGeo.main.outerRadius + 6);
+          const crankMinY = Math.min(crankGeo.pivotY - crankGeo.tool.armLength - crankGeo.tool.knobRadius - 16, crankGeo.main.y - crankGeo.main.outerRadius - 6);
+          const crankMaxY = Math.max(crankGeo.pivotY + crankGeo.tool.armLength + crankGeo.tool.knobRadius + 32, crankGeo.main.y + crankGeo.main.outerRadius + 6);
           minX = Math.min(minX, crankMinX);
           maxX = Math.max(maxX, crankMaxX);
           minY = Math.min(minY, crankMinY);
@@ -5115,64 +5647,6 @@
       });
       updateKinematicNetwork();
       secondaries.forEach(g => alignGearPhaseToParent(main, g));
-      updateAudioNodes();
-    });
-
-    /* MACRO SYSTEM PRESETS */
-    document.getElementById('preset-ji-456').addEventListener('click', () => {
-      clearExtraGears();
-      addGear(60); // 2:1
-      addGear(48); // 5:2
-      addGear(40); // 3:1
-    });
-
-    document.getElementById('preset-7limit').addEventListener('click', () => {
-      clearExtraGears();
-      [120, 60, 40, 30, 24, 20, 17].forEach(t => {
-        if (t !== state.mainTeeth) addGear(t);
-      });
-    });
-
-    document.getElementById('preset-prime').addEventListener('click', () => {
-      clearExtraGears();
-      [60, 40, 24, 17, 11, 9, 7].forEach(t => addGear(t));
-    });
-
-    document.getElementById('preset-chain').addEventListener('click', () => {
-      clearExtraGears();
-      const main = state.gears.find(g => g.isMain);
-      main.teeth = 120;
-      document.getElementById('input-main-teeth').value = 120;
-      document.getElementById('val-main-teeth').textContent = 120;
-
-      const chainTeeth = [60, 30, 90, 15, 45];
-      let prevGear = main;
-      let currentAngle = 0;
-
-      chainTeeth.forEach(teeth => {
-        const gear = new Gear(state.nextGearId++, teeth, COLOR_PALETTE[state.gears.length % COLOR_PALETTE.length]);
-        const dist = prevGear.pitchRadius + gear.pitchRadius;
-        gear.x = prevGear.x + Math.cos(currentAngle) * dist;
-        gear.y = prevGear.y + Math.sin(currentAngle) * dist;
-
-        gear.neighbors.add(prevGear.id);
-        prevGear.neighbors.add(gear.id);
-        state.gears.push(gear);
-        state.gearMap.set(gear.id, gear);
-
-        prevGear = gear;
-        currentAngle += 0.2;
-      });
-
-      updateKinematicNetwork();
-      // Lock each newly-added chain stage to the previous stage's current hand.
-      let phaseParent = main;
-      state.gears.filter(g => !g.isMain).forEach(g => {
-        if (g.neighbors.has(phaseParent.id)) {
-          alignGearPhaseToParent(phaseParent, g);
-          phaseParent = g;
-        }
-      });
       updateAudioNodes();
     });
 
