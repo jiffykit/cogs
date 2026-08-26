@@ -271,6 +271,7 @@
       border-bottom:1px solid var(--border-color);
       cursor:move;
       user-select:none;
+      touch-action:none;
     }
     #ratio-palette-modal .floating-title { font-weight:800; font-size:.8rem; }
     #ratio-palette-modal .floating-actions { display:flex; gap:5px; align-items:center; }
@@ -1081,6 +1082,156 @@
         border-radius:12px 12px 0 0 !important;
       }
     }
+
+    /* MOBILE PORTRAIT: two-stage canvas + settings carousel. Desktop is intentionally untouched. */
+    @media (max-width:900px) and (orientation:portrait) {
+      #app-container.mobile-carousel-mode {
+        display:flex !important;
+        flex-direction:column !important;
+        gap:8px !important;
+        height:calc(100dvh - 72px) !important;
+        min-height:0 !important;
+        padding:8px !important;
+        overflow:hidden !important;
+      }
+      #app-container.mobile-carousel-mode #canvas-container {
+        order:1 !important;
+        flex:1 1 0 !important;
+        height:50% !important;
+        min-height:0 !important;
+        width:100% !important;
+      }
+      #app-container.mobile-carousel-mode #sidebar {
+        order:2 !important;
+        flex:1 1 0 !important;
+        height:50% !important;
+        min-height:0 !important;
+        width:100% !important;
+        min-width:0 !important;
+        border:1px solid #5b4020 !important;
+        border-radius:10px !important;
+        overflow:hidden !important;
+      }
+      #app-container.mobile-carousel-mode #sidebar > .sidebar-header { display:none !important; }
+      #app-container.mobile-carousel-mode #sidebar > .sidebar-scroll {
+        display:flex !important;
+        flex-direction:row !important;
+        align-items:stretch !important;
+        gap:8px !important;
+        width:100% !important;
+        height:100% !important;
+        min-height:0 !important;
+        padding:8px !important;
+        overflow-x:auto !important;
+        overflow-y:hidden !important;
+        scroll-snap-type:x mandatory !important;
+        -webkit-overflow-scrolling:touch !important;
+        touch-action:pan-x !important;
+        overscroll-behavior-x:contain !important;
+        scrollbar-width:none !important;
+      }
+      #app-container.mobile-carousel-mode #sidebar > .sidebar-scroll::-webkit-scrollbar { display:none; }
+      .mobile-settings-slide {
+        flex:0 0 100% !important;
+        width:100% !important;
+        height:100% !important;
+        min-width:100% !important;
+        min-height:0 !important;
+        overflow:hidden !important;
+        scroll-snap-align:start !important;
+        scroll-snap-stop:always !important;
+        display:flex !important;
+        flex-direction:column !important;
+        gap:7px !important;
+        padding:2px !important;
+      }
+      .mobile-settings-slide > .panel-box,
+      .mobile-settings-slide > .control-group,
+      .mobile-settings-slide > #ratio-palette-modal {
+        margin:0 !important;
+        width:100% !important;
+        min-width:0 !important;
+      }
+      .mobile-settings-slide > .panel-box { padding:9px !important; }
+      .mobile-settings-slide .panel-title { margin-bottom:7px !important; }
+      .mobile-settings-slide label { font-size:.72rem !important; }
+      .mobile-settings-slide input[type="range"] { min-height:24px !important; }
+      .mobile-slide-title {
+        flex:0 0 auto;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        min-height:26px;
+        padding:2px 5px 0;
+        color:#f1d184;
+        font:900 12px Georgia,serif;
+        letter-spacing:1px;
+        text-shadow:0 1px 2px #000;
+      }
+      .mobile-carousel-viewport-tools {
+        position:absolute;
+        left:10px;
+        right:10px;
+        bottom:6px;
+        z-index:8;
+        display:flex;
+        justify-content:space-between;
+        pointer-events:none;
+      }
+      .mobile-carousel-arrow {
+        pointer-events:auto;
+        min-width:30px !important;
+        min-height:30px !important;
+        border:1px solid #8a6230 !important;
+        background:rgba(39,24,10,.88) !important;
+        color:#f4d17d !important;
+        font-size:18px !important;
+        border-radius:50% !important;
+      }
+      .mobile-carousel-dots {
+        position:absolute;
+        left:50%;
+        bottom:8px;
+        transform:translateX(-50%);
+        z-index:8;
+        display:flex;
+        gap:4px;
+        pointer-events:none;
+      }
+      .mobile-carousel-dot { width:5px; height:5px; border-radius:50%; background:#6e4b24; }
+      .mobile-carousel-dot.active { background:#f1d184; box-shadow:0 0 5px rgba(241,209,132,.65); }
+
+      /* Ratio palette is slide 1: keep its characteristic rounded frame, but fit it into half-screen. */
+      .mobile-settings-slide #ratio-palette-modal {
+        position:relative !important;
+        inset:auto !important;
+        display:flex !important;
+        flex:1 1 auto !important;
+        max-height:none !important;
+        height:100% !important;
+        overflow:hidden !important;
+        border-radius:10px !important;
+        box-shadow:0 8px 24px rgba(0,0,0,.4) !important;
+      }
+      .mobile-settings-slide #ratio-palette-modal.is-hidden { display:none !important; }
+      .mobile-ratio-reopen {
+        margin:auto; min-height:42px; padding:10px 14px; align-items:center; justify-content:center;
+        border:1px solid #8a6230 !important; border-radius:8px !important;
+        background:linear-gradient(145deg,#5f421f,#24170c) !important; color:#f1d184 !important;
+        font:900 11px Georgia,serif; letter-spacing:1px;
+      }
+      .mobile-settings-slide #ratio-palette-modal .floating-body {
+        min-height:0 !important;
+        overflow:hidden !important;
+      }
+      .mobile-settings-slide #ratio-palette-modal .shape-generator { margin-bottom:4px !important; }
+      #btn-pin-keyboard { display:none !important; }
+
+      /* Detached overlays stay above the carousel and never become part of its stacking context. */
+      #selected-gear-detail { z-index:5000 !important; }
+      #hud-top-right:not(.hno-collapsed) { z-index:5100 !important; }
+      #ratio-palette-modal { z-index:5200 !important; }
+    }
   </style>
 </head>
 <body>
@@ -1322,7 +1473,6 @@
         <div class="panel-box">
           <div class="panel-title keyboard-panel-title">
             <span id="hud-current-note" style="color: var(--accent-cyan); font-weight: bold;">C (1.00x)</span>
-            <button id="btn-pin-keyboard" type="button" title="Pin keyboard to the bottom of the Android screen" style="padding:3px 8px;font-size:.65rem;">PIN</button>
           </div>
           <div class="keyboard-container" id="virtual-keyboard">
             <div class="key white-key" data-note="0" data-key="KeyA"><span></span></div>
@@ -4507,39 +4657,7 @@
     document.getElementById('btn-midi-refresh').addEventListener('click', () => state.midi.access ? populateMidiInputs() : initWebMIDI());
     document.getElementById('select-midi-input').addEventListener('change', e => attachMidiInput(e.target.value));
 
-    const keyboardPanel = document.getElementById('virtual-keyboard')?.closest('.panel-box');
-    const pinKeyboardBtn = document.getElementById('btn-pin-keyboard');
-    const keyboardOriginalParent = keyboardPanel?.parentElement || null;
-    const keyboardOriginalNextSibling = keyboardPanel?.nextSibling || null;
-    const isAndroidPortrait = () => /Android/i.test(navigator.userAgent) && window.matchMedia('(orientation: portrait)').matches;
-    const syncKeyboardPinButton = () => {
-      const pinned = keyboardPanel?.classList.contains('keyboard-panel-pinned');
-      if (pinKeyboardBtn) {
-        pinKeyboardBtn.textContent = pinned ? 'UNPIN' : 'PIN';
-        pinKeyboardBtn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
-      }
-    };
-    const setKeyboardPinned = pinned => {
-      if (!keyboardPanel) return;
-      if (pinned) {
-        document.body.appendChild(keyboardPanel);
-        keyboardPanel.classList.add('keyboard-panel-pinned');
-      } else {
-        keyboardPanel.classList.remove('keyboard-panel-pinned');
-        if (keyboardOriginalParent) {
-          if (keyboardOriginalNextSibling && keyboardOriginalNextSibling.parentNode === keyboardOriginalParent) keyboardOriginalParent.insertBefore(keyboardPanel, keyboardOriginalNextSibling);
-          else keyboardOriginalParent.appendChild(keyboardPanel);
-        }
-      }
-      syncKeyboardPinButton();
-      requestAnimationFrame(() => { if (typeof resizeCanvasToDisplaySize === 'function') resizeCanvasToDisplaySize(); });
-    };
-    pinKeyboardBtn?.addEventListener('click', () => {
-      if (!isAndroidPortrait()) return;
-      setKeyboardPinned(!keyboardPanel?.classList.contains('keyboard-panel-pinned'));
-    });
-    syncKeyboardPinButton();
-
+    // Keyboard is a carousel slide in mobile portrait; no separate pinning is required.
     // Fundamental Frequency / Audio Driver RPM Slider
     const fundSlider = document.getElementById('slider-fundamental');
     const canvasCrankControl = document.getElementById('canvas-crank-control');
@@ -5538,24 +5656,30 @@
     if (ratioPaletteHeader && ratioPaletteModal) {
       let drag = null;
       ratioPaletteHeader.addEventListener('pointerdown', e => {
-        if (isMobilePortraitLayout()) return;
         if (e.target.closest('button,input,label')) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        e.preventDefault();
         const r = ratioPaletteModal.getBoundingClientRect();
-        drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+        drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, pointerId: e.pointerId };
         ratioPaletteModal.style.left = `${r.left}px`;
         ratioPaletteModal.style.top = `${r.top}px`;
         ratioPaletteModal.style.right = 'auto';
-        ratioPaletteHeader.setPointerCapture?.(e.pointerId);
+        try { ratioPaletteHeader.setPointerCapture(e.pointerId); } catch (_) {}
       });
       ratioPaletteHeader.addEventListener('pointermove', e => {
-        if (!drag) return;
+        if (!drag || drag.pointerId !== e.pointerId) return;
+        e.preventDefault();
         const w = ratioPaletteModal.offsetWidth, h = ratioPaletteModal.offsetHeight;
         const x = Math.max(4, Math.min(window.innerWidth - w - 4, e.clientX - drag.dx));
         const y = Math.max(4, Math.min(window.innerHeight - h - 4, e.clientY - drag.dy));
         ratioPaletteModal.style.left = `${x}px`; ratioPaletteModal.style.top = `${y}px`;
       });
-      ratioPaletteHeader.addEventListener('pointerup', () => { drag = null; });
-      ratioPaletteHeader.addEventListener('pointercancel', () => { drag = null; });
+      const endRatioPaletteDrag = e => {
+        if (drag && drag.pointerId === e.pointerId) drag = null;
+        try { ratioPaletteHeader.releasePointerCapture?.(e.pointerId); } catch (_) {}
+      };
+      ratioPaletteHeader.addEventListener('pointerup', endRatioPaletteDrag);
+      ratioPaletteHeader.addEventListener('pointercancel', endRatioPaletteDrag);
     }
     mobilePortraitLayoutQuery.addEventListener?.('change', syncRatioPaletteResponsiveState);
     window.addEventListener('resize', syncRatioPaletteResponsiveState);
@@ -5779,6 +5903,154 @@
       });
     }
     bindWheelControls();
+
+
+    // Mobile portrait settings carousel. Desktop layout and DOM order remain unchanged.
+    (function initMobileSettingsCarousel(){
+      const mq = window.matchMedia('(max-width:900px) and (orientation:portrait)');
+      const app = document.getElementById('app-container');
+      const sidebar = document.getElementById('sidebar');
+      const track = sidebar?.querySelector('.sidebar-scroll');
+      const ratioModal = document.getElementById('ratio-palette-modal');
+      if (!app || !sidebar || !track || !ratioModal) return;
+
+      const records = new Map();
+      const remember = (node) => {
+        if (!node || records.has(node)) return;
+        records.set(node, { parent: node.parentNode, next: node.nextSibling, display: node.style.display, order: node.parentNode ? Array.from(node.parentNode.childNodes).indexOf(node) : 0 });
+      };
+      const makeSlide = (title) => {
+        const slide = document.createElement('section');
+        slide.className = 'mobile-settings-slide';
+        slide.dataset.mobileSlide = title;
+        const heading = document.createElement('div');
+        heading.className = 'mobile-slide-title';
+        heading.textContent = title;
+        slide.appendChild(heading);
+        return slide;
+      };
+      let slides = [];
+      let controls = [];
+      let tools = null;
+      let dots = null;
+      let activeIndex = 0;
+      let inMode = false;
+
+      const closestPanel = selector => document.querySelector(selector)?.closest('.panel-box') || null;
+      const mainPanel = closestPanel('#input-fundamental');
+      const mainShape = document.querySelector('#select-main-gear-shape')?.closest('.control-group');
+      const keyboard = closestPanel('#virtual-keyboard');
+      const midi = closestPanel('#btn-midi-enable');
+      const binaural = closestPanel('#chk-spatial-enable');
+      const audioDriver = closestPanel('#btn-driver-record');
+      const gearNetwork = closestPanel('#gear-list-container');
+      const master = closestPanel('#btn-toggle-audio');
+      const openRatioPanel = document.querySelector('#btn-open-ratio-palette')?.closest('.panel-box');
+
+      [ratioModal, mainPanel, mainShape, keyboard, midi, binaural, audioDriver, gearNetwork, master, openRatioPanel].forEach(remember);
+
+      function clearTrackChildren(){
+        while (track.firstChild) track.removeChild(track.firstChild);
+      }
+      function restoreOriginal(){
+        if (!inMode) return;
+        app.classList.remove('mobile-carousel-mode');
+        clearTrackChildren();
+        const groups = new Map();
+        records.forEach((pos,node) => {
+          if (!pos.parent) return;
+          if (!groups.has(pos.parent)) groups.set(pos.parent, []);
+          groups.get(pos.parent).push({ node, pos });
+        });
+        groups.forEach((items,parent) => {
+          items.sort((a,b)=>a.pos.order-b.pos.order);
+          items.forEach(({node,pos})=>{ node.style.display = pos.display; parent.appendChild(node); });
+        });
+        if (tools) tools.remove();
+        if (dots) dots.remove();
+        tools = dots = null;
+        slides = [];
+        controls = [];
+        inMode = false;
+      }
+      function updateActive(index, smooth=false){
+        if (!slides.length) return;
+        activeIndex = Math.max(0, Math.min(slides.length-1,index));
+        const left = slides[activeIndex].offsetLeft - track.offsetLeft;
+        track.scrollTo({left, behavior:smooth ? 'smooth' : 'auto'});
+        if (dots) [...dots.children].forEach((d,i)=>d.classList.toggle('active',i===activeIndex));
+      }
+      function build(){
+        restoreOriginal();
+        inMode = true;
+        app.classList.add('mobile-carousel-mode');
+        clearTrackChildren();
+
+        const plan = [
+          ['RATIO & HARMONICS', [ratioModal]],
+          ['MAIN DRIVE + SHAPE', [mainPanel, mainShape]],
+          ['KEYBOARD', [keyboard]],
+          ['MIDI INPUT', [midi]],
+          ['BINAURAL', [binaural]],
+          ['AUDIO DRIVER', [audioDriver]],
+          ['GEAR NETWORK', [gearNetwork]],
+          ['MASTER VOLUME', [master]]
+        ];
+
+        slides = plan.map(([title,nodes])=>{
+          const slide = makeSlide(title);
+          nodes.filter(Boolean).forEach(node=>slide.appendChild(node));
+          return slide;
+        });
+        slides.forEach(s=>track.appendChild(s));
+        if (openRatioPanel) openRatioPanel.style.display='none';
+
+        // Ratio palette is the first screen of the carousel and starts open.
+        ratioModal.classList.remove('is-hidden');
+        const ratioReopen = document.createElement('button');
+        ratioReopen.type='button';
+        ratioReopen.className='mobile-ratio-reopen';
+        ratioReopen.textContent='OPEN RATIO & HARMONIC PALETTE';
+        ratioReopen.addEventListener('click',()=>ratioModal.classList.remove('is-hidden'));
+        slides[0].appendChild(ratioReopen);
+        const syncRatioReopen = () => { ratioReopen.style.display = ratioModal.classList.contains('is-hidden') ? 'flex' : 'none'; };
+        syncRatioReopen();
+        const ratioHideObserver = new MutationObserver(syncRatioReopen);
+        ratioHideObserver.observe(ratioModal,{attributes:true,attributeFilter:['class']});
+
+        tools = document.createElement('div');
+        tools.className='mobile-carousel-viewport-tools';
+        const prev=document.createElement('button'); prev.className='mobile-carousel-arrow'; prev.type='button'; prev.textContent='‹'; prev.setAttribute('aria-label','Previous settings');
+        const next=document.createElement('button'); next.className='mobile-carousel-arrow'; next.type='button'; next.textContent='›'; next.setAttribute('aria-label','Next settings');
+        prev.addEventListener('click',()=>updateActive(activeIndex-1,true));
+        next.addEventListener('click',()=>updateActive(activeIndex+1,true));
+        tools.append(prev,next);
+        sidebar.appendChild(tools);
+
+        dots=document.createElement('div');
+        dots.className='mobile-carousel-dots';
+        slides.forEach((_,i)=>{ const d=document.createElement('span'); d.className='mobile-carousel-dot'+(i===0?' active':''); dots.appendChild(d); });
+        sidebar.appendChild(dots);
+
+        track.addEventListener('scroll',()=>{
+          const idx=Math.round(track.scrollLeft / Math.max(1,track.clientWidth + 8));
+          if (idx!==activeIndex) { activeIndex=Math.max(0,Math.min(slides.length-1,idx)); if(dots) [...dots.children].forEach((d,i)=>d.classList.toggle('active',i===activeIndex)); }
+        },{passive:true});
+        updateActive(0,false);
+
+        // Touch swipe is native horizontal scrolling; this adds a firmer page-to-page snap.
+        let sx=0, sy=0;
+        track.addEventListener('touchstart',e=>{ const t=e.changedTouches[0]; sx=t.clientX; sy=t.clientY; },{passive:true});
+        track.addEventListener('touchend',e=>{
+          const t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy;
+          if (Math.abs(dx)>42 && Math.abs(dx)>Math.abs(dy)*1.15) updateActive(activeIndex+(dx<0?1:-1),true);
+        },{passive:true});
+      }
+      function sync(){ if(mq.matches) build(); else restoreOriginal(); }
+      mq.addEventListener?.('change',sync);
+      window.addEventListener('resize',()=>{ if(inMode) updateActive(activeIndex,false); });
+      sync();
+    })();
 </script>
 </body>
 </html>
