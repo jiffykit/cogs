@@ -325,6 +325,7 @@
       color:#f1d184;
       pointer-events:auto;
       user-select:none;
+      cursor:grab;
       touch-action:none;
       transform:translate(-50%, 0);
       display:none;
@@ -1717,8 +1718,8 @@
     <main id="canvas-container">
       <canvas id="synthCanvas"></canvas>
       <div id="startup-tooltip">Drag the cog to the drive wheel to listen to the ratio</div>
-      <div id="canvas-crank-control" aria-label="Crank frequency control">
-        <div class="crank-control-title" title="Drag to move"><span class="crank-control-screw"></span><span>Speed</span><span class="crank-control-screw"></span></div>
+      <div id="canvas-crank-control" aria-label="Speed control">
+        <div class="crank-control-title"><span class="crank-control-screw"></span><span>SPEED</span><span class="crank-control-screw"></span></div>
         <div class="crank-control-body">
           <div class="crank-control-cog" aria-hidden="true">⚙</div>
           <input id="canvas-crank-slider" type="range" min="-1" max="4.38" step="0.005" value="0" aria-label="Crank frequency">
@@ -1877,17 +1878,9 @@
         deleteHovered: false,
         dragAngle: null,
         savedFrequency: 1.0,
+        controlX: null,
+        controlY: null,
         savedDriverRPM: 33.3
-      },
-      crankControl: {
-        x: null,
-        y: null,
-        dragging: false,
-        pointerId: null,
-        startX: 0,
-        startY: 0,
-        startLeft: 0,
-        startTop: 0
       },
       polyMode: false,
       jiKeyboard: false,          // Retune POLY chords to nearest simple JI ratios
@@ -4109,21 +4102,6 @@
       }
     }
 
-    function clampCanvasCrankControlPosition(x, y) {
-      const rect = canvas.getBoundingClientRect();
-      const w = canvasCrankControl.offsetWidth || 122;
-      const h = canvasCrankControl.offsetHeight || 64;
-      const minX = w / 2 + 5;
-      const maxX = Math.max(minX, rect.width - w / 2 - 5);
-      const minY = 8;
-      const safeBottom = isMobilePortraitLayout() ? 96 : 72;
-      const maxY = Math.max(minY, rect.height - h - safeBottom);
-      return {
-        x: Math.max(minX, Math.min(maxX, x)),
-        y: Math.max(minY, Math.min(maxY, y))
-      };
-    }
-
     function positionCanvasCrankControl() {
       if (!canvasCrankControl || !canvas || !state.crankTool.enabled) {
         canvasCrankControl?.classList.remove('is-visible');
@@ -4134,64 +4112,27 @@
       const rect = canvas.getBoundingClientRect();
       const scaleX = rect.width / Math.max(1, canvas.width);
       const scaleY = rect.height / Math.max(1, canvas.height);
-      let x = rect.width / 2 + (state.camera.x + geo.pivotX) * state.camera.zoom * scaleX;
-      let y = rect.height / 2 + (state.camera.y + geo.pivotY) * state.camera.zoom * scaleY + 86;
-
-      if (Number.isFinite(state.crankControl.x) && Number.isFinite(state.crankControl.y)) {
-        x = state.crankControl.x;
-        y = state.crankControl.y;
+      let x = Number.isFinite(state.crankTool.controlX)
+        ? state.crankTool.controlX
+        : rect.width / 2 + (state.camera.x + geo.pivotX) * state.camera.zoom * scaleX;
+      let y = Number.isFinite(state.crankTool.controlY)
+        ? state.crankTool.controlY
+        : rect.height / 2 + (state.camera.y + geo.pivotY) * state.camera.zoom * scaleY + 86;
+      const w = canvasCrankControl.offsetWidth || 122;
+      const h = canvasCrankControl.offsetHeight || 64;
+      x = Math.max(w/2 + 5, Math.min(rect.width - w/2 - 5, x));
+      if (isMobilePortraitLayout()) {
+        // Three canvas action buttons occupy the bottom strip. Keep CRANK fully above them.
+        const safeBottom = 96;
+        y = Math.max(8, Math.min(rect.height - h - safeBottom, y));
+      } else {
+        y = Math.max(8, Math.min(rect.height - 72, y));
       }
-      const clamped = clampCanvasCrankControlPosition(x, y);
-      state.crankControl.x = clamped.x;
-      state.crankControl.y = clamped.y;
-      canvasCrankControl.style.left = `${clamped.x}px`;
-      canvasCrankControl.style.top = `${clamped.y}px`;
+      canvasCrankControl.style.left = `${x}px`;
+      canvasCrankControl.style.top = `${y}px`;
       canvasCrankControl.classList.add('is-visible');
       syncCanvasCrankControl();
     }
-
-    // The Speed box can be repositioned independently of the crank artwork.
-    // Drag from the title/body background; the frequency slider remains fully interactive.
-    canvasCrankControl?.addEventListener('pointerdown', (e) => {
-      if (e.target === canvasCrankSlider || e.target.closest?.('#canvas-crank-slider')) return;
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const rect = canvasCrankControl.getBoundingClientRect();
-      const canvasRect = canvas.getBoundingClientRect();
-      state.crankControl.dragging = true;
-      state.crankControl.pointerId = e.pointerId;
-      state.crankControl.startX = e.clientX;
-      state.crankControl.startY = e.clientY;
-      state.crankControl.startLeft = rect.left - canvasRect.left + rect.width / 2;
-      state.crankControl.startTop = rect.top - canvasRect.top;
-      canvasCrankControl.setPointerCapture?.(e.pointerId);
-    });
-
-    canvasCrankControl?.addEventListener('pointermove', (e) => {
-      const drag = state.crankControl;
-      if (!drag.dragging || drag.pointerId !== e.pointerId) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const next = clampCanvasCrankControlPosition(
-        drag.startLeft + (e.clientX - drag.startX),
-        drag.startTop + (e.clientY - drag.startY)
-      );
-      drag.currentX = state.crankControl.x = next.x;
-      drag.currentY = state.crankControl.y = next.y;
-      canvasCrankControl.style.left = `${next.x}px`;
-      canvasCrankControl.style.top = `${next.y}px`;
-    });
-
-    const finishCrankControlDrag = (e) => {
-      const drag = state.crankControl;
-      if (!drag.dragging || drag.pointerId !== e.pointerId) return;
-      drag.dragging = false;
-      drag.pointerId = null;
-      canvasCrankControl.releasePointerCapture?.(e.pointerId);
-    };
-    canvasCrankControl?.addEventListener('pointerup', finishCrankControlDrag);
-    canvasCrankControl?.addEventListener('pointercancel', finishCrankControlDrag);
 
     function setFundamentalFrequency(freq, isBaseChange = true, preserveDirection = false) {
       const nyquist = getNyquist();
@@ -4861,6 +4802,56 @@
     const canvasCrankControl = document.getElementById('canvas-crank-control');
     const canvasCrankSlider = document.getElementById('canvas-crank-slider');
     const canvasCrankValue = document.getElementById('canvas-crank-value');
+
+    // The Speed box itself can be repositioned independently of the physical crank.
+    // Store its position in canvas-pixel coordinates so it survives camera movement
+    // and can be dragged with either a mouse or a finger.
+    let speedBoxDrag = null;
+    canvasCrankControl?.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (e.target.closest('#canvas-crank-slider')) return;
+      const rect = canvas.getBoundingClientRect();
+      const currentX = Number.isFinite(state.crankTool.controlX) ? state.crankTool.controlX : canvasCrankControl.offsetLeft;
+      const currentY = Number.isFinite(state.crankTool.controlY) ? state.crankTool.controlY : canvasCrankControl.offsetTop;
+      speedBoxDrag = {
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startX: currentX,
+        startY: currentY,
+        rectLeft: rect.left,
+        rectTop: rect.top
+      };
+      canvasCrankControl.setPointerCapture?.(e.pointerId);
+      canvasCrankControl.style.cursor = 'grabbing';
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    canvasCrankControl?.addEventListener('pointermove', (e) => {
+      if (!speedBoxDrag || speedBoxDrag.pointerId !== e.pointerId) return;
+      const rect = canvas.getBoundingClientRect();
+      const dx = e.clientX - speedBoxDrag.startClientX;
+      const dy = e.clientY - speedBoxDrag.startClientY;
+      const w = canvasCrankControl.offsetWidth || 122;
+      const h = canvasCrankControl.offsetHeight || 64;
+      state.crankTool.controlX = Math.max(w / 2 + 5, Math.min(rect.width - w / 2 - 5, speedBoxDrag.startX + dx));
+      state.crankTool.controlY = Math.max(8, Math.min(rect.height - h - (isMobilePortraitLayout() ? 96 : 8), speedBoxDrag.startY + dy));
+      canvasCrankControl.style.left = `${state.crankTool.controlX}px`;
+      canvasCrankControl.style.top = `${state.crankTool.controlY}px`;
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    const finishSpeedBoxDrag = (e) => {
+      if (!speedBoxDrag || speedBoxDrag.pointerId !== e.pointerId) return;
+      speedBoxDrag = null;
+      canvasCrankControl.style.cursor = 'grab';
+      try { canvasCrankControl.releasePointerCapture?.(e.pointerId); } catch (_) {}
+      e.stopPropagation?.();
+    };
+    canvasCrankControl?.addEventListener('pointerup', finishSpeedBoxDrag);
+    canvasCrankControl?.addEventListener('pointercancel', finishSpeedBoxDrag);
     const ratioScrollLeftBtn = document.getElementById('btn-ratio-scroll-left');
     const ratioScrollRightBtn = document.getElementById('btn-ratio-scroll-right');
 
