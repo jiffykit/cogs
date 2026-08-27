@@ -292,6 +292,7 @@
 
     /* Detached selected-gear inspector: primary information panel. */
     #selected-gear-detail {
+      display:none;
       position:absolute; top:18px; right:18px; width:min(360px,calc(100% - 36px));
       max-height:min(68%, 680px); overflow:hidden; z-index:1200;
       background:rgba(18,12,7,.96); border:1px solid #8a6230;
@@ -299,15 +300,15 @@
     }
     #selected-gear-detail #inspector-panel { max-height:calc(min(68vh,680px) - 42px); overflow-y:auto; }
     #selected-gear-detail .selected-gear-header { color:#f1d184; letter-spacing:.4px; }
-    #hud-top-right { z-index:3000 !important; top:auto !important; bottom:18px !important; right:18px !important; }
+    #hud-top-right { z-index:3000 !important; top:118px !important; bottom:auto !important; right:18px !important; }
     #hud-top-right.hno-collapsed { z-index:3050 !important; }
     #hud-top-right:not(.hno-collapsed) { z-index:3100 !important; max-height:min(60vh,620px); overflow:auto; }
     @media (max-width:900px) and (orientation:portrait) {
       #selected-gear-detail { top:8px; right:8px; width:min(340px,calc(100vw - 16px)); max-height:42vh; }
       #selected-gear-detail #inspector-panel { max-height:calc(42vh - 42px); }
-      #hud-top-right { top:auto !important; right:8px !important; bottom:8px !important; }
-      #hud-top-right:not(.hno-collapsed) { max-height:55vh !important; z-index:3100 !important; }
-      #ratio-palette-modal { z-index:2300 !important; }
+      #hud-top-right { top:104px !important; right:8px !important; bottom:auto !important; }
+      #hud-top-right:not(.hno-collapsed) { max-height:55vh !important; z-index:5100 !important; }
+      #ratio-palette-modal { z-index:5200 !important; }
     }
 
     /* Canvas-mounted steampunk frequency control. */
@@ -1066,12 +1067,25 @@
       .keyboard-panel-pinned .keyboard-container { width:100% !important; height:92px !important; }
       .keyboard-panel-pinned .keyboard-panel-title { display:flex; }
     }
-    /* Final detached-panel positioning overrides. */
-    #hud-top-right { top:auto !important; bottom:18px !important; right:18px !important; left:auto !important; }
+    /* Final detached-panel positioning overrides. Desktop stays unchanged. */
     #hud-top-right:not(.hno-collapsed) { z-index:3100 !important; }
     @media (max-width:900px) and (orientation:portrait) {
-      #hud-top-right { top:auto !important; bottom:8px !important; right:8px !important; left:auto !important; width:min(320px,calc(100vw - 16px)) !important; }
-      #hud-top-right.hno-collapsed { width:48px !important; height:48px !important; }
+      /* Mobile HNO is anchored to the canvas, not the viewport. The collapsed
+         magnifier occupies the recovered former ratio-row space at the canvas top-right. */
+      #hud-top-right {
+        position:absolute !important;
+        top:4px !important;
+        right:4px !important;
+        bottom:auto !important;
+        left:auto !important;
+        width:min(320px,calc(100% - 8px)) !important;
+        z-index:6100 !important;
+      }
+      #hud-top-right.hno-collapsed {
+        width:48px !important;
+        height:48px !important;
+        padding:4px !important;
+      }
     }
     @media (max-width:900px) and (orientation:portrait) and (pointer:coarse) {
       body > .keyboard-panel-pinned {
@@ -1081,6 +1095,31 @@
         max-height:min(45vh,340px) !important;
         border-radius:12px 12px 0 0 !important;
       }
+    }
+
+
+    /* Compact ratio/add controls moved out of the former top toolbar. */
+    .ratio-add-controls { margin-top:6px; padding:7px 8px; border:1px solid #6d4b25; border-radius:8px; background:linear-gradient(180deg,rgba(69,45,22,.46),rgba(20,13,8,.72)); }
+    .ratio-add-row { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:4px; }
+    .ratio-add-row:first-child { margin-top:0; }
+    .ratio-add-row label { display:flex; align-items:center; gap:4px; font-size:.63rem; color:#d9c49a; white-space:nowrap; }
+    .ratio-add-row input[type="number"], .ratio-add-row select { height:26px; min-width:54px; padding:2px 5px; font-size:.72rem; }
+    .ratio-add-primary input[type="number"] { width:58px; }
+    .ratio-add-secondary input[type="number"] { width:52px; }
+    .ratio-add-check { gap:3px !important; }
+    .ratio-add-check input { margin:0; }
+    .ratio-unit { font-size:.58rem; color:var(--text-muted); }
+    .ratio-add-result { min-height:13px; margin-top:3px; font-size:.59rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #mobile-add-ratio-gear { margin-left:auto; padding:4px 9px; font-size:.64rem; }
+    @media (max-width:900px) and (orientation:portrait) {
+      .ratio-add-controls { margin-top:4px; padding:5px 6px; }
+      .ratio-add-row { gap:4px; margin-top:3px; }
+      .ratio-add-row label { font-size:.58rem; }
+      .ratio-add-row input[type="number"], .ratio-add-row select { height:23px; min-width:45px; font-size:.66rem; padding:1px 3px; }
+      .ratio-add-primary input[type="number"] { width:49px; }
+      .ratio-add-secondary input[type="number"] { width:44px; }
+      #mobile-add-ratio-gear { padding:3px 7px; font-size:.59rem; }
+      .ratio-add-result { font-size:.54rem; }
     }
 
     /* MOBILE PORTRAIT: two-stage canvas + settings carousel. Desktop is intentionally untouched. */
@@ -1155,7 +1194,15 @@
       .mobile-settings-slide > .panel-box { padding:9px !important; }
       .mobile-settings-slide .panel-title { margin-bottom:7px !important; }
       .mobile-settings-slide label { font-size:.72rem !important; }
+      /* Keep Audio Driver's DRIVE/Clear controls visible after a recording/import. */
+      .mobile-settings-slide[data-mobile-slide="AUDIO DRIVER"] { overflow-y:auto !important; overflow-x:hidden !important; }
+      .mobile-settings-slide[data-mobile-slide="AUDIO DRIVER"] #driver-wave-wrap { max-height:78px !important; margin-bottom:5px !important; }
+      .mobile-settings-slide[data-mobile-slide="AUDIO DRIVER"] #driver-waveform { height:58px !important; }
+      .mobile-settings-slide[data-mobile-slide="AUDIO DRIVER"] .btn-group { flex-shrink:0 !important; }
       .mobile-settings-slide input[type="range"] { min-height:24px !important; }
+      .mobile-slide-title:empty { display:none !important; }
+      .mobile-ratio-slide { padding-top:0 !important; }
+      .mobile-ratio-slide > #ratio-palette-modal { margin-top:0 !important; }
       .mobile-slide-title {
         flex:0 0 auto;
         display:flex;
@@ -1201,6 +1248,11 @@
       .mobile-carousel-dot { width:5px; height:5px; border-radius:50%; background:#6e4b24; }
       .mobile-carousel-dot.active { background:#f1d184; box-shadow:0 0 5px rgba(241,209,132,.65); }
 
+      .mobile-settings-slide #ratio-add-controls { flex:0 0 auto !important; }
+      .mobile-settings-slide #ratio-palette-modal .rational-palette { order:1 !important; }
+      .mobile-settings-slide #ratio-palette-modal #ratio-add-controls { order:2 !important; }
+      .mobile-settings-slide #ratio-palette-modal .shape-generator { order:3 !important; }
+
       /* Ratio palette is slide 1: keep its characteristic rounded frame, but fit it into half-screen. */
       .mobile-settings-slide #ratio-palette-modal {
         position:relative !important;
@@ -1232,12 +1284,63 @@
       #hud-top-right:not(.hno-collapsed) { z-index:5100 !important; }
       #ratio-palette-modal { z-index:5200 !important; }
     }
-  </style>
+  
+    /* Final mobile portrait corrections: keep HNO in the canvas upper-right and keep Audio Driver controls visible. */
+    @media (max-width:900px) and (orientation:portrait) {
+      #hud-top-right {
+        top:108px !important;
+        bottom:auto !important;
+        right:8px !important;
+        z-index:6100 !important;
+      }
+      /* Collapsed magnifier is positioned relative to #canvas-container above. */
+      #hud-top-right.hno-collapsed {
+        top:4px !important;
+        right:4px !important;
+        width:48px !important;
+        height:48px !important;
+      }
+      #hud-top-right:not(.hno-collapsed) {
+        max-height:calc(50vh - 120px) !important;
+        overflow-y:auto !important;
+      }
+      /* Audio Driver gets enough room for RECORD/Import, waveform, DRIVE/Clear and status. */
+      .mobile-settings-slide[data-mobile-slide="AUDIO DRIVER"] {
+        overflow-y:auto !important;
+        overflow-x:hidden !important;
+      }
+      .mobile-settings-slide[data-mobile-slide="AUDIO DRIVER"] > .panel-box {
+        min-height:0 !important;
+      }
+      .mobile-settings-slide[data-mobile-slide="AUDIO DRIVER"] #driver-wave-wrap {
+        max-height:68px !important;
+        overflow:hidden !important;
+        margin-bottom:4px !important;
+      }
+      .mobile-settings-slide[data-mobile-slide="AUDIO DRIVER"] #driver-waveform {
+        height:48px !important;
+      }
+      .mobile-settings-slide[data-mobile-slide="AUDIO DRIVER"] #driver-wave-wrap > div {
+        margin-top:1px !important;
+        font-size:.55rem !important;
+      }
+      .mobile-settings-slide[data-mobile-slide="AUDIO DRIVER"] .btn-group {
+        flex-shrink:0 !important;
+      }
+
+      /* Keep the canvas CRANK control above the bottom canvas buttons on phones.
+         Its position is calculated by JS, so this class only controls its mobile size. */
+      #canvas-crank-control {
+        width:122px !important;
+        min-height:60px !important;
+      }
+    }
+</style>
 </head>
 <body>
 
   <div id="app-container">
-  <div id="gear-add-toolbar" aria-label="Add Gear / Ratio Tool">
+  <div id="gear-add-toolbar" aria-label="Add Gear / Ratio Tool" style="display:none !important;">
     <span class="toolbar-title">Add Gear / Ratio</span>
 
     <div class="toolbar-divider"></div>
@@ -1313,7 +1416,7 @@
     <!-- FLOATING RATIO / HARMONIC PALETTE -->
     <section id="ratio-palette-modal" aria-label="Ratio and Harmonic Palette">
       <div class="floating-header" id="ratio-palette-header">
-        <div class="floating-title">Ratio & Harmonic Presets <span id="rational-palette-count" style="font-weight:400; color:var(--text-muted); font-size:0.68rem;"></span></div>
+        <div class="floating-title">HARMONIC PRESETS <span id="rational-palette-count" style="font-weight:400; color:var(--text-muted); font-size:0.62rem;"></span></div>
         <div class="floating-actions">
           <button id="btn-ratio-scroll-left" class="ratio-carousel-nav" title="Scroll harmonic presets left" aria-label="Scroll harmonic presets left">‹</button>
           <button id="btn-ratio-scroll-right" class="ratio-carousel-nav" title="Scroll harmonic presets right" aria-label="Scroll harmonic presets right">›</button>
@@ -1343,6 +1446,27 @@
           </div>
         </div>
         <div id="rational-gear-palette" class="rational-palette" aria-label="Available rational gears"></div>
+        <div id="ratio-add-controls" class="ratio-add-controls" aria-label="Add gear ratio controls">
+          <div class="ratio-add-row ratio-add-primary">
+            <label>Ratio <input id="mobile-ratio-num" type="number" min="1" max="120" step="1" value="2"><span>:</span><input id="mobile-ratio-den" type="number" min="1" max="120" step="1" value="1"></label>
+            <label>Teeth <input id="mobile-add-teeth" type="number" min="1" max="15015" value="60"></label>
+            <label>Phase° <input id="mobile-add-phase" type="number" min="-360" max="360" step="1" value="0"></label>
+          </div>
+          <div class="ratio-add-row">
+            <label class="ratio-add-check"><input id="mobile-add-orbit" type="checkbox"> Orbit</label>
+            <label>Speed <input id="mobile-add-orbit-time" type="number" min="0.25" max="60" step="0.05" value="8.00"><span class="ratio-unit">s/rev</span></label>
+            <label>Direction <select id="mobile-add-orbit-direction"><option value="1">↻</option><option value="-1">↺</option></select></label>
+            <label class="ratio-add-check"><input id="mobile-add-preserve-phase" type="checkbox" checked> Preserve</label>
+          </div>
+          <div class="ratio-add-row ratio-add-secondary">
+            <label class="ratio-add-check"><input id="mobile-add-ratio-lock" type="checkbox"> Ratio Lock</label>
+            <label class="ratio-add-check"><input id="mobile-add-teeth-lock" type="checkbox"> Teeth Lock</label>
+            <label>Vol <input id="mobile-add-volume" type="number" min="0" max="1" step="0.01" value="0.20"></label>
+            <label class="ratio-add-check"><input id="mobile-solve-teeth" type="checkbox"> Solve teeth</label>
+            <button id="mobile-add-ratio-gear" class="btn-primary" type="button">ADD GEAR</button>
+          </div>
+          <div id="mobile-ratio-add-result" class="ratio-add-result"></div>
+        </div>
       </div>
     </section>
 
@@ -2724,7 +2848,7 @@
       const mainTeeth = Math.max(1, Number(main?.teeth || state.mainTeeth || 120));
       const candidates = rationalPaletteCandidates(mainTeeth);
       wrap.innerHTML = '';
-      if (countEl) countEl.textContent = `(${candidates.length} available at ${mainTeeth}T)`;
+      if (countEl) countEl.textContent = `(${candidates.length} · ${mainTeeth}T main)`;
       if (!candidates.length) { wrap.innerHTML = '<div class="rational-empty">No integer-tooth rational gears are available for this MAIN wheel.</div>'; return; }
       const previewShape = document.getElementById('select-palette-gear-shape')?.value || 'circular';
       const previewParams = window.__paletteShapeParams || { ...DEFAULT_SHAPE_PARAMS };
@@ -3987,8 +4111,15 @@
       let x = rect.width / 2 + (state.camera.x + geo.pivotX) * state.camera.zoom * scaleX;
       let y = rect.height / 2 + (state.camera.y + geo.pivotY) * state.camera.zoom * scaleY + 86;
       const w = canvasCrankControl.offsetWidth || 122;
+      const h = canvasCrankControl.offsetHeight || 64;
       x = Math.max(w/2 + 5, Math.min(rect.width - w/2 - 5, x));
-      y = Math.max(8, Math.min(rect.height - 72, y));
+      if (isMobilePortraitLayout()) {
+        // Three canvas action buttons occupy the bottom strip. Keep CRANK fully above them.
+        const safeBottom = 96;
+        y = Math.max(8, Math.min(rect.height - h - safeBottom, y));
+      } else {
+        y = Math.max(8, Math.min(rect.height - 72, y));
+      }
       canvasCrankControl.style.left = `${x}px`;
       canvasCrankControl.style.top = `${y}px`;
       canvasCrankControl.classList.add('is-visible');
@@ -4817,10 +4948,14 @@
       const gear = state.gearMap.get(state.selectedGearId);
       if (!gear) {
         panel.style.display = 'none';
+        const detail = document.getElementById('selected-gear-detail');
+        if (detail) detail.style.display = 'none';
         return;
       }
 
       panel.style.display = 'block';
+      const detail = document.getElementById('selected-gear-detail');
+      if (detail) detail.style.display = 'block';
       const parents = Array.from(gear.neighbors).map(id => state.gearMap.get(id)).filter(Boolean);
       const mainGear = state.gears.find(g => g.isMain) || state.gears[0];
 
@@ -5481,6 +5616,40 @@
     ratioNumInput.addEventListener('input', e => syncRatioControl('num', e.target.value));
     ratioDenInput.addEventListener('input', e => syncRatioControl('den', e.target.value));
 
+    // The former top toolbar is hidden; these compact controls are its live replacement.
+    const mobileRatioControls = {
+      num: document.getElementById('mobile-ratio-num'), den: document.getElementById('mobile-ratio-den'),
+      teeth: document.getElementById('mobile-add-teeth'), phase: document.getElementById('mobile-add-phase'),
+      orbit: document.getElementById('mobile-add-orbit'), orbitTime: document.getElementById('mobile-add-orbit-time'),
+      direction: document.getElementById('mobile-add-orbit-direction'), preserve: document.getElementById('mobile-add-preserve-phase'),
+      ratioLock: document.getElementById('mobile-add-ratio-lock'), teethLock: document.getElementById('mobile-add-teeth-lock'),
+      volume: document.getElementById('mobile-add-volume'), solveTeeth: document.getElementById('mobile-solve-teeth'),
+      add: document.getElementById('mobile-add-ratio-gear'), result: document.getElementById('mobile-ratio-add-result')
+    };
+    const syncCompactRatioToToolbar = () => {
+      if (!mobileRatioControls.num) return;
+      ratioNumInput.value = mobileRatioControls.num.value;
+      ratioDenInput.value = mobileRatioControls.den.value;
+      document.getElementById('input-add-teeth').value = mobileRatioControls.teeth.value;
+      document.getElementById('input-add-phase').value = mobileRatioControls.phase.value;
+      document.getElementById('input-add-orbit').checked = mobileRatioControls.orbit.checked;
+      document.getElementById('input-add-orbit-time').value = mobileRatioControls.orbitTime.value;
+      document.getElementById('input-add-preserve-phase').checked = mobileRatioControls.preserve.checked;
+      document.getElementById('input-add-ratio-lock').checked = mobileRatioControls.ratioLock.checked;
+      document.getElementById('input-add-teeth-lock').checked = mobileRatioControls.teethLock.checked;
+      document.getElementById('input-add-volume').value = mobileRatioControls.volume.value;
+      document.getElementById('input-solve-teeth-from-ratio').checked = mobileRatioControls.solveTeeth.checked;
+      return true;
+    };
+    Object.values(mobileRatioControls).filter(el => el && el.tagName === 'INPUT' || el && el.tagName === 'SELECT').forEach(el => el.addEventListener('input', syncCompactRatioToToolbar));
+    mobileRatioControls.add?.addEventListener('click', () => {
+      syncCompactRatioToToolbar();
+      document.getElementById('btn-calc-ratio')?.click();
+      if (mobileRatioControls.result) mobileRatioControls.result.textContent = document.getElementById('ratio-calc-result')?.textContent || '';
+      // Keep the visible controls authoritative after tooth solving.
+      mobileRatioControls.teeth.value = document.getElementById('input-add-teeth').value;
+    });
+
     document.getElementById('btn-calc-ratio').addEventListener('click', () => {
       const num = Math.min(120, Math.max(1, parseInt(ratioNumInput.value) || 1));
       const den = Math.min(120, Math.max(1, parseInt(ratioDenInput.value) || 1));
@@ -5490,6 +5659,7 @@
       const teethLock = document.getElementById('input-add-teeth-lock').checked;
       const orbitEnabled = document.getElementById('input-add-orbit').checked;
       const orbitPeriodSec = Math.min(60, Math.max(0.25, parseFloat(document.getElementById('input-add-orbit-time').value) || 8));
+      const orbitDirection = Number(document.getElementById('mobile-add-orbit-direction')?.value || 1) < 0 ? -1 : 1;
       const orbitPreservePhase = document.getElementById('input-add-preserve-phase').checked;
       const volume = Math.min(1, Math.max(0, parseFloat(document.getElementById('input-add-volume').value) || 0.2));
 
@@ -5507,6 +5677,7 @@
       gear.volume = volume;
       gear.orbitEnabled = orbitEnabled;
       gear.orbitPeriodSec = orbitPeriodSec;
+      gear.orbitDirection = orbitDirection;
       gear.orbitPreservePhase = orbitPreservePhase;
 
       const main = state.gears.find(g => g.isMain) || state.gears[0];
@@ -5997,8 +6168,9 @@
           ['MASTER VOLUME', [master]]
         ];
 
-        slides = plan.map(([title,nodes])=>{
-          const slide = makeSlide(title);
+        slides = plan.map(([title,nodes], index)=>{
+          const slide = makeSlide(index === 0 ? '' : title);
+          if (index === 0) slide.classList.add('mobile-ratio-slide');
           nodes.filter(Boolean).forEach(node=>slide.appendChild(node));
           return slide;
         });
