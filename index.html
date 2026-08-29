@@ -1499,6 +1499,51 @@
     }
 
 
+    /* Persistent A/Fundamental control dock: available on every carousel tab. */
+    @media (max-width:900px) and (orientation:portrait) {
+      #app-container.mobile-carousel-mode #sidebar { position:relative !important; }
+      #mobile-frequency-dock {
+        position:relative; width:100%; min-width:0;
+        display:flex; flex-direction:column; gap:3px;
+        padding:5px 7px 6px;
+        border:1px solid #6e4b24; border-radius:8px;
+        background:linear-gradient(180deg,rgba(72,48,24,.97),rgba(20,13,8,.98));
+        box-shadow:0 -6px 16px rgba(0,0,0,.42), inset 0 1px 0 rgba(247,216,145,.10);
+        pointer-events:auto;
+      }
+      #mobile-frequency-dock #fundamental-frequency-controls {
+        display:flex !important; flex-direction:column; gap:2px; margin:0 !important;
+      }
+      #mobile-frequency-dock #fundamental-frequency-controls > label {
+        display:flex; align-items:center; justify-content:space-between; gap:6px;
+        margin:0; font-size:.60rem !important; color:#d9c49a;
+      }
+      #mobile-frequency-dock #slider-fundamental { width:100% !important; min-width:0; margin:0; height:17px; }
+      #mobile-frequency-dock .fundamental-precision-row { display:none !important; }
+      #mobile-frequency-dock .btn-group {
+        display:grid !important; grid-template-columns:repeat(7,minmax(0,1fr));
+        gap:3px; margin-top:0 !important;
+      }
+      #mobile-frequency-dock .btn-freq-preset {
+        min-width:0 !important; width:100%; height:21px; padding:2px 1px !important;
+        font-size:.52rem !important; line-height:1;
+      }
+      #mobile-frequency-dock #fundamental-label::before { content:'A / '; color:#f1d184; font-weight:900; }
+      #mobile-frequency-dock .val { color:#f4d17d !important; font-size:.60rem !important; }
+      #app-container.mobile-carousel-mode .mobile-settings-slide { padding-bottom:92px !important; }
+      #app-container.mobile-carousel-mode .mobile-ratio-slide { padding-bottom:92px !important; }
+      #app-container.mobile-carousel-mode .mobile-carousel-viewport-tools {
+        left:8px !important; right:8px !important; bottom:4px !important;
+        display:grid !important; grid-template-columns:30px minmax(0,1fr) 30px !important;
+        align-items:stretch; gap:5px; pointer-events:none;
+      }
+      #app-container.mobile-carousel-mode .mobile-carousel-viewport-tools .mobile-carousel-arrow {
+        position:relative !important; left:auto !important; right:auto !important; bottom:auto !important;
+        align-self:center;
+      }
+      #app-container.mobile-carousel-mode .mobile-carousel-dots { bottom:88px !important; z-index:21 !important; }
+    }
+
     /* Compact mobile Main Drive + Shape layout. */
     @media (max-width:900px) and (orientation:portrait){
       .mobile-carousel-mode .mobile-slide-title:empty{display:none!important;}
@@ -1767,12 +1812,12 @@
         <div class="panel-box">
           <div class="panel-title">Main Drive Gear</div>
           
-          <div class="control-group">
+          <div id="fundamental-frequency-controls" class="control-group">
             <label><span id="fundamental-label">Fundamental Frequency</span> <span id="val-fundamental" class="val">1.0 Hz</span></label>
             <!-- Logarithmic positive frequencies with a true 0 Hz stop at the far-left endpoint. -->
             <input type="range" id="slider-fundamental" min="-1" max="4.38" step="0.005" value="-1">
             <!-- Precise Number Input -->
-            <div style="display: flex; align-items: center; gap: 6px; margin-top: 6px;">
+            <div class="fundamental-precision-row" style="display: flex; align-items: center; gap: 6px; margin-top: 6px;">
               <input type="number" id="input-fundamental" min="0" max="24000" step="0.1" value="0.0">
               <span id="fundamental-unit" style="font-size: 0.8rem; color: var(--text-muted);">Hz</span>
             </div>
@@ -1780,8 +1825,8 @@
             <div class="btn-group" style="margin-top: 8px;">
               <button class="btn-freq-preset" data-freq="0.5" style="flex:1; padding:3px 4px; font-size:0.7rem;">0.5</button>
               <button class="btn-freq-preset" data-freq="1.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">1</button>
-              <button class="btn-freq-preset" data-freq="10.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">10</button>
-              <button class="btn-freq-preset" data-freq="100.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">100</button>
+              <button class="btn-freq-preset" data-freq="19.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">19</button>
+              <button class="btn-freq-preset" data-freq="199.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">199</button>
               <button class="btn-freq-preset" data-freq="432.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">432</button>
               <button class="btn-freq-preset" data-freq="440.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">440</button>
               <button class="btn-freq-preset" data-freq="1000.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">1k</button>
@@ -2789,9 +2834,22 @@
       }
     }
 
+    function slewGain(gainNode, target, timeConstant = 0.015) {
+      if (!gainNode || !state.audioCtx) return;
+      const now = state.audioCtx.currentTime;
+      const tc = Math.max(0.001, Number(timeConstant) || 0.015);
+      try {
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(Math.max(0, Math.min(1, Number(gainNode.gain.value) || 0)), now);
+        gainNode.gain.setTargetAtTime(Math.max(0, Math.min(1, Number(target) || 0)), now, tc);
+      } catch (_) {}
+    }
+
     function stopAudio() {
       if (state.audioCtx) {
-        state.audioCtx.suspend();
+        slewGain(state.masterGain, 0, 0.012);
+        state.gears.forEach(g => slewGain(g.gainNode, 0, 0.012));
+        window.setTimeout(() => { try { state.audioCtx?.suspend(); } catch (_) {} }, 18);
       }
       state.audioRunning = false;
       state.audioDriver.playing = false;
@@ -4255,6 +4313,7 @@
             if (neighbor) neighbor.neighbors.delete(clickedGear.id);
           });
           clickedGear.neighbors.clear();
+          branch.forEach(g => { if (g?.gainNode) slewGain(g.gainNode, 0, 0.015); });
           updateKinematicNetwork();
           clickedGear.angle = clickedGear.dragStartAngle;
         }
@@ -6922,6 +6981,8 @@
 
       const closestPanel = selector => document.querySelector(selector)?.closest('.panel-box') || null;
       const mainPanel = closestPanel('#input-fundamental');
+      const fundamentalControls = document.getElementById('fundamental-frequency-controls');
+      const mainTeeth = document.querySelector('.main-teeth-mobile-row');
       const mainShape = document.querySelector('#select-main-gear-shape')?.closest('.control-group');
       const keyboard = closestPanel('#virtual-keyboard');
       const midi = closestPanel('#btn-midi-enable');
@@ -6931,7 +6992,7 @@
       const master = closestPanel('#btn-toggle-audio');
       const openRatioPanel = document.querySelector('#btn-open-ratio-palette')?.closest('.panel-box');
 
-      [ratioModal, mainPanel, mainShape, keyboard, midi, binaural, audioDriver, gearNetwork, master, openRatioPanel].forEach(remember);
+      [ratioModal, mainPanel, fundamentalControls, mainShape, keyboard, midi, binaural, audioDriver, gearNetwork, master, openRatioPanel].forEach(remember);
 
       function clearTrackChildren(){
         while (track.firstChild) track.removeChild(track.firstChild);
@@ -6941,6 +7002,10 @@
         app.classList.remove('mobile-carousel-mode');
         setKeyboardPinned(false);
         clearTrackChildren();
+        const restoredMainPanelTitle = mainPanel?.querySelector('.panel-title');
+        if (restoredMainPanelTitle) restoredMainPanelTitle.textContent = 'Main Drive Gear';
+        const restoredShapeLabel = mainShape?.querySelector('label');
+        if (restoredShapeLabel) restoredShapeLabel.firstChild.textContent = 'Fundamental Gear Shape';
         const groups = new Map();
         records.forEach((pos,node) => {
           if (!pos.parent) return;
@@ -6971,9 +7036,21 @@
         app.classList.add('mobile-carousel-mode');
         clearTrackChildren();
 
+        // Fundamental/A is kept outside the swipe track so it stays available on every tab.
+        if (fundamentalControls) fundamentalControls.remove();
+        if (mainPanel && mainShape) {
+          const title = mainPanel.querySelector('.panel-title');
+          if (title) title.textContent = 'MAIN GEAR DRIVE';
+          const teethNode = mainTeeth || mainPanel.querySelector('.main-teeth-mobile-row');
+          if (teethNode) mainPanel.insertBefore(mainShape, teethNode);
+          else mainPanel.appendChild(mainShape);
+          const shapeLabel = mainShape.querySelector('label');
+          if (shapeLabel) shapeLabel.firstChild.textContent = 'Gear Shape';
+        }
+
         const plan = [
           ['RATIO & HARMONICS', [ratioModal]],
-          ['', [mainPanel, mainShape]],
+          ['MAIN GEAR DRIVE', [mainPanel]],
           ['KEYBOARD', [keyboard]],
           ['MIDI INPUT', [midi]],
           ['BINAURAL', [binaural]],
@@ -7016,7 +7093,10 @@
         const next=document.createElement('button'); next.className='mobile-carousel-arrow'; next.type='button'; next.textContent='›'; next.setAttribute('aria-label','Next settings');
         prev.addEventListener('click',()=>updateActive(activeIndex-1,true));
         next.addEventListener('click',()=>updateActive(activeIndex+1,true));
-        tools.append(prev,next);
+        const frequencyDock=document.createElement('div');
+        frequencyDock.id='mobile-frequency-dock';
+        if (fundamentalControls) frequencyDock.appendChild(fundamentalControls);
+        tools.append(prev,frequencyDock,next);
         sidebar.appendChild(tools);
 
         dots=document.createElement('div');
