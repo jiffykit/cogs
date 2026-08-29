@@ -294,12 +294,13 @@
     #selected-gear-detail {
       display:none;
       position:absolute; top:18px; right:18px; width:min(360px,calc(100% - 36px));
-      max-height:min(68%, 680px); overflow:hidden; z-index:1200;
+      max-height:min(68%, 680px); overflow:hidden; z-index:5000;
+      touch-action:none;
       background:rgba(18,12,7,.96); border:1px solid #8a6230;
       box-shadow:0 14px 36px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,224,150,.16);
     }
     #selected-gear-detail #inspector-panel { max-height:calc(min(68vh,680px) - 42px); overflow-y:auto; }
-    #selected-gear-detail .selected-gear-header { color:#f1d184; letter-spacing:.4px; }
+    #selected-gear-detail .selected-gear-header { color:#f1d184; letter-spacing:.4px; cursor:move; touch-action:none; user-select:none; }
     #hud-top-right { z-index:3000 !important; top:118px !important; bottom:auto !important; right:18px !important; }
     #hud-top-right.hno-collapsed { z-index:3050 !important; }
     #hud-top-right:not(.hno-collapsed) { z-index:3100 !important; max-height:min(60vh,620px); overflow:auto; }
@@ -309,6 +310,8 @@
       #hud-top-right { top:104px !important; right:8px !important; bottom:auto !important; }
       #hud-top-right:not(.hno-collapsed) { max-height:55vh !important; z-index:5100 !important; }
       #ratio-palette-modal { z-index:5200 !important; }
+      #ratio-palette-modal { transform:none !important; --ratio-modal-scale:1 !important; }
+      #ratio-palette-scale-handle { display:none !important; }
     }
 
     /* Canvas-mounted steampunk frequency control. */
@@ -1549,6 +1552,18 @@
       }
     }
 
+
+    @media (min-width:901px) {
+      #ratio-palette-modal { --ratio-modal-scale:1; transform:scale(var(--ratio-modal-scale)); transform-origin:top left; }
+      #ratio-palette-scale-handle {
+        position:absolute; right:2px; bottom:2px; width:18px; height:18px; z-index:10;
+        display:flex; align-items:center; justify-content:center; cursor:nwse-resize; touch-action:none;
+        color:#f1d184; font:700 12px Georgia,serif; border:1px solid #8a6230; border-radius:4px;
+        background:rgba(39,24,10,.92); box-shadow:inset 0 1px 2px rgba(255,255,255,.18),0 1px 3px rgba(0,0,0,.5);
+        user-select:none;
+      }
+      #ratio-palette-scale-handle::before { content:'◢'; }
+    }
 </style>
 </head>
 <body>
@@ -1629,6 +1644,7 @@
 
     <!-- FLOATING RATIO / HARMONIC PALETTE -->
     <section id="ratio-palette-modal" aria-label="Ratio and Harmonic Palette">
+      <div id="ratio-palette-scale-handle" title="Scale harmonic presets" aria-label="Scale harmonic presets" role="button" tabindex="0"></div>
       <div class="floating-header" id="ratio-palette-header">
         <div class="floating-title">HARMONIC PRESETS <span id="rational-palette-count" style="font-weight:400; color:var(--text-muted); font-size:0.62rem;"></span></div>
         <div class="floating-actions">
@@ -6471,6 +6487,79 @@
       ratioPaletteHeader.addEventListener('pointercancel', endRatioPaletteDrag);
     }
     mobilePortraitLayoutQuery.addEventListener?.('change', syncRatioPaletteResponsiveState);
+
+    // Detached Selected Gear Detail: drag its header to reposition it anywhere on screen.
+    const selectedGearDetail = document.getElementById('selected-gear-detail');
+    const selectedGearHeader = selectedGearDetail?.querySelector('.selected-gear-header');
+    let selectedGearDrag = null;
+    selectedGearHeader?.addEventListener('pointerdown', e => {
+      if (e.target.closest('button,input,select,textarea,a')) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const r = selectedGearDetail.getBoundingClientRect();
+      selectedGearDetail.style.left = `${r.left}px`;
+      selectedGearDetail.style.top = `${r.top}px`;
+      selectedGearDetail.style.right = 'auto';
+      selectedGearDrag = { pointerId:e.pointerId, dx:e.clientX-r.left, dy:e.clientY-r.top };
+      try { selectedGearHeader.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault(); e.stopPropagation();
+    });
+    selectedGearHeader?.addEventListener('pointermove', e => {
+      if (!selectedGearDrag || selectedGearDrag.pointerId !== e.pointerId) return;
+      const r = selectedGearDetail.getBoundingClientRect();
+      const x = Math.max(4, Math.min(window.innerWidth-r.width-4, e.clientX-selectedGearDrag.dx));
+      const y = Math.max(4, Math.min(window.innerHeight-r.height-4, e.clientY-selectedGearDrag.dy));
+      selectedGearDetail.style.left = `${x}px`;
+      selectedGearDetail.style.top = `${y}px`;
+      e.preventDefault(); e.stopPropagation();
+    });
+    const endSelectedGearDrag = e => {
+      if (!selectedGearDrag || selectedGearDrag.pointerId !== e.pointerId) return;
+      selectedGearDrag = null;
+      try { selectedGearHeader.releasePointerCapture?.(e.pointerId); } catch (_) {}
+      e.stopPropagation?.();
+    };
+    selectedGearHeader?.addEventListener('pointerup', endSelectedGearDrag);
+    selectedGearHeader?.addEventListener('pointercancel', endSelectedGearDrag);
+
+    // Desktop Harmonic Presets scaling: 1.0x down to 0.2x (5x smaller).
+    const ratioPaletteScaleHandle = document.getElementById('ratio-palette-scale-handle');
+    let ratioPaletteScale = 1;
+    let ratioPaletteScaleDrag = null;
+    const applyRatioPaletteScale = scale => {
+      ratioPaletteScale = Math.max(0.2, Math.min(1, Number(scale) || 1));
+      if (!ratioPaletteModal || isMobilePortraitLayout()) return;
+      ratioPaletteModal.style.setProperty('--ratio-modal-scale', ratioPaletteScale.toFixed(3));
+      const close = document.getElementById('btn-close-ratio-palette');
+      if (close) { close.style.transform=`scale(${(1/ratioPaletteScale).toFixed(3)})`; close.style.transformOrigin='center center'; }
+      if (ratioPaletteScaleHandle) { ratioPaletteScaleHandle.style.transform=`scale(${(1/ratioPaletteScale).toFixed(3)})`; ratioPaletteScaleHandle.style.transformOrigin='right bottom'; }
+    };
+    ratioPaletteScaleHandle?.addEventListener('pointerdown', e => {
+      if (isMobilePortraitLayout()) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      ratioPaletteScaleDrag = { pointerId:e.pointerId, startX:e.clientX, startScale:ratioPaletteScale };
+      try { ratioPaletteScaleHandle.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault(); e.stopPropagation();
+    });
+    ratioPaletteScaleHandle?.addEventListener('pointermove', e => {
+      if (!ratioPaletteScaleDrag || ratioPaletteScaleDrag.pointerId !== e.pointerId) return;
+      const rect = ratioPaletteModal.getBoundingClientRect();
+      const baseW = Math.max(180, rect.width / Math.max(0.2, ratioPaletteScale));
+      const next = ratioPaletteScaleDrag.startScale * (1 + (e.clientX-ratioPaletteScaleDrag.startX)/baseW);
+      applyRatioPaletteScale(next);
+      e.preventDefault(); e.stopPropagation();
+    });
+    const endRatioScaleDrag = e => {
+      if (!ratioPaletteScaleDrag || ratioPaletteScaleDrag.pointerId !== e.pointerId) return;
+      ratioPaletteScaleDrag=null;
+      try { ratioPaletteScaleHandle.releasePointerCapture?.(e.pointerId); } catch (_) {}
+      e.stopPropagation?.();
+    };
+    ratioPaletteScaleHandle?.addEventListener('pointerup', endRatioScaleDrag);
+    ratioPaletteScaleHandle?.addEventListener('pointercancel', endRatioScaleDrag);
+    window.addEventListener('resize', () => {
+      if (!isMobilePortraitLayout()) applyRatioPaletteScale(ratioPaletteScale);
+    });
+    applyRatioPaletteScale(1);
     window.addEventListener('resize', syncRatioPaletteResponsiveState);
     syncRatioPaletteResponsiveState();
 
