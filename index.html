@@ -237,7 +237,7 @@
     .rational-gear-thumb:hover { border-color: var(--accent-cyan); background: rgba(56,189,248,.11); }
     .rational-gear-thumb.first-use-2to1 { border-color: var(--accent-cyan); box-shadow: 0 0 18px rgba(6,182,212,.22); animation: firstUseGearPulse 1.6s ease-in-out infinite; }
     @keyframes firstUseGearPulse { 0%,100%{ box-shadow:0 0 10px rgba(6,182,212,.12); transform:translateY(0); } 50%{ box-shadow:0 0 24px rgba(6,182,212,.36); transform:translateY(-2px); } }
-    .rational-gear-thumb .thumb-gear { width: 84px; height: 84px; display:block; margin:0 auto 2px; overflow:visible; }
+    .rational-gear-thumb .thumb-gear { display:none !important; }
     .rational-gear-thumb .thumb-ratio { font-weight: 900; font-size: 1rem; line-height: 1; color: var(--accent-cyan); }
     .rational-gear-thumb .thumb-name { font-size: .62rem; color: var(--text-main); line-height: 1.1; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; padding:0 3px; }
     .rational-gear-thumb .thumb-meta { font-size: .54rem; color: var(--text-muted); line-height:1.1; }
@@ -327,7 +327,7 @@
       user-select:none;
       cursor:grab;
       touch-action:none;
-      transform:translate(-50%, 0);
+      transform:none;
       display:none;
     }
     #canvas-crank-control.is-visible { display:block; }
@@ -650,10 +650,13 @@
       flex: 0 0 auto;
     }
 
-    /* The app content sits below the permanent toolbar. */
+    /* Desktop toolbar is hidden; do not reserve an empty brown 72px strip. */
     #app-container {
       box-sizing: border-box;
-      padding-top: 72px;
+      padding-top: 0;
+    }
+    @media (max-width:900px) and (orientation:portrait) {
+      #app-container { padding-top: 72px; }
     }
 
     #hud-network-body {
@@ -1015,7 +1018,7 @@
     #ratio-palette-modal .floating-header { background:linear-gradient(180deg,rgba(84,57,28,.36),rgba(18,12,7,.25)); border-color:#674927; }
     .badge-ultrasonic { background:rgba(177,57,37,.22); color:#ff8165; border-color:#c94a34; }
     /* Lower the canvas CRANK control so the handle can rotate without colliding with it. */
-    #canvas-crank-control { transform:translate(-50%, 0); }
+    #canvas-crank-control { transform:none; }
     @media (max-width:900px) and (orientation:portrait) {
       #canvas-crank-control { width:122px; min-height:60px; }
       #hud-bottom-left button, #hud-top-right button { font-family:Georgia,'Times New Roman',serif; }
@@ -1114,15 +1117,29 @@
     .ratio-add-result { min-height:13px; margin-top:3px; font-size:.59rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     #mobile-add-ratio-gear { margin-left:auto; padding:4px 9px; font-size:.64rem; }
     @media (max-width:900px) and (orientation:portrait) {
-      .ratio-add-controls { margin-top:4px; padding:5px 6px; }
-      .ratio-add-row { gap:4px; margin-top:3px; }
-      .ratio-add-row label { font-size:.58rem; }
-      .ratio-add-row input[type="number"], .ratio-add-row select { height:23px; min-width:45px; font-size:.66rem; padding:1px 3px; }
-      .ratio-add-primary input[type="number"] { width:49px; }
-      .ratio-add-secondary input[type="number"] { width:44px; }
-      #mobile-add-ratio-gear { padding:3px 7px; font-size:.59rem; }
-      .ratio-add-result { font-size:.54rem; }
+      .ratio-add-controls { margin-top:4px; padding:4px 5px; }
+      .ratio-add-row { gap:3px; margin-top:2px; flex-wrap:nowrap; }
+      .ratio-add-row label { font-size:.56rem; gap:2px; white-space:nowrap; }
+      .ratio-add-row input[type="number"], .ratio-add-row select { height:21px; min-width:0; width:3.4ch; box-sizing:border-box; font-size:.63rem; padding:1px 2px; }
+      .ratio-add-primary input[type="number"], .ratio-add-secondary input[type="number"] { width:3.4ch; }
+      .ratio-add-row select { width:3.4ch; padding-left:0; padding-right:0; }
+      .ratio-add-check { flex:0 0 auto; }
+      .ratio-add-check input { width:auto !important; }
+      .ratio-unit { display:none !important; }
+      #mobile-add-ratio-gear { flex:0 0 auto; padding:3px 6px; font-size:.57rem; }
+      .ratio-add-result { font-size:.52rem; }
     }
+    @media (max-width:900px) and (orientation:portrait) {
+      #ratio-add-controls .ratio-add-row.ratio-add-secondary {
+        align-items:center;
+        overflow:hidden;
+      }
+      #ratio-add-controls .ratio-add-row.ratio-add-secondary > * {
+        min-width:0;
+      }
+      #ratio-add-controls .ratio-add-check { white-space:nowrap; }
+    }
+
 
     /* MOBILE PORTRAIT: two-stage canvas + settings carousel. Desktop is intentionally untouched. */
     @media (max-width:900px) and (orientation:portrait) {
@@ -1279,7 +1296,28 @@
         overflow:hidden !important;
       }
       .mobile-settings-slide #ratio-palette-modal .shape-generator { margin-bottom:4px !important; }
-      #btn-pin-keyboard { display:none !important; }
+      .keyboard-carousel-pin {
+        margin-left:auto !important; width:24px !important; height:24px !important; min-width:24px !important;
+        padding:0 !important; border-radius:50% !important; border:1px solid #6e481b !important;
+        background:radial-gradient(circle at 30% 28%,#fff0b0 0%,#d4a64e 42%,#81551c 74%,#2a1708 100%) !important;
+        color:#2b1808 !important; font-size:12px !important; line-height:22px !important;
+        box-shadow:inset 0 1px 2px rgba(255,255,255,.42),0 2px 4px rgba(0,0,0,.55) !important;
+        display:inline-flex !important; align-items:center !important; justify-content:center !important;
+        cursor:pointer !important; touch-action:none !important; flex:0 0 24px !important;
+      }
+      .keyboard-pin-icon {
+        position:relative; display:block; width:10px; height:10px; border-radius:50%;
+        background:radial-gradient(circle at 30% 28%,#fff4c2 0%,#e4b95d 42%,#8a5e20 78%,#2b1808 100%);
+        box-shadow:0 1px 1px rgba(255,255,255,.28);
+      }
+      .keyboard-pin-icon::after {
+        content:""; position:absolute; left:4px; top:7px; width:2px; height:7px;
+        border-radius:1px; background:linear-gradient(#c9973b,#5c3b10); transform:rotate(35deg);
+        transform-origin:top center;
+      }
+      .keyboard-carousel-pin[aria-pressed="true"] {
+        box-shadow:inset 0 0 0 2px #f1d184,0 0 8px rgba(241,209,132,.75) !important;
+      }
 
       /* Detached overlays stay above the carousel and never become part of its stacking context. */
       #selected-gear-detail { z-index:5000 !important; }
@@ -1337,6 +1375,180 @@
         min-height:60px !important;
       }
     }
+
+    /* Final mobile ratio-palette compaction: thumbnails always get their own
+       complete row; controls begin below them and cannot overlap them. */
+    @media (max-width:900px) and (orientation:portrait) {
+      #ratio-palette-modal .floating-body {
+        display:flex !important;
+        flex-direction:column !important;
+        gap:0 !important;
+        padding:4px 6px 4px !important;
+        overflow:visible !important;
+      }
+
+      #ratio-palette-modal .floating-body > #rational-gear-palette {
+        order:1 !important;
+        position:relative !important;
+        flex:0 0 57px !important;
+        height:57px !important;
+        min-height:57px !important;
+        margin:0 !important;
+        z-index:1 !important;
+      }
+
+      #ratio-palette-modal .floating-body > .shape-generator {
+        order:2 !important;
+        flex:0 0 auto !important;
+        margin:0 0 2px !important;
+        padding:0 0 2px !important;
+        border-bottom:0 !important;
+        position:relative !important;
+        z-index:2 !important;
+      }
+
+      /* Gear Shape label and selector share one compact row. */
+      #ratio-palette-modal .shape-generator > .panel-title {
+        display:inline-flex !important;
+        width:auto !important;
+        margin:0 5px 0 0 !important;
+        vertical-align:middle !important;
+        font-size:.65rem !important;
+        line-height:21px !important;
+      }
+      #ratio-palette-modal .shape-generator > #select-palette-gear-shape {
+        display:inline-block !important;
+        vertical-align:middle !important;
+        width:calc(100% - 76px) !important;
+        max-width:none !important;
+        height:21px !important;
+        min-height:21px !important;
+        padding:1px 4px !important;
+        font-size:.60rem !important;
+        box-sizing:border-box !important;
+      }
+
+      #palette-shape-description {
+        display:none !important;
+      }
+      #palette-shape-params {
+        margin-top:2px !important;
+      }
+
+      #ratio-palette-modal .shape-generator > div:last-child {
+        margin-top:2px !important;
+      }
+
+      /* The controls frame starts after the full thumbnail row. */
+      #ratio-palette-modal #ratio-add-controls {
+        order:3 !important;
+        position:relative !important;
+        top:auto !important;
+        bottom:auto !important;
+        margin:2px 0 0 !important;
+        padding:3px 4px !important;
+        clear:both !important;
+        z-index:3 !important;
+        box-sizing:border-box !important;
+      }
+
+      #ratio-palette-modal #ratio-add-controls .ratio-add-row {
+        margin-top:1px !important;
+        gap:2px !important;
+      }
+
+      #ratio-palette-modal #ratio-add-controls .ratio-add-row:first-child {
+        margin-top:0 !important;
+      }
+
+      #ratio-palette-modal #ratio-add-controls .ratio-add-row input[type="number"],
+      #ratio-palette-modal #ratio-add-controls .ratio-add-row select {
+        width:3.2ch !important;
+        min-width:3.2ch !important;
+        max-width:3.2ch !important;
+        height:20px !important;
+        padding:1px !important;
+      }
+
+      #ratio-palette-modal #mobile-add-ratio-gear {
+        margin-left:auto !important;
+        padding:2px 5px !important;
+        line-height:16px !important;
+      }
+    }
+
+
+    .palette-shape-row{display:flex;align-items:center;gap:4px;min-width:0;flex-wrap:nowrap;}
+    .palette-shape-row .palette-gear-shape-label,
+    .palette-shape-row .palette-tooth-shape-label{font-size:.61rem!important;line-height:20px!important;white-space:nowrap!important;flex:0 0 auto;}
+    .palette-shape-row select{height:21px!important;min-height:21px!important;padding:1px 3px!important;font-size:.58rem!important;min-width:0!important;}
+    #select-palette-gear-shape{flex:1 1 76px;width:auto!important;}
+    #select-palette-tooth-waveform{flex:0 1 68px;width:auto!important;}
+    #slider-palette-tooth-width{flex:1 1 52px;min-width:34px;width:auto;margin:0 1px;}
+    .tooth-wave-preview{height:22px;min-width:44px;flex:0 1 92px;overflow:hidden;border:1px solid #6d4b25;border-radius:4px;background:rgba(0,0,0,.28);}
+    .tooth-wave-preview svg{display:block;width:100%;height:100%;}
+    #inspector-tooth-wave-preview{margin-top:4px;height:32px;border:1px solid var(--border-color);border-radius:4px;overflow:hidden;background:rgba(0,0,0,.18);}
+    #inspector-tooth-wave-preview svg{display:block;width:100%;height:100%;}
+    @media (max-width:900px) and (orientation:portrait){
+      #ratio-palette-modal .palette-shape-row{gap:3px;}
+      #ratio-palette-modal .palette-shape-row select{font-size:.56rem!important;}
+      #ratio-palette-modal #slider-palette-tooth-width{min-width:28px;}
+    }
+
+
+    /* Compact mobile Main Drive + Shape layout. */
+    @media (max-width:900px) and (orientation:portrait){
+      .mobile-carousel-mode .mobile-slide-title:empty{display:none!important;}
+      .mobile-carousel-mode .main-teeth-mobile-row{
+        display:grid!important; grid-template-columns:auto 4.5ch minmax(0,1fr);
+        align-items:center; gap:4px; margin:2px 0 3px!important;
+      }
+      .mobile-carousel-mode .main-teeth-mobile-row label{white-space:nowrap;font-size:.65rem!important;}
+      .mobile-carousel-mode #input-main-teeth{width:4.5ch!important;min-width:4.5ch!important;max-width:4.5ch!important;box-sizing:border-box;padding:2px!important;}
+      .mobile-carousel-mode #select-main-teeth-preset{width:100%!important;min-width:0!important;height:22px!important;padding:1px 3px!important;font-size:.58rem!important;}
+      .mobile-carousel-mode .main-shape-mobile-row{margin:2px 0 0!important;}
+      .mobile-carousel-mode .main-shape-mobile-row>label{display:block;font-size:.65rem!important;margin-bottom:2px!important;}
+      .mobile-carousel-mode .main-shape-controls{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.9fr) minmax(42px,1fr) 3.5ch;align-items:center;gap:3px;}
+      .mobile-carousel-mode #select-main-gear-shape,.mobile-carousel-mode #select-main-tooth-waveform{width:100%!important;min-width:0!important;height:21px!important;padding:1px 3px!important;font-size:.55rem!important;}
+      .mobile-carousel-mode #slider-main-tooth-width{width:100%!important;min-width:30px!important;margin:0!important;}
+      .mobile-carousel-mode .main-tooth-width-value{font-size:.58rem;color:var(--accent-cyan);text-align:right;white-space:nowrap;}
+      .mobile-carousel-mode #main-shape-params{margin-top:2px!important;}
+      .mobile-carousel-mode #main-shape-description{display:none!important;}
+    }
+
+    @media (max-width:900px) and (orientation:portrait) {
+      #app-container.mobile-carousel-mode.keyboard-carousel-locked #sidebar > .sidebar-scroll {
+        overflow-x:hidden !important;
+        scroll-snap-type:none !important;
+        touch-action:none !important;
+      }
+      #app-container.mobile-carousel-mode.keyboard-carousel-locked #sidebar > .sidebar-scroll .keyboard-carousel-pin {
+        pointer-events:auto !important;
+      }
+    }
+
+    /* Mobile carousel interaction pins: controls/keyboard own the touch gesture so
+       horizontal page swiping cannot steal a slider drag or a keyboard performance. */
+    @media (max-width:900px) and (orientation:portrait) {
+      #sidebar > .sidebar-scroll,
+      #sidebar .mobile-settings-slide {
+        overscroll-behavior-x:contain !important;
+      }
+      .mobile-carousel-mode .mobile-settings-slide .carousel-touch-pin,
+      .mobile-carousel-mode .mobile-settings-slide input,
+      .mobile-carousel-mode .mobile-settings-slide select,
+      .mobile-carousel-mode .mobile-settings-slide button,
+      .mobile-carousel-mode .mobile-settings-slide textarea,
+      .mobile-carousel-mode .mobile-settings-slide #virtual-keyboard,
+      .mobile-carousel-mode .mobile-settings-slide .keyboard-container {
+        touch-action:none !important;
+      }
+      .mobile-carousel-mode .mobile-settings-slide .carousel-touch-pin {
+        position:relative;
+        z-index:4;
+      }
+    }
+
 </style>
 </head>
 <body>
@@ -1430,18 +1642,30 @@
           <div style="font-size:.88rem; font-weight:900; color:var(--accent-cyan); letter-spacing:.03em; text-align:center;">Drag any gear to the main flywheel and click START AUDIO</div>
         </div>
         <div class="shape-generator">
-          <div class="panel-title" style="margin-bottom:6px;">Gear Shape</div>
-          <select id="select-palette-gear-shape" title="Shape used when adding or dragging a rational gear">
+          <div class="palette-shape-row">
+            <span class="panel-title palette-gear-shape-label">Gear Shape</span>
+            <select id="select-palette-gear-shape" title="Mechanical contour used by the gear">
             <option value="circular">Circular - Standard Gear</option>
             <option value="ellipse">Elliptical - Smooth acceleration / deceleration</option>
             <option value="square">Square - Flat velocity + corner spikes</option>
             <option value="hexagon">Hexagonal - Flat velocity + 6 corner spikes</option>
             <option value="cardioid">Cardioid - Asymmetrical sawtooth motion</option>
             <option value="heart">Heart - Asymmetrical rise / sharp return</option>
-            <option value="mobius">Möbius - 720° phase return</option>
+            <option value="mobius">Möbius</option>
           </select>
-          <div id="palette-shape-params" style="margin-top:6px;"></div>
-          <div id="palette-shape-description" style="font-size:.62rem;color:var(--text-muted);line-height:1.35;margin-top:4px;">Circular gear with ordinary constant-speed phase.</div>
+          <span class="panel-title palette-tooth-shape-label">Tooth Shape</span>
+          <select id="select-palette-tooth-waveform" title="Waveform produced by each new gear">
+            <option value="sine">Sine</option>
+            <option value="triangle">Triangle</option>
+            <option value="sawtooth" selected>Saw</option>
+            <option value="square">Square</option>
+            <option value="clockwork">Clock</option>
+          </select>
+          <input id="slider-palette-tooth-width" type="range" min="0.02" max="0.98" step="0.01" value="0.50" title="Tooth Shape Width" aria-label="Tooth Shape Width">
+          </div>
+          <div id="palette-tooth-wave-preview" class="tooth-wave-preview" aria-hidden="true"></div>
+          <div id="palette-shape-params" style="margin-top:4px;"></div>
+          <div id="palette-shape-description" aria-hidden="true" style="display:none;"></div>
           <div style="margin-top:6px;">
             <label style="font-size:.65rem;display:flex;justify-content:space-between"><span>Gear Volume</span><span id="val-palette-volume" style="color:var(--accent-cyan)">20%</span></label>
             <input type="range" id="slider-palette-volume" min="0" max="1" step="0.01" value="0.20" style="width:100%">
@@ -1456,9 +1680,9 @@
           </div>
           <div class="ratio-add-row">
             <label class="ratio-add-check"><input id="mobile-add-orbit" type="checkbox"> Orbit</label>
-            <label>Speed <input id="mobile-add-orbit-time" type="number" min="0.25" max="60" step="0.05" value="8.00"><span class="ratio-unit">s/rev</span></label>
-            <label>Direction <select id="mobile-add-orbit-direction"><option value="1">↻</option><option value="-1">↺</option></select></label>
-            <label class="ratio-add-check"><input id="mobile-add-preserve-phase" type="checkbox" checked> Preserve</label>
+            <label>Pan RPM <input id="mobile-add-orbit-time" type="number" min="0.25" max="60" step="0.05" value="8.00" aria-label="Pan RPM"></label>
+            <label>Dir <select id="mobile-add-orbit-direction"><option value="1">↻</option><option value="-1">↺</option></select></label>
+            <label class="ratio-add-check"><input id="mobile-add-preserve-phase" type="checkbox" checked> Phase Lock</label>
           </div>
           <div class="ratio-add-row ratio-add-secondary">
             <label class="ratio-add-check"><input id="mobile-add-ratio-lock" type="checkbox"> Ratio Lock</label>
@@ -1486,16 +1710,6 @@
           <div class="control-group" style="margin-top: 12px;">
             <label>Master Volume <span id="val-master-vol" class="val">30%</span></label>
             <input type="range" id="input-master-vol" min="0" max="1" step="0.01" value="0.3">
-          </div>
-          <div class="control-group">
-            <label>Waveform</label>
-            <select id="select-waveform">
-              <option value="sine">Sine Wave (Pure Harmonic)</option>
-              <option value="triangle">Triangle</option>
-              <option value="sawtooth" selected>Sawtooth</option>
-              <option value="square">Square</option>
-              <option value="clockwork">Clockwork - Metallic mechanical ticks</option>
-            </select>
           </div>
           <div id="clockwork-controls" class="control-group" style="display:none; margin-top:8px; border-top:1px solid var(--border-color); padding-top:7px;">
             <label>Clockwork Tick Width <span id="val-clockwork-width" class="val">4 ms</span></label>
@@ -1558,12 +1772,10 @@
             </div>
           </div>
 
-          <div class="control-group">
-            <label>Main Gear Teeth (1 - 15015) <span id="val-main-teeth" class="val">120</span></label>
+          <div class="control-group main-teeth-mobile-row">
+            <label>Main Gear Teeth <span id="val-main-teeth" class="val">120</span></label>
             <input type="number" id="input-main-teeth" min="1" max="15015" value="120">
-            <div style="margin-top: 6px;">
-              <label>Teeth Presets (Primes & Coprimes)</label>
-              <select id="select-main-teeth-preset">
+            <select id="select-main-teeth-preset" aria-label="Teeth Preset">
                 <option value="" disabled selected>Select Preset...</option>
                 <option value="60">60 — 3×4×5 (Compact Triad Hub)</option>
                 <option value="120">120 — 4×5×6 (2³×3×5 - Standard JI Hub)</option>
@@ -1576,13 +1788,13 @@
                 <option value="2310">2310 — 2×3×5×7×11 (11-Limit Primorial Hub)</option>
                 <option value="30030">30030 — 2×3×5×7×11×13 (13-Limit Primorial Hub)</option>
               </select>
-            </div>
           </div>
         </div>
 
-        <div class="control-group">
+        <div class="control-group main-shape-mobile-row">
           <label>Fundamental Gear Shape</label>
-          <select id="select-main-gear-shape">
+          <div class="main-shape-controls">
+          <select id="select-main-gear-shape" aria-label="Fundamental Gear Shape">
             <option value="circular">Circular - Standard Gear</option>
             <option value="ellipse">Elliptical - Tunable focal geometry</option>
             <option value="square">Square - Tunable corner sharpness</option>
@@ -1591,14 +1803,21 @@
             <option value="heart">Heart - Tunable width / point</option>
             <option value="mobius">Möbius - Tunable twist / width</option>
           </select>
-          <div id="main-shape-params" style="margin-top:6px;"></div>
-          <div id="main-shape-description" style="font-size:.62rem;color:var(--text-muted);line-height:1.35;margin-top:4px;"></div>
+          <select id="select-main-tooth-waveform" aria-label="Main Gear Tooth Shape">
+            <option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth" selected>Saw</option><option value="square">Square</option><option value="clockwork">Clock</option>
+          </select>
+          <input id="slider-main-tooth-width" type="range" min="0.02" max="0.98" step="0.01" value="0.50" aria-label="Main Gear Tooth Shape Width" title="Tooth Shape Width">
+          <span id="val-main-tooth-width" class="main-tooth-width-value">0.50</span>
+          </div>
+          <div id="main-shape-params" style="margin-top:3px;"></div>
+          <div id="main-shape-description" style="display:none;"></div>
         </div>
 
         <!-- PIANO KEYBOARD -->
         <div class="panel-box">
           <div class="panel-title keyboard-panel-title">
             <span id="hud-current-note" style="color: var(--accent-cyan); font-weight: bold;">C (1.00x)</span>
+            <button id="btn-pin-keyboard" class="keyboard-carousel-pin" type="button" aria-pressed="false" aria-label="Pin keyboard carousel" title="Pin keyboard carousel"><span class="keyboard-pin-icon" aria-hidden="true"></span></button>
           </div>
           <div class="keyboard-container" id="virtual-keyboard">
             <div class="key white-key" data-note="0" data-key="KeyA"><span></span></div>
@@ -1877,10 +2096,14 @@
         hovered: false,
         deleteHovered: false,
         dragAngle: null,
+        angularSamples: [],
+        angularAccum: 0,
+        lastSpeedUpdateTime: 0,
         savedFrequency: 1.0,
         controlX: null,
         controlY: null,
-        savedDriverRPM: 33.3
+        savedDriverRPM: 33.3,
+        beltTargetId: null
       },
       polyMode: false,
       jiKeyboard: false,          // Retune POLY chords to nearest simple JI ratios
@@ -1931,6 +2154,8 @@
         this.orbitPhase = 0;
         this.orbitPreservePhase = true;
         this.shape = 'circular';
+        this.toothWaveform = isMain ? state.waveform : state.waveform;
+        this.toothWidth = 0.50; // 0..1 shape width; 0.50 = neutral/default
         this.magneticMesh = true; // fundamental constraint; always enabled
         this.shapeParams = { ellipseA: 1.0, ellipseEccentricity: 0.45, polygonSharpness: 0.78, cardioidDepth: 0.72, cardioidBias: 0.5, heartWidth: 0.82, heartPoint: 0.72, mobiusTwist: 1.0, mobiusWidth: 0.16 };
       }
@@ -2061,6 +2286,44 @@
       return dist <= 16 ? geo : null;
     }
 
+    function getBeltEndpointHitTarget(wx, wy) {
+      const main = getMainGear();
+      if (!main || !state.crankTool.enabled) return null;
+      const radius = Math.max(14, Math.min(28, main.outerRadius * 0.22));
+      return Math.hypot(wx - main.x, wy - main.y) <= radius ? main : null;
+    }
+
+    function getGearUnderPointerExcluding(wx, wy, excludeId) {
+      const g = getGearAtPosition(wx, wy);
+      return g && g.id !== excludeId ? g : null;
+    }
+
+    function makeGearFundamental(newMain) {
+      if (!newMain) return false;
+      const oldMain = getMainGear();
+      if (oldMain === newMain) return false;
+      const oldMainId = oldMain?.id;
+      state.gears.forEach(g => { g.isMain = false; });
+      newMain.isMain = true;
+      // Main wheel is always the orange listener/fundamental wheel.
+      newMain.color = '#f59e0b';
+      if (oldMain && oldMain.id !== newMain.id) {
+        const idx = Math.max(0, state.gears.filter(g => !g.isMain).findIndex(g => g.id === oldMain.id));
+        oldMain.color = COLOR_PALETTE[idx % COLOR_PALETTE.length];
+      }
+      state.mainTeeth = newMain.teeth;
+      newMain.ratio = 1;
+      newMain.freq = state.fundamentalFreq;
+      state.crankTool.beltTargetId = newMain.id;
+      state.masterPhase = 0;
+      updateKinematicNetwork();
+      forceGearMod0Sync('belt-fundamental-change');
+      fitMachineToView(!!state.crankTool.enabled);
+      updateInspector();
+      renderGearList();
+      return oldMainId !== newMain.id;
+    }
+
     function removeCrankTool() {
       const tool = state.crankTool;
       if (!tool.enabled) return;
@@ -2188,8 +2451,8 @@
         state.gears.forEach(g => {
           if (g.ratio === 0) return;
           const osc = state.audioCtx.createOscillator();
-          if (state.waveform === 'clockwork') osc.setPeriodicWave(getClockworkWave(state.audioCtx, g));
-          else osc.type = state.waveform;
+          if (getGearToothWaveform(g) === 'clockwork') osc.setPeriodicWave(getClockworkWave(state.audioCtx, g));
+          else osc.setPeriodicWave(getToothPeriodicWave(state.audioCtx, getGearToothWaveform(g), getGearToothWidth(g)));
           osc.frequency.setValueAtTime(Math.max(0.001, g.freq), startAt);
           osc.connect(g.delayNode);
           osc.start(startAt);
@@ -2289,6 +2552,100 @@
       applyCurrentMasterPhaseToGears(warp);
       const label=document.getElementById('audio-driver-status');
       if(label && d.fileName) label.textContent=`${d.fileName} | ${d.detectedFreq.toFixed(1)} Hz | ${d.visualShape}`;
+    }
+
+    /* PER-GEAR TOOTH OSCILLATORS */
+    const toothWaveCache = new Map();
+
+    function clamp01(v) { return Math.max(0, Math.min(1, Number(v) || 0)); }
+    function normalizeToothWidth(v) { return Math.max(0.02, Math.min(0.98, Number.isFinite(Number(v)) ? Number(v) : 0.50)); }
+
+    function toothWaveSample(type, phase, width) {
+      const t = ((phase % 1) + 1) % 1;
+      const w = normalizeToothWidth(width);
+      const sine = Math.sin(TAU * t);
+      if (type === 'square') {
+        // 0.50 = normal 50/50 square. Moving left narrows the pulse toward an impulse;
+        // moving right broadens it into a rectangular duty cycle.
+        const duty = Math.max(0.02, Math.min(0.98, 0.5 + (w - 0.5) * 1.80));
+        return t < duty ? 1 : -1;
+      }
+      if (type === 'triangle') {
+        let y = 1 - 4 * Math.abs(t - 0.5);
+        if (w < 0.5) {
+          const p = 1 + (0.5 - w) * 3.0;
+          y = Math.sign(y) * Math.pow(Math.abs(y), p);
+        } else if (w > 0.5) {
+          const k = 1 + (w - 0.5) * 14;
+          y = Math.tanh(y * k) / Math.tanh(k);
+        }
+        return y;
+      }
+      if (type === 'sawtooth') {
+        const saw = 2 * t - 1;
+        if (w <= 0.5) {
+          // Narrower = more pointy, impulse-like ramp.
+          const p = 1 + (0.5 - w) * 3.0;
+          return Math.sign(saw) * Math.pow(Math.abs(saw), p);
+        }
+        // Wider = increasingly rounded on one side, tending toward a semicircular/sine-like arc.
+        const mix = (w - 0.5) * 2;
+        const curved = Math.sin(Math.PI * (t * 2 - 0.5));
+        return saw * (1 - mix) + curved * mix;
+      }
+      if (type === 'clockwork') return sine;
+      // Sine: left makes a pointier smooth impulse; right progressively squares it.
+      if (w < 0.5) {
+        const p = 1 + (0.5 - w) * 4.0;
+        return Math.sign(sine) * Math.pow(Math.abs(sine), p);
+      }
+      const k = 1 + (w - 0.5) * 16;
+      return Math.tanh(sine * k) / Math.tanh(k);
+    }
+
+    function getToothPeriodicWave(ctx, waveform = 'sawtooth', width = 0.50) {
+      const type = ['sine','triangle','sawtooth','square'].includes(waveform) ? waveform : 'sawtooth';
+      const w = normalizeToothWidth(width);
+      const key = `${type}:${w.toFixed(4)}`;
+      if (toothWaveCache.has(key)) return toothWaveCache.get(key);
+      const bins = 128;
+      const real = new Float32Array(bins);
+      const imag = new Float32Array(bins);
+      const samples = 256;
+      for (let h = 1; h < bins; h++) {
+        let re = 0, im = 0;
+        for (let n = 0; n < samples; n++) {
+          const ph = n / samples;
+          const y = toothWaveSample(type, ph, w);
+          const a = TAU * h * ph;
+          re += y * Math.cos(a);
+          im += y * Math.sin(a);
+        }
+        real[h] = (2 / samples) * re;
+        imag[h] = (2 / samples) * im;
+      }
+      const wave = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+      toothWaveCache.set(key, wave);
+      return wave;
+    }
+
+    function getGearToothWaveform(gear) {
+      return gear?.toothWaveform || state.waveform || 'sawtooth';
+    }
+
+    function getGearToothWidth(gear) {
+      return normalizeToothWidth(gear?.toothWidth);
+    }
+
+    function drawToothWaveGlyph(type = 'sawtooth', width = 0.50, x = 4, y = 3, w = 28, h = 10) {
+      const pts = [];
+      const n = 40;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const v = toothWaveSample(type, t, width);
+        pts.push(`${(x + t*w).toFixed(1)},${(y + h*(0.5 - 0.45*v)).toFixed(1)}`);
+      }
+      return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="rgba(0,0,0,.52)" stroke="rgba(255,255,255,.22)" stroke-width=".7"/><polyline points="${pts.join(' ')}" fill="none" stroke="#f4d17d" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>`;
     }
 
     /* WEB AUDIO ENGINE */
@@ -2501,15 +2858,15 @@
         } else {
           if (!gear.osc) {
             gear.osc = state.audioCtx.createOscillator();
-            if (state.waveform === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
-            else gear.osc.type = state.waveform;
+            if (getGearToothWaveform(gear) === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
+            else gear.osc.setPeriodicWave(getToothPeriodicWave(state.audioCtx, getGearToothWaveform(gear), getGearToothWidth(gear)));
             gear.osc.frequency.setValueAtTime(Math.max(0.001, gear.freq), now);
             gear.osc.connect(gear.delayNode);
             gear.osc.start();
           }
 
-          if (state.waveform === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
-          else gear.osc.type = state.waveform;
+          if (getGearToothWaveform(gear) === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
+          else gear.osc.setPeriodicWave(getToothPeriodicWave(state.audioCtx, getGearToothWaveform(gear), getGearToothWidth(gear)));
         }
 
         // Update 3D Panner Coordinates relative to Main Drive Hub.
@@ -2832,7 +3189,7 @@
       const defs = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${tone[0]}"/><stop offset=".48" stop-color="${tone[1]}"/><stop offset="1" stop-color="${tone[2]}"/></linearGradient></defs>`;
       const ring = `<circle cx="36" cy="36" r="21" fill="none" stroke="${tone[0]}" stroke-opacity=".55" stroke-width="2"/>`;
       const bolts = Array.from({length:6},(_,i)=>{const a=i*Math.PI/3;const x=(36+21*Math.cos(a)).toFixed(1),y=(36+21*Math.sin(a)).toFixed(1);return `<circle cx="${x}" cy="${y}" r="2.1" fill="${tone[0]}" stroke="${tone[2]}" stroke-width=".9"/>`;}).join('');
-      return `<svg class="thumb-gear" style="width:${thumbSize.toFixed(1)}px;height:${thumbSize.toFixed(1)}px" viewBox="0 0 72 72" aria-hidden="true">${defs}<path d="${d}" fill="url(#${gid})" stroke="${tone[0]}" stroke-width="2"/>${spokes}${ring}${bolts}<circle cx="${cx}" cy="${cy}" r="7" fill="${tone[2]}" stroke="${tone[0]}" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="3" fill="${tone[0]}"/>${extra}</svg>`;
+      return `<svg class="thumb-gear" style="width:${thumbSize.toFixed(1)}px;height:${thumbSize.toFixed(1)}px" viewBox="0 0 72 72" aria-hidden="true">${defs}<path d="${d}" fill="url(#${gid})" stroke="${tone[0]}" stroke-width="2"/>${spokes}${ring}${bolts}<circle cx="${cx}" cy="${cy}" r="7" fill="${tone[2]}" stroke="${tone[0]}" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="3" fill="${tone[0]}"/>${extra}${drawToothWaveGlyph(window.__paletteToothWaveform || 'sawtooth', window.__paletteToothWidth || 0.50, 22, 3, 47, 11)}</svg>`;
     }
 
     let firstUseToastTimer = null;
@@ -2854,8 +3211,9 @@
       wrap.innerHTML = '';
       if (countEl) countEl.textContent = `(${candidates.length} · ${mainTeeth}T main)`;
       if (!candidates.length) { wrap.innerHTML = '<div class="rational-empty">No integer-tooth rational gears are available for this MAIN wheel.</div>'; return; }
-      const previewShape = document.getElementById('select-palette-gear-shape')?.value || 'circular';
-      const previewParams = window.__paletteShapeParams || { ...DEFAULT_SHAPE_PARAMS };
+      const previewTooth = document.getElementById('select-palette-tooth-waveform')?.value || window.__paletteToothWaveform || 'sawtooth';
+      const previewToothWidth = normalizeToothWidth(document.getElementById('slider-palette-tooth-width')?.value ?? window.__paletteToothWidth ?? 0.50);
+      window.__paletteToothWaveform = previewTooth; window.__paletteToothWidth = previewToothWidth;
       for (const c of candidates) {
         const card = document.createElement('div');
         card.className = 'rational-gear-thumb' + (c.num === 2 && c.den === 1 ? ' first-use-2to1' : '');
@@ -2864,9 +3222,9 @@
         card.dataset.ratioNum = String(c.num);
         card.dataset.ratioDen = String(c.den);
         card.title = `Drag ${c.num}:${c.den} (${c.name}) - ${c.teeth} teeth - harmonic ${c.num}`;
-        card.innerHTML = `${drawThumbGearSVG(c.teeth, '#38bdf8', previewShape, previewParams, mainTeeth)}<div class="thumb-ratio">${c.num}:${c.den}</div><div class="thumb-name">${c.name}</div><div class="thumb-meta">${c.teeth}T • H${c.num}</div>`;
+        card.innerHTML = `<div class="thumb-ratio">${c.num}:${c.den}</div><div class="thumb-name">${c.name}</div><div class="thumb-meta">${c.teeth}T • H${c.num}</div>`;
         card.addEventListener('dragstart', e => {
-          e.dataTransfer.setData('text/plain', JSON.stringify({ teeth: c.teeth, num: c.num, den: c.den, shape: paletteShapeSelect?.value || 'circular', shapeParams: { ...PALETTE_SHAPE_PARAMS }, volume: PALETTE_GEAR_VOLUME }));
+          e.dataTransfer.setData('text/plain', JSON.stringify({ teeth: c.teeth, num: c.num, den: c.den, shape: paletteShapeSelect?.value || 'circular', shapeParams: { ...PALETTE_SHAPE_PARAMS }, volume: PALETTE_GEAR_VOLUME, toothWaveform: previewTooth, toothWidth: previewToothWidth }));
           e.dataTransfer.effectAllowed = 'copy';
         });
         card.addEventListener('pointerdown', () => { card.style.opacity = '.65'; });
@@ -2878,6 +3236,8 @@
           gear.shape = paletteShapeSelect?.value || 'circular';
           gear.shapeParams = normalizedShapeParams(PALETTE_SHAPE_PARAMS);
           gear.volume = PALETTE_GEAR_VOLUME;
+          gear.toothWaveform = previewTooth;
+          gear.toothWidth = previewToothWidth;
                     document.getElementById('startup-tooltip')?.remove();
               forceGearMod0Sync('palette-click-add');
           updateInspector(); renderGearList();
@@ -3544,15 +3904,34 @@
         const beltHalfWidth = handleR * .72;
         ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round';
 
-        // Leather/chain-belt runs from the crank hub to the main wheel.
-        const beltGrad=ctx.createLinearGradient(crankGeo.pivotX,crankGeo.pivotY,mainX,mainY);
+        // Belt endpoint: normally the orange fundamental dot sits on the main gear;
+        // while dragging, show the candidate destination gear under the pointer.
+        const beltDragging = !!(state.dragState && state.dragState.mode === 'belt');
+        let beltEndX = mainX, beltEndY = mainY;
+        if (beltDragging && Number.isFinite(state.dragState.currentX) && Number.isFinite(state.dragState.currentY)) {
+          beltEndX = state.dragState.currentX;
+          beltEndY = state.dragState.currentY;
+        }
+        const beltGrad=ctx.createLinearGradient(crankGeo.pivotX,crankGeo.pivotY,beltEndX,beltEndY);
         beltGrad.addColorStop(0,'#d7b56a');beltGrad.addColorStop(.45,'#4a3215');beltGrad.addColorStop(1,'#b8873d');
         ctx.strokeStyle=beltGrad;ctx.lineWidth=4.5;
         ctx.beginPath();
-        ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY-beltHalfWidth);ctx.lineTo(mainX,mainY);
-        ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY+beltHalfWidth);ctx.lineTo(mainX,mainY);ctx.stroke();
+        ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY-beltHalfWidth);ctx.lineTo(beltEndX,beltEndY);
+        ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY+beltHalfWidth);ctx.lineTo(beltEndX,beltEndY);ctx.stroke();
         ctx.strokeStyle='rgba(247,211,130,.42)';ctx.lineWidth=1.2;
-        ctx.beginPath();ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY-beltHalfWidth+1.5);ctx.lineTo(mainX,mainY);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(crankGeo.pivotX,crankGeo.pivotY-beltHalfWidth+1.5);ctx.lineTo(beltEndX,beltEndY);ctx.stroke();
+
+        // Small orange belt endpoint marks the current fundamental and is draggable.
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath(); ctx.arc(beltEndX, beltEndY, beltDragging ? 8 : 6, 0, TAU); ctx.fill();
+        if (beltDragging) {
+          const candidate = state.dragState.beltTargetId ? state.gearMap.get(state.dragState.beltTargetId) : null;
+          if (candidate && !candidate.isMain) {
+            ctx.strokeStyle='#f59e0b'; ctx.lineWidth=2; ctx.setLineDash([5,4]);
+            ctx.beginPath(); ctx.arc(candidate.x,candidate.y,candidate.outerRadius+8,0,TAU); ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
 
         // Forged crank arm and simple X handle.
         const metal=ctx.createLinearGradient(crankGeo.pivotX-handleR,crankGeo.pivotY-handleR,crankGeo.pivotX+handleR,crankGeo.pivotY+handleR);
@@ -3721,7 +4100,27 @@
 
       const crankDeleteHit = getCrankToolDeleteHitTarget(mouse.x, mouse.y);
       if (crankDeleteHit) {
-        removeCrankTool();
+        state.selectedGearId = null;
+        state.dragState = {
+          mode: 'crank-position', pointerId: e.pointerId,
+          startX: mouse.x, startY: mouse.y, moved: false,
+          startPivotX: state.crankTool.pivotX, startPivotY: state.crankTool.pivotY,
+          startDiffX: state.crankTool.diffX, startDiffY: state.crankTool.diffY
+        };
+        canvas.setPointerCapture?.(e.pointerId);
+        return;
+      }
+
+      const beltHit = getBeltEndpointHitTarget(mouse.x, mouse.y);
+      if (beltHit) {
+        state.selectedGearId = null;
+        state.dragState = {
+          mode: 'belt', pointerId: e.pointerId,
+          startX: mouse.x, startY: mouse.y,
+          currentX: mouse.x, currentY: mouse.y,
+          beltTargetId: null
+        };
+        canvas.setPointerCapture?.(e.pointerId);
         return;
       }
 
@@ -3741,17 +4140,23 @@
         state.keyboardAudioActive = true;
         setFundamentalFrequency(0, false, true);
         updateAudioNodes();
+        // Ensure the main oscillator exists before the first measurable crank move.
+        if (state.audioCtx && state.audioRunning) updateAudioNodes();
 
         state.selectedGearId = null;
         state.hoveredGearId = null;
         state.crankTool.hovered = true;
         state.crankTool.deleteHovered = false;
         state.crankTool.dragAngle = crankHit.angle;
+        const crankStartMs = performance.now();
+        state.crankTool.angularSamples = [{ t: crankStartMs, a: 0 }];
+        state.crankTool.angularAccum = 0;
+        state.crankTool.lastSpeedUpdateTime = crankStartMs;
         state.dragState = {
           mode: 'crank',
           pointerId: e.pointerId,
           lastAngle: crankHit.angle,
-          lastTime: performance.now(),
+          lastTime: crankStartMs,
           angularVelocity: 0
         };
         updateInspector();
@@ -3761,7 +4166,9 @@
       const clickedGear = getGearAtPosition(mouse.x, mouse.y);
 
       if (clickedGear) {
-        state.selectedGearId = clickedGear.id;
+        // Selection is deferred until pointerup. A real drag moves the gear and must
+        // never open the Selected Gear Detail inspector.
+        state.selectedGearId = null;
         const moveBranch = clickedGear.isMain || e.shiftKey;
         const branch = moveBranch ? getBranchGears(clickedGear) : [clickedGear];
         if (!moveBranch) {
@@ -3776,7 +4183,9 @@
           clickedGear.angle = clickedGear.dragStartAngle;
         }
         state.dragState = {
-          mode: 'gear', gear: clickedGear, branch, moveBranch, startX: mouse.x, startY: mouse.y, snapTarget: null, pointerId: e.pointerId,
+          mode: 'gear', gear: clickedGear, branch, moveBranch, startX: mouse.x, startY: mouse.y,
+          pointerStartClientX: e.clientX, pointerStartClientY: e.clientY, moved: false,
+          snapTarget: null, pointerId: e.pointerId,
           phaseAngles: new Map(branch.map(g => [g.id, g.angle])),
           phaseOffsets: new Map(branch.map(g => [g.id, g.phaseOffsetDeg])),
           originalParentIds: new Map(branch.map(g => [g.id, new Set(clickedGear.neighbors)])),
@@ -3787,8 +4196,12 @@
         state.selectedGearId = null;
         state.dragState = { mode: 'pan', startX: e.clientX, startY: e.clientY, camStartX: state.camera.x, camStartY: state.camera.y, pointerId: e.pointerId };
       }
-      updateInspector();
-      renderGearList();
+      // For gear gestures, inspector selection is deferred to pointerup so dragging
+      // never opens the detail panel. Non-gear pointerdown behavior remains immediate.
+      if (!clickedGear) {
+        updateInspector();
+        renderGearList();
+      }
     });
 
     canvas.addEventListener('pointermove', (e) => {
@@ -3803,26 +4216,50 @@
       if (state.dragState.mode === 'pan') {
         state.camera.x = state.dragState.camStartX + (e.clientX - state.dragState.startX);
         state.camera.y = state.dragState.camStartY + (e.clientY - state.dragState.startY);
+      } else if (state.dragState.mode === 'crank-position') {
+        const dx = mouse.x - state.dragState.startX;
+        const dy = mouse.y - state.dragState.startY;
+        if (Math.hypot(dx,dy) >= 6) state.dragState.moved = true;
+        state.crankTool.pivotX = state.dragState.startPivotX + dx;
+        state.crankTool.pivotY = state.dragState.startPivotY + dy;
+        state.crankTool.diffX = state.dragState.startDiffX + dx;
+        state.crankTool.diffY = state.dragState.startDiffY + dy;
+      } else if (state.dragState.mode === 'belt') {
+        state.dragState.currentX = mouse.x;
+        state.dragState.currentY = mouse.y;
+        const currentMain = getMainGear();
+        const candidate = getGearUnderPointerExcluding(mouse.x, mouse.y, currentMain?.id);
+        state.dragState.beltTargetId = candidate?.id || null;
       } else if (state.dragState.mode === 'crank') {
         const pointerAngle = Math.atan2(mouse.y - state.crankTool.pivotY, mouse.x - state.crankTool.pivotX);
         const deltaAngle = normalizeWrappedAngle(pointerAngle - state.dragState.lastAngle);
         state.crankTool.dragAngle = pointerAngle;
         state.masterPhase = (state.masterPhase + deltaAngle + TAU) % TAU;
         const nowMs = performance.now();
-        const dtSec = Math.max(0.001, (nowMs - state.dragState.lastTime) / 1000);
-        const instantaneousVelocity = Math.max(-TAU * 24, Math.min(TAU * 24, deltaAngle / dtSec));
-        state.dragState.angularVelocity = (state.dragState.angularVelocity * 0.52) + (instantaneousVelocity * 0.48);
+        const tool = state.crankTool;
+        // Measure over a rolling time window. Slow Android/touch pointer events
+        // are quantised, so a per-event delta can turn 2 RPM into false 60+ RPM.
+        tool.angularAccum += deltaAngle;
+        tool.angularSamples.push({ t: nowMs, a: tool.angularAccum });
+        const windowMs = 1000;
+        while (tool.angularSamples.length > 2 && (nowMs - tool.angularSamples[0].t) > windowMs) tool.angularSamples.shift();
+        const oldest = tool.angularSamples[0];
+        const sampleDt = Math.max(0.12, (nowMs - oldest.t) / 1000);
+        const averagedVelocity = (tool.angularAccum - oldest.a) / sampleDt;
+        state.dragState.angularVelocity = Math.max(-TAU * 6, Math.min(TAU * 6, averagedVelocity));
         state.dragState.lastAngle = pointerAngle;
         state.dragState.lastTime = nowMs;
-        if (Math.abs(state.dragState.angularVelocity) > 0.01) {
-          syncCrankToolSpeed(state.dragState.angularVelocity);
-        } else {
-          syncCrankToolSpeed(0);
+        if ((nowMs - tool.lastSpeedUpdateTime) >= 60) {
+          tool.lastSpeedUpdateTime = nowMs;
+          syncCrankToolSpeed(Math.abs(state.dragState.angularVelocity) < 0.002 ? 0 : state.dragState.angularVelocity);
         }
         applyCurrentMasterPhaseToGears();
       } else if (state.dragState.mode === 'gear') {
         const dx = mouse.x - state.dragState.startX;
         const dy = mouse.y - state.dragState.startY;
+        const clientDx = e.clientX - state.dragState.pointerStartClientX;
+        const clientDy = e.clientY - state.dragState.pointerStartClientY;
+        if (Math.hypot(clientDx, clientDy) >= 6) state.dragState.moved = true;
         const gear = state.dragState.gear;
         state.dragState.branch.forEach(g => {
           if (g._dragHeldRatio == null) g._dragHeldRatio = state.dragState.heldRatios.get(g.id) || g.ratio;
@@ -3844,10 +4281,28 @@
 
     const finishPointerDrag = (e) => {
       if (!state.dragState || state.dragState.pointerId !== e.pointerId) return;
-      if (state.dragState.mode === 'crank') {
+      if (state.dragState.mode === 'crank-position') {
+        const wasMoved = !!state.dragState.moved;
+        if (!wasMoved) removeCrankTool();
+        else {
+          fitMachineToView(!!state.crankTool.enabled);
+          positionCanvasCrankControl();
+        }
+      } else if (state.dragState.mode === 'belt') {
+        const candidate = state.dragState.beltTargetId ? state.gearMap.get(state.dragState.beltTargetId) : null;
+        if (candidate && !candidate.isMain) makeGearFundamental(candidate);
+        state.dragState = null;
+        renderGearList();
+        updateInspector();
+        canvas.releasePointerCapture?.(e.pointerId);
+        return;
+      } else if (state.dragState.mode === 'crank') {
         const releasedAngle = Number.isFinite(state.crankTool.dragAngle) ? state.crankTool.dragAngle : getCrankToolAngle();
         state.crankTool.phaseOffset = normalizeWrappedAngle(releasedAngle - state.masterPhase);
         state.crankTool.dragAngle = null;
+        state.crankTool.angularSamples = [];
+        state.crankTool.angularAccum = 0;
+        state.crankTool.lastSpeedUpdateTime = 0;
         state.crankTool.hovered = false;
         state.crankTool.deleteHovered = false;
         // A hand crank is not a flywheel control: releasing it stops the machine.
@@ -3860,6 +4315,7 @@
         }
       } else if (state.dragState.mode === 'gear') {
         const gear = state.dragState.gear;
+        const wasMoved = !!state.dragState.moved;
         const snap = state.dragState.snapTarget;
         if (snap) {
           gear.x = snap.x;
@@ -3904,6 +4360,15 @@
             gear.orbitAngle = Math.atan2(dy, dx);
             gear.orbitPhase = 0;
           }
+        }
+        if (!wasMoved) {
+          state.selectedGearId = gear.id;
+          updateInspector();
+          renderGearList();
+        } else {
+          state.selectedGearId = null;
+          updateInspector();
+          renderGearList();
         }
       }
       canvas.releasePointerCapture?.(e.pointerId);
@@ -3994,6 +4459,9 @@
         }
       }
 
+      if (!isMain) {
+        requestAnimationFrame(() => fitMachineToView(!!state.crankTool.enabled));
+      }
       return gear;
     }
 
@@ -4112,21 +4580,21 @@
       const rect = canvas.getBoundingClientRect();
       const scaleX = rect.width / Math.max(1, canvas.width);
       const scaleY = rect.height / Math.max(1, canvas.height);
-      let x = Number.isFinite(state.crankTool.controlX)
-        ? state.crankTool.controlX
-        : rect.width / 2 + (state.camera.x + geo.pivotX) * state.camera.zoom * scaleX;
-      let y = Number.isFinite(state.crankTool.controlY)
-        ? state.crankTool.controlY
-        : rect.height / 2 + (state.camera.y + geo.pivotY) * state.camera.zoom * scaleY + 86;
       const w = canvasCrankControl.offsetWidth || 122;
       const h = canvasCrankControl.offsetHeight || 64;
-      x = Math.max(w/2 + 5, Math.min(rect.width - w/2 - 5, x));
+      let x = Number.isFinite(state.crankTool.controlX)
+        ? state.crankTool.controlX
+        : 4;
+      let y = Number.isFinite(state.crankTool.controlY)
+        ? state.crankTool.controlY
+        : 4;
+      x = Math.max(4, Math.min(rect.width - w - 4, x));
       if (isMobilePortraitLayout()) {
-        // Three canvas action buttons occupy the bottom strip. Keep CRANK fully above them.
+        // Three canvas action buttons occupy the bottom strip. Keep SPEED fully above them.
         const safeBottom = 96;
-        y = Math.max(8, Math.min(rect.height - h - safeBottom, y));
+        y = Math.max(4, Math.min(rect.height - h - safeBottom, y));
       } else {
-        y = Math.max(8, Math.min(rect.height - 72, y));
+        y = Math.max(4, Math.min(rect.height - h - 8, y));
       }
       canvasCrankControl.style.left = `${x}px`;
       canvasCrankControl.style.top = `${y}px`;
@@ -4407,8 +4875,8 @@
           voice.gears.set(gear.id, { source, delayNode, gainNode, pannerNode, gear });
         } else {
           const osc = state.audioCtx.createOscillator();
-          if (state.waveform === 'clockwork') osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
-          else osc.type = state.waveform;
+          if (getGearToothWaveform(gear) === 'clockwork') osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
+          else osc.setPeriodicWave(getToothPeriodicWave(state.audioCtx, getGearToothWaveform(gear), getGearToothWidth(gear)));
           osc.frequency.setValueAtTime(gearFreq, now);
           osc.connect(delayNode);
           osc.start(now);
@@ -4835,7 +5303,7 @@
       const dy = e.clientY - speedBoxDrag.startClientY;
       const w = canvasCrankControl.offsetWidth || 122;
       const h = canvasCrankControl.offsetHeight || 64;
-      state.crankTool.controlX = Math.max(w / 2 + 5, Math.min(rect.width - w / 2 - 5, speedBoxDrag.startX + dx));
+      state.crankTool.controlX = Math.max(4, Math.min(rect.width - w - 4, speedBoxDrag.startX + dx));
       state.crankTool.controlY = Math.max(8, Math.min(rect.height - h - (isMobilePortraitLayout() ? 96 : 8), speedBoxDrag.startY + dy));
       canvasCrankControl.style.left = `${state.crankTool.controlX}px`;
       canvasCrankControl.style.top = `${state.crankTool.controlY}px`;
@@ -5039,6 +5507,17 @@
       content.innerHTML = `
         <div><strong>Role:</strong> ${gear.isMain ? 'Main Drive Hub (Listener Center)' : 'Secondary Harmonic Gear'}</div>
         <div><strong>Current Shape:</strong> <span style="color:var(--accent-cyan);">${gear.shape || 'circular'}</span></div>
+        <div style="margin-top:6px; border-top:1px solid var(--border-color); padding-top:5px;">
+          <strong style="color:var(--accent-cyan);">Tooth Shape</strong>
+          <div style="display:flex;align-items:center;gap:5px;margin-top:4px;">
+            <select id="inspector-tooth-waveform" style="flex:1;min-width:0;">
+              <option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth">Saw</option><option value="square">Square</option><option value="clockwork">Clock</option>
+            </select>
+            <input id="slider-inspector-tooth-width" type="range" min="0.02" max="0.98" step="0.01" value="${getGearToothWidth(gear)}" style="flex:1;min-width:70px;">
+            <span id="val-inspector-tooth-width" style="min-width:34px;text-align:right;color:var(--accent-cyan);">${getGearToothWidth(gear).toFixed(2)}</span>
+          </div>
+          <div id="inspector-tooth-wave-preview" aria-hidden="true"></div>
+        </div>
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin:4px 0 2px;">
           <strong>Teeth Count:</strong>
           <div style="display:flex; align-items:center; gap:4px;">
@@ -5122,6 +5601,33 @@
           </div>
         </div>
       `;
+
+      // Bind live per-gear tooth waveform controls.
+      const inspectorToothSelect = document.getElementById('inspector-tooth-waveform');
+      const inspectorToothWidth = document.getElementById('slider-inspector-tooth-width');
+      const inspectorToothWidthVal = document.getElementById('val-inspector-tooth-width');
+      const inspectorToothPreview = document.getElementById('inspector-tooth-wave-preview');
+      const refreshInspectorTooth = () => {
+        const type = getGearToothWaveform(gear);
+        const width = getGearToothWidth(gear);
+        if (inspectorToothSelect) inspectorToothSelect.value = type;
+        if (inspectorToothWidth) inspectorToothWidth.value = width;
+        if (inspectorToothWidthVal) inspectorToothWidthVal.textContent = width.toFixed(2);
+        if (inspectorToothPreview) inspectorToothPreview.innerHTML = `<svg viewBox="0 0 220 32" preserveAspectRatio="none" aria-hidden="true">${drawToothWaveGlyph(type, width, 4, 8, 212, 16)}</svg>`;
+      };
+      inspectorToothSelect?.addEventListener('change', e => {
+        gear.toothWaveform = e.target.value;
+        refreshInspectorTooth();
+        updateAudioNodes();
+        renderGearList();
+      });
+      inspectorToothWidth?.addEventListener('input', e => {
+        gear.toothWidth = normalizeToothWidth(e.target.value);
+        refreshInspectorTooth();
+        updateAudioNodes();
+        renderGearList();
+      });
+      refreshInspectorTooth();
 
       // Bind live shape controls for the currently selected gear.
       const inspectorShapeSelect = document.getElementById('inspector-gear-shape');
@@ -5312,8 +5818,10 @@
     function refreshClockworkControlVisibility() {
       if (clockworkControls) clockworkControls.style.display = state.waveform === 'clockwork' ? 'block' : 'none';
     }
-    document.getElementById('select-waveform').addEventListener('change', (e) => {
+    document.getElementById('select-waveform')?.addEventListener('change', (e) => {
       state.waveform = e.target.value;
+      const mainTooth = state.gears.find(g => g.isMain);
+      if (mainTooth && !mainTooth.toothWaveform) mainTooth.toothWaveform = state.waveform;
       refreshClockworkControlVisibility();
       updateAudioNodes();
     });
@@ -5737,6 +6245,8 @@
       gear.orbitPeriodSec = orbitPeriodSec;
       gear.orbitDirection = orbitDirection;
       gear.orbitPreservePhase = orbitPreservePhase;
+      gear.toothWaveform = paletteToothWaveSelect?.value || 'sawtooth';
+      gear.toothWidth = PALETTE_TOOTH_WIDTH;
 
       const main = state.gears.find(g => g.isMain) || state.gears[0];
       if (orbitEnabled && main && !gear.isMain) {
@@ -5773,6 +6283,8 @@
         gear.shape = paletteShapeSelect?.value || data.shape || 'circular';
         gear.shapeParams = normalizedShapeParams(data.shapeParams || PALETTE_SHAPE_PARAMS);
         gear.volume = Math.max(0, Math.min(1, Number.isFinite(Number(data.volume)) ? Number(data.volume) : PALETTE_GEAR_VOLUME));
+        gear.toothWaveform = ['sine','triangle','sawtooth','square','clockwork'].includes(data.toothWaveform) ? data.toothWaveform : (paletteToothWaveSelect?.value || 'sawtooth');
+        gear.toothWidth = normalizeToothWidth(data.toothWidth ?? PALETTE_TOOTH_WIDTH);
         gear.setPhaseOffsetDeg(0);
           updateKinematicNetwork();
         forceGearMod0Sync('palette-drag-add');
@@ -5791,9 +6303,18 @@
     const mainShapeSelect = document.getElementById('select-main-gear-shape');
     const mainShapeParamsWrap = document.getElementById('main-shape-params');
     const mainShapeDesc = document.getElementById('main-shape-description');
+    const mainToothWaveSelect = document.getElementById('select-main-tooth-waveform');
+    const mainToothWidthSlider = document.getElementById('slider-main-tooth-width');
+    const mainToothWidthValue = document.getElementById('val-main-tooth-width');
+
     const paletteShapeParamsWrap = document.getElementById('palette-shape-params');
     const paletteVolumeSlider = document.getElementById('slider-palette-volume');
     const paletteVolumeValue = document.getElementById('val-palette-volume');
+    const paletteToothWaveSelect = document.getElementById('select-palette-tooth-waveform');
+    const paletteToothWidthSlider = document.getElementById('slider-palette-tooth-width');
+    const paletteToothPreview = document.getElementById('palette-tooth-wave-preview');
+    let PALETTE_TOOTH_WIDTH = 0.50;
+    window.__paletteToothWaveform = 'sawtooth'; window.__paletteToothWidth = PALETTE_TOOTH_WIDTH;
     let PALETTE_GEAR_VOLUME = 0.20;
     const PALETTE_SHAPE_PARAMS = { ...DEFAULT_SHAPE_PARAMS }; window.__paletteShapeParams = PALETTE_SHAPE_PARAMS;
     const SHAPE_PARAM_DEFS = {
@@ -5813,10 +6334,26 @@
       wrap.querySelectorAll('input[data-shape-param]').forEach(input => input.addEventListener('input', e => { const key=e.target.dataset.shapeParam; params[key]=Number(e.target.value); const v=wrap.querySelector(`[data-param-value="${key}"]`); if(v) v.textContent=Number(e.target.value).toFixed(2); onInput?.(params); }));
       bindWheelControls(wrap);
     }
+    const refreshPaletteToothShape = () => {
+      const type = paletteToothWaveSelect?.value || 'sawtooth';
+      window.__paletteToothWaveform = type;
+      window.__paletteToothWidth = PALETTE_TOOTH_WIDTH;
+      if (paletteToothPreview) {
+        paletteToothPreview.innerHTML = `<svg viewBox="0 0 120 22" preserveAspectRatio="none" aria-label="${type} tooth waveform preview">${drawToothWaveGlyph(type, PALETTE_TOOTH_WIDTH, 2, 3, 116, 16)}</svg>`;
+      }
+      renderRationalGearPalette();
+    };
+    paletteToothWaveSelect?.addEventListener('change', refreshPaletteToothShape);
+    paletteToothWidthSlider?.addEventListener('input', e => {
+      PALETTE_TOOTH_WIDTH = normalizeToothWidth(e.target.value);
+      refreshPaletteToothShape();
+    });
+
     const refreshPaletteShapeDescription = () => {
       const shape = paletteShapeSelect?.value || 'circular';
       if (paletteShapeDesc) paletteShapeDesc.textContent = GEAR_SHAPE_DESCRIPTIONS[shape];
       renderShapeParamEditor(paletteShapeParamsWrap, shape, PALETTE_SHAPE_PARAMS, () => { renderRationalGearPalette(); });
+      refreshPaletteToothShape();
     };
     paletteShapeSelect?.addEventListener('change', refreshPaletteShapeDescription);
     const ratioPaletteBody = document.querySelector('#ratio-palette-modal .floating-body');
@@ -5850,7 +6387,30 @@
       updateAudioNodes();
       renderGearList();
     });
+    const syncMainToothControls = () => {
+      const main = state.gears.find(g => g.isMain);
+      if (!main) return;
+      const type = getGearToothWaveform(main);
+      const width = getGearToothWidth(main);
+      if (mainToothWaveSelect) mainToothWaveSelect.value = type;
+      if (mainToothWidthSlider) mainToothWidthSlider.value = width;
+      if (mainToothWidthValue) mainToothWidthValue.textContent = width.toFixed(2);
+    };
+    mainToothWaveSelect?.addEventListener('change', e => {
+      const main = state.gears.find(g => g.isMain);
+      if (!main) return;
+      main.toothWaveform = e.target.value;
+      updateAudioNodes(); renderGearList();
+    });
+    mainToothWidthSlider?.addEventListener('input', e => {
+      const main = state.gears.find(g => g.isMain);
+      if (!main) return;
+      main.toothWidth = normalizeToothWidth(e.target.value);
+      if (mainToothWidthValue) mainToothWidthValue.textContent = main.toothWidth.toFixed(2);
+      updateAudioNodes(); renderGearList();
+    });
     refreshPaletteShapeDescription();
+    syncMainToothControls();
     { const main=state.gears.find(g=>g.isMain); if(main){ main.shapeParams=normalizedShapeParams(main.shapeParams); if(mainShapeSelect) mainShapeSelect.value=main.shape||'circular'; renderShapeParamEditor(mainShapeParamsWrap,main.shape||'circular',main.shapeParams,params=>{main.shapeParams=normalizedShapeParams(params);}); if(mainShapeDesc) mainShapeDesc.textContent=GEAR_SHAPE_DESCRIPTIONS[main.shape||'circular']||''; } }
     openRatioPaletteBtn?.addEventListener('click', () => {
       ratioPaletteModal?.classList.remove('is-hidden');
@@ -6164,6 +6724,26 @@
       let dots = null;
       let activeIndex = 0;
       let inMode = false;
+      let keyboardPinned = false;
+
+      const keyboardPinButton = document.getElementById('btn-pin-keyboard');
+      const setKeyboardPinned = (pinned) => {
+        keyboardPinned = !!pinned;
+        app.classList.toggle('keyboard-carousel-locked', keyboardPinned);
+        keyboardPinButton?.setAttribute('aria-pressed', keyboardPinned ? 'true' : 'false');
+        if (keyboardPinButton) {
+          keyboardPinButton.title = keyboardPinned ? 'Unpin keyboard carousel' : 'Pin keyboard carousel';
+          keyboardPinButton.setAttribute('aria-label', keyboardPinned ? 'Unpin keyboard carousel' : 'Pin keyboard carousel');
+        }
+        if (keyboardPinned) {
+          const idx = slides.findIndex(slide => slide.dataset.mobileSlide === 'KEYBOARD');
+          if (idx >= 0) requestAnimationFrame(() => updateActive(idx, false));
+        }
+      };
+      keyboardPinButton?.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        setKeyboardPinned(!keyboardPinned);
+      });
 
       const closestPanel = selector => document.querySelector(selector)?.closest('.panel-box') || null;
       const mainPanel = closestPanel('#input-fundamental');
@@ -6184,6 +6764,7 @@
       function restoreOriginal(){
         if (!inMode) return;
         app.classList.remove('mobile-carousel-mode');
+        setKeyboardPinned(false);
         clearTrackChildren();
         const groups = new Map();
         records.forEach((pos,node) => {
@@ -6217,7 +6798,7 @@
 
         const plan = [
           ['RATIO & HARMONICS', [ratioModal]],
-          ['MAIN DRIVE + SHAPE', [mainPanel, mainShape]],
+          ['', [mainPanel, mainShape]],
           ['KEYBOARD', [keyboard]],
           ['MIDI INPUT', [midi]],
           ['BINAURAL', [binaural]],
@@ -6233,6 +6814,12 @@
           return slide;
         });
         slides.forEach(s=>track.appendChild(s));
+        // Pin every interactive subsection against accidental carousel swipes.
+        slides.forEach(slide => {
+          slide.querySelectorAll('input, select, button, textarea, #virtual-keyboard, .keyboard-container').forEach(el => {
+            el.classList.add('carousel-touch-pin');
+          });
+        });
         if (openRatioPanel) openRatioPanel.style.display='none';
 
         // Ratio palette is the first screen of the carousel and starts open.
@@ -6263,18 +6850,31 @@
         sidebar.appendChild(dots);
 
         track.addEventListener('scroll',()=>{
+          if (keyboardPinned) {
+            const k = slides.find(slide => slide.dataset.mobileSlide === 'KEYBOARD');
+            if (k) { const lockedLeft = k.offsetLeft - track.offsetLeft; if (Math.abs(track.scrollLeft - lockedLeft) > 1) track.scrollLeft = lockedLeft; }
+          }
           const idx=Math.round(track.scrollLeft / Math.max(1,track.clientWidth + 8));
           if (idx!==activeIndex) { activeIndex=Math.max(0,Math.min(slides.length-1,idx)); if(dots) [...dots.children].forEach((d,i)=>d.classList.toggle('active',i===activeIndex)); }
         },{passive:true});
+        setKeyboardPinned(false);
         updateActive(0,false);
 
         // Touch swipe is native horizontal scrolling; this adds a firmer page-to-page snap.
-        let sx=0, sy=0;
-        track.addEventListener('touchstart',e=>{ const t=e.changedTouches[0]; sx=t.clientX; sy=t.clientY; },{passive:true});
+        let sx=0, sy=0, carouselTouchLocked=false;
+        track.addEventListener('touchstart',e=>{
+          const t=e.changedTouches[0]; sx=t.clientX; sy=t.clientY;
+          carouselTouchLocked=!!e.target.closest('.carousel-touch-pin') || keyboardPinned;
+        },{passive:true});
+        track.addEventListener('touchmove',e=>{
+          if (carouselTouchLocked) e.stopPropagation();
+        },{passive:true});
         track.addEventListener('touchend',e=>{
+          if (carouselTouchLocked) { carouselTouchLocked=false; return; }
           const t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy;
           if (Math.abs(dx)>42 && Math.abs(dx)>Math.abs(dy)*1.15) updateActive(activeIndex+(dx<0?1:-1),true);
         },{passive:true});
+        track.addEventListener('touchcancel',()=>{ carouselTouchLocked=false; },{passive:true});
       }
       function sync(){ if(mq.matches) build(); else restoreOriginal(); }
       mq.addEventListener?.('change',sync);
