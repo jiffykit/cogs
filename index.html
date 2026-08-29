@@ -1564,6 +1564,7 @@
       }
       #ratio-palette-scale-handle::before { content:'◢'; }
     }
+
 </style>
 </head>
 <body>
@@ -1715,8 +1716,8 @@
     <!-- SIDEBAR -->
     <aside id="sidebar">
       <div class="sidebar-header">
-        <h1>⚙️ JI Gear Synth</h1>
-        <p>Mechanical Just-Intonation Synthesizer</p>
+        <h1> SteamWhistle</h1>
+        <p>Clockwork  Synthesizer</p>
       </div>
 
       <div class="sidebar-scroll">
@@ -1738,7 +1739,7 @@
         <div class="panel-box">
           <div class="panel-title">Audio Driver</div>
           <div class="control-group">
-            <label>Use a recorded or imported sound as the main shaft driver</label>
+            <label>Record or Load a sound then click DRIVE.</label>
             <div class="btn-group">
               <button id="btn-driver-record" class="btn-primary" style="flex:1;">● RECORD</button>
               <button id="btn-driver-import" style="flex:1;">Import</button>
@@ -1746,8 +1747,7 @@
             </div>
           </div>
           <div style="font-size:0.7rem; color:var(--text-muted); line-height:1.35; margin-bottom:8px;">
-            The source is never sent directly to the speakers. Secondary gears output the ratio-transformed driver audio. Loop boundaries use a 25 ms crossfade.
-          </div>
+             </div>
           <div id="driver-wave-wrap" style="display:none; position:relative; margin-bottom:7px;">
             <canvas id="driver-waveform" width="640" height="100" style="width:100%; height:100px; display:block; background:var(--panel-bg, rgba(0,0,0,.18)); border:1px solid var(--border-color); border-radius:5px; touch-action:none; cursor:ew-resize;"></canvas>
             <div style="display:flex; justify-content:space-between; font-size:0.66rem; color:var(--text-muted); margin-top:3px;">
@@ -1778,13 +1778,13 @@
             </div>
             <!-- Quick Fundamental Presets -->
             <div class="btn-group" style="margin-top: 8px;">
-              <button class="btn-freq-preset" data-freq="0.5" style="flex:1; padding:3px 4px; font-size:0.7rem;">0.5Hz</button>
-              <button class="btn-freq-preset" data-freq="1.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">1Hz</button>
-              <button class="btn-freq-preset" data-freq="10.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">10Hz</button>
-              <button class="btn-freq-preset" data-freq="100.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">100Hz</button>
-              <button class="btn-freq-preset" data-freq="432.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">432Hz</button>
-              <button class="btn-freq-preset" data-freq="440.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">440Hz</button>
-              <button class="btn-freq-preset" data-freq="1000.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">1kHz</button>
+              <button class="btn-freq-preset" data-freq="0.5" style="flex:1; padding:3px 4px; font-size:0.7rem;">0.5</button>
+              <button class="btn-freq-preset" data-freq="1.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">1</button>
+              <button class="btn-freq-preset" data-freq="10.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">10</button>
+              <button class="btn-freq-preset" data-freq="100.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">100</button>
+              <button class="btn-freq-preset" data-freq="432.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">432</button>
+              <button class="btn-freq-preset" data-freq="440.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">440</button>
+              <button class="btn-freq-preset" data-freq="1000.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">1k</button>
             </div>
           </div>
 
@@ -1864,7 +1864,7 @@
           <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
             <div style="display:flex; gap:6px; align-items:center;">
               <button id="btn-poly" style="flex:1;">POLY OFF</button>
-              <span id="poly-status" style="font-size:0.68rem; color:var(--text-muted);">Keyboard voices use no extra gears</span>
+              <span id="poly-status" style="font-size:0.68rem; color:var(--text-muted);">mono</span>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
               <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 5px; color: var(--text-muted); cursor: pointer;">
@@ -1873,11 +1873,11 @@
               </label>
               <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 5px; color: var(--text-muted); cursor: pointer;">
                 <input type="checkbox" id="chk-legato">
-                <span>Legato (Glissando)</span>
+                <span>Porta</span>
               </label>
               <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 5px; color: var(--text-muted); cursor: pointer;">
                 <input type="checkbox" id="chk-ji-keyboard">
-                <span>Nearest JI</span>
+                <span>JI</span>
               </label>
             </div>
             <div id="gliss-control-group" style="display: flex; align-items: center; gap: 6px; opacity: 0.5; transition: opacity 0.2s ease;">
@@ -1893,7 +1893,7 @@
           <div class="panel-title">MIDI Input</div>
           <div class="control-group">
             <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-              <button id="btn-midi-enable" class="btn-primary" style="flex:1;">Enable WebMIDI</button>
+              <button id="btn-midi-enable" class="btn-primary" style="flex:1;">Enable MIDI</button>
               <button id="btn-midi-refresh" style="padding:4px 8px;">Refresh</button>
             </div>
             <label style="font-size:0.7rem; color:var(--text-muted);">Input device</label>
@@ -1905,13 +1905,13 @@
         <!-- 3D BINAURAL SPATIALIZER PANEL -->
         <div class="panel-box">
           <div class="panel-title">
-            <span>🎧 3D Binaural Spatializer</span>
-            <span id="val-spatial-status" style="color: var(--accent-green); font-size: 0.7rem; font-weight: bold;">HRTF ON</span>
+            <span>3D audio</span>
+            <span id="val-spatial-status" style="color: var(--accent-green); font-size: 0.7rem; font-weight: bold;"> ON</span>
           </div>
           <div class="control-group">
             <label style="cursor: pointer; display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
               <input type="checkbox" id="chk-spatial-enable" checked>
-              <span style="color: var(--text-main); font-weight: 600;">Enable 360° Binaural Audio</span>
+              <span style="color: var(--text-main); font-weight: 600;">3D audio on</span>
             </label>
           </div>
           <div class="control-group">
@@ -1926,23 +1926,18 @@
             <input type="range" id="slider-spatial-scale" min="0.01" max="0.15" step="0.005" value="0.05">
           </div>
           <div style="font-size: 0.68rem; color: var(--text-muted); line-height: 1.3; background: rgba(0,0,0,0.2); padding: 6px; border-radius: 4px;">
-            🧭 <b>3D Spatial Mapping:</b><br>
-            • <b>Main Driver</b> = Head Center (0,0)<br>
-            • <b>Top (-Y)</b> = FRONT (In front of face)<br>
-            • <b>Bottom (+Y)</b> = BEHIND (Behind skull)<br>
-            • <b>Left / Right</b> = 360° Stereo Horizon
-          </div>
+ </div>
         </div>
 
         <div class="panel-box">
-          <button id="btn-open-ratio-palette" class="btn-primary" style="width:100%;">Open Ratio & Harmonic Palette</button>
+          <button id="btn-open-ratio-palette" class="btn-primary" style="width:100%;">Open Gears Palette</button>
         </div>
 
         <!-- ACTIVE GEAR NETWORK LIST -->
         <div class="panel-box">
           <div class="panel-title">
             <span>Gear Network (<span id="gear-count">1</span>)</span>
-            <button id="btn-clear-all" style="padding:2px 6px; font-size:0.65rem;" class="btn-danger">Clear Extra</button>
+            <button id="btn-clear-all" style="padding:2px 6px; font-size:0.65rem;" class="btn-danger">RESTART</button>
           </div>
           <div id="gear-list-container" class="gear-list"></div>
         </div>
@@ -1966,7 +1961,7 @@
       <div id="hud-bottom-left" class="hud-panel">
         <button id="btn-reset-view">Reset View</button>
         <button id="btn-realign-layout">Auto Align Layout</button>
-        <button id="btn-sync-phase" style="background: var(--accent-green); color: #000;">⚡ Sync Phase (Mod 0)</button>
+        <button id="btn-sync-phase" style="background: var(--accent-green); color: #000;">Sync Phase</button>
       </div>
 
       <!-- SELECTED GEAR DETAIL: PRIMARY CANVAS INSPECTOR -->
@@ -3693,30 +3688,32 @@
       }
       ctx.restore();
 
-      // Labels: retain labels on comfortably large gears; small gears reveal them only on hover/select.
+      // Canvas labels are intentionally minimal: desktop mouse-hover only.
+      // Mobile/touch gets no canvas text overlays.
+      const canHoverLabel = window.matchMedia('(min-width:901px) and (pointer:fine)').matches;
+      if (!canHoverLabel || !isHovered) return;
       const screenRadius = Math.max(10, rOuter * state.camera.zoom);
       const ratioStr = gear.ratio !== 0 ? floatToFraction(gear.ratio) : '—';
       const ratioParts = ratioStr.replace('-', '').split(':').map(Number);
-      const harmonicNum = ratioParts[0] || (gear.isMain ? 1 : 0);
       const intervalName = gear.isMain ? 'Fundamental' : (ratioParts.length === 2 ? ratioIntervalName(ratioParts[0], ratioParts[1]) : 'Unpowered');
-      const baseFont = Math.max(9, Math.min(22, screenRadius * 0.19));
-      const labelW = Math.max(70, Math.min(screenRadius * 1.35, 170));
-      const line1 = ratioStr, line2 = intervalName, line3 = `${gear.teeth}T  •  H${harmonicNum}`;
-      const line4 = gear.isUltrasonic ? 'ULTRASONIC' : `${Math.max(0, Number(gear.freq) || 0).toFixed(1)} Hz`;
-      const labelTooSmall = (screenRadius * 2) < labelW;
-      if (labelTooSmall && !isHovered && !isSelected) return;
+      const labelText = `${ratioStr} ${intervalName}`;
+      const baseFont = Math.max(10, Math.min(20, screenRadius * 0.20));
+      const labelW = Math.max(86, Math.min(screenRadius * 1.45, 180));
+      const boxH = baseFont * 1.9;
       const labelScale = Math.max(0.0001, state.camera.zoom);
       ctx.save();
-      ctx.translate(gear.x, gear.y); ctx.scale(1/labelScale,1/labelScale);
-      ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=7;
-      const boxH=baseFont*3.9;
-      ctx.fillStyle='rgba(5,5,4,.78)';ctx.beginPath();ctx.roundRect(-labelW/2,-boxH/2,labelW,boxH,Math.min(10,boxH*.24));ctx.fill();
+      ctx.translate(gear.x, gear.y);
+      ctx.scale(1/labelScale,1/labelScale);
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=7;
+      ctx.fillStyle='rgba(5,5,4,.84)';
+      ctx.beginPath();
+      ctx.roundRect(-labelW/2,-boxH/2,labelW,boxH,Math.min(8,boxH*.25));
+      ctx.fill();
       ctx.shadowBlur=0;
-      ctx.fillStyle=gear.isMain?'#f5d07a':'#f0d39b';ctx.font=`900 ${Math.max(12,baseFont*1.35).toFixed(1)}px Georgia, serif`;ctx.fillText(line1,0,-baseFont*1.28);
-      ctx.fillStyle='#f5f1e8';ctx.font=`700 ${Math.max(8,baseFont*.78).toFixed(1)}px system-ui,sans-serif`;ctx.fillText(line2,0,-baseFont*.32);
-      ctx.fillStyle='#d6c8ae';ctx.font=`600 ${Math.max(8,baseFont*.72).toFixed(1)}px system-ui,sans-serif`;ctx.fillText(line3,0,baseFont*.52);
-      ctx.fillStyle=gear.isUltrasonic?'#ef6b5f':'#a89b86';ctx.font=`500 ${Math.max(7,baseFont*.62).toFixed(1)}px system-ui,sans-serif`;ctx.fillText(line4,0,baseFont*1.15);
+      ctx.fillStyle=gear.isMain?'#f5d07a':'#f0d39b';
+      ctx.font=`900 ${Math.max(10,baseFont).toFixed(1)}px Georgia, serif`;
+      ctx.fillText(labelText,0,0);
       ctx.restore();
     }
 
@@ -4016,10 +4013,6 @@
           ctx.textBaseline = 'middle';
           ctx.fillStyle = '#06b6d4';
 
-          ctx.fillText('▲ FRONT (Head)', 0, -radarRadius - 14);
-          ctx.fillText('▼ BEHIND (Skull)', 0, radarRadius + 14);
-          ctx.fillText('◀ LEFT', -radarRadius - 26, 0);
-          ctx.fillText('RIGHT ▶', radarRadius + 26, 0);
 
           // Head / Listener Icon at Main Gear Hub
           ctx.fillStyle = '#f59e0b';
@@ -6496,8 +6489,15 @@
       if (e.target.closest('button,input,select,textarea,a')) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       const r = selectedGearDetail.getBoundingClientRect();
+      let initialTop = r.top;
+      if (isMobilePortraitLayout()) {
+        const carousel = document.querySelector('#app-container.mobile-carousel-mode #sidebar');
+        const carouselTop = carousel?.getBoundingClientRect().top ?? window.innerHeight;
+        const headerH = selectedGearHeader?.getBoundingClientRect().height || 32;
+        initialTop = Math.min(initialTop, Math.max(4, carouselTop - headerH));
+      }
       selectedGearDetail.style.left = `${r.left}px`;
-      selectedGearDetail.style.top = `${r.top}px`;
+      selectedGearDetail.style.top = `${initialTop}px`;
       selectedGearDetail.style.right = 'auto';
       selectedGearDrag = { pointerId:e.pointerId, dx:e.clientX-r.left, dy:e.clientY-r.top };
       try { selectedGearHeader.setPointerCapture(e.pointerId); } catch (_) {}
@@ -6507,7 +6507,13 @@
       if (!selectedGearDrag || selectedGearDrag.pointerId !== e.pointerId) return;
       const r = selectedGearDetail.getBoundingClientRect();
       const x = Math.max(4, Math.min(window.innerWidth-r.width-4, e.clientX-selectedGearDrag.dx));
-      const y = Math.max(4, Math.min(window.innerHeight-r.height-4, e.clientY-selectedGearDrag.dy));
+      let y = Math.max(4, Math.min(window.innerHeight-r.height-4, e.clientY-selectedGearDrag.dy));
+      if (isMobilePortraitLayout()) {
+        const carousel = document.querySelector('#app-container.mobile-carousel-mode #sidebar');
+        const carouselTop = carousel?.getBoundingClientRect().top ?? window.innerHeight;
+        const headerH = selectedGearHeader?.getBoundingClientRect().height || 32;
+        y = Math.min(y, Math.max(4, carouselTop - headerH));
+      }
       selectedGearDetail.style.left = `${x}px`;
       selectedGearDetail.style.top = `${y}px`;
       e.preventDefault(); e.stopPropagation();
@@ -6520,6 +6526,19 @@
     };
     selectedGearHeader?.addEventListener('pointerup', endSelectedGearDrag);
     selectedGearHeader?.addEventListener('pointercancel', endSelectedGearDrag);
+
+    function clampSelectedGearDetailForMobile() {
+      if (!selectedGearDetail || !selectedGearDetail.style.display || selectedGearDetail.style.display === 'none') return;
+      if (!isMobilePortraitLayout()) return;
+      const carousel = document.querySelector('#app-container.mobile-carousel-mode #sidebar');
+      if (!carousel) return;
+      const r = selectedGearDetail.getBoundingClientRect();
+      const carouselTop = carousel.getBoundingClientRect().top;
+      const headerH = selectedGearHeader?.getBoundingClientRect().height || 32;
+      const y = Math.min(r.top, Math.max(4, carouselTop - headerH));
+      if (Math.abs(y-r.top) > 0.5) selectedGearDetail.style.top = `${y}px`;
+    }
+    window.addEventListener('resize', clampSelectedGearDetailForMobile);
 
     // Desktop Harmonic Presets scaling: 1.0x down to 0.2x (5x smaller).
     const ratioPaletteScaleHandle = document.getElementById('ratio-palette-scale-handle');
@@ -6971,5 +6990,14 @@
       sync();
     })();
 </script>
+
+<style id="final-ui-positioning-overrides">
+@media (min-width:901px) {
+  #hud-top-right { top:8px !important; right:8px !important; bottom:auto !important; left:auto !important; }
+}
+@media (max-width:900px) and (orientation:portrait) {
+  #selected-gear-detail { z-index:7000 !important; }
+}
+</style>
 </body>
 </html>
