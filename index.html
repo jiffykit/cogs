@@ -1678,7 +1678,7 @@
             <option value="square">Square</option>
             <option value="clockwork">Clock</option>
           </select>
-          <input id="slider-palette-tooth-width" type="range" min="0.02" max="0.98" step="0.01" value="0.50" title="Tooth Shape Width" aria-label="Tooth Shape Width">
+          <input id="slider-palette-tooth-width" type="range" min="0" max="0.98" step="0.01" value="0.50" title="Tooth Shape Width" aria-label="Tooth Shape Width">
           </div>
           <div id="palette-tooth-wave-preview" class="tooth-wave-preview" aria-hidden="true"></div>
           <div id="palette-shape-params" style="margin-top:4px;"></div>
@@ -1822,7 +1822,7 @@
           <select id="select-main-tooth-waveform" aria-label="Main Gear Tooth Shape">
             <option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth" selected>Saw</option><option value="square">Square</option><option value="clockwork">Clock</option>
           </select>
-          <input id="slider-main-tooth-width" type="range" min="0.02" max="0.98" step="0.01" value="0.50" aria-label="Main Gear Tooth Shape Width" title="Tooth Shape Width">
+          <input id="slider-main-tooth-width" type="range" min="0" max="0.98" step="0.01" value="0.50" aria-label="Main Gear Tooth Shape Width" title="Tooth Shape Width">
           <span id="val-main-tooth-width" class="main-tooth-width-value">0.50</span>
           </div>
           <div id="main-shape-params" style="margin-top:3px;"></div>
@@ -2569,15 +2569,18 @@
     const toothWaveCache = new Map();
 
     function clamp01(v) { return Math.max(0, Math.min(1, Number(v) || 0)); }
-    function normalizeToothWidth(v) { return Math.max(0.02, Math.min(0.98, Number.isFinite(Number(v)) ? Number(v) : 0.50)); }
+    function normalizeToothWidth(v) { return Math.max(0, Math.min(0.98, Number.isFinite(Number(v)) ? Number(v) : 0.50)); }
 
     function toothWaveSample(type, phase, width) {
       const t = ((phase % 1) + 1) % 1;
       const w = normalizeToothWidth(width);
       const sine = Math.sin(TAU * t);
       if (type === 'square') {
-        // 0.50 = normal 50/50 square. Moving left narrows the pulse toward an impulse;
-        // moving right broadens it into a rectangular duty cycle.
+        // Width 0 is a genuinely hard mechanical pulse: full level, then an
+        // instantaneous drop to DC/zero. It is deliberately UNIPOLAR here so
+        // a very slow crank produces distinct click/edge transients rather than
+        // a bipolar low-frequency "wub". Wider settings retain the shaped duty cycle.
+        if (w <= 0) return t < 0.5 ? 1 : 0;
         const duty = Math.max(0.02, Math.min(0.98, 0.5 + (w - 0.5) * 1.80));
         return t < duty ? 1 : -1;
       }
@@ -2593,9 +2596,13 @@
         return y;
       }
       if (type === 'sawtooth') {
+        // Width 0 is a true mechanical unipolar saw: a flat/full level at the
+        // start of the tooth, a linear fall to zero, then an instantaneous reset
+        // back to full level. There is no attack/release curve.
+        if (w <= 0) return 1 - t;
         const saw = 2 * t - 1;
         if (w <= 0.5) {
-          // Narrower = more pointy, impulse-like ramp.
+          // Narrower = progressively more pointy/impulse-like.
           const p = 1 + (0.5 - w) * 3.0;
           return Math.sign(saw) * Math.pow(Math.abs(saw), p);
         }
@@ -2623,6 +2630,14 @@
       const real = new Float32Array(bins);
       const imag = new Float32Array(bins);
       const samples = 256;
+      // Preserve the DC component for the hard mechanical zero-width pulse
+      // shapes. Without this, the unipolar level is forced back toward a
+      // bipolar AC waveform and the very slow crank loses its click/edge character.
+      if (w <= 0 && (type === 'square' || type === 'sawtooth')) {
+        let dc = 0;
+        for (let n = 0; n < samples; n++) dc += toothWaveSample(type, n / samples, w);
+        real[0] = dc / samples;
+      }
       for (let h = 1; h < bins; h++) {
         let re = 0, im = 0;
         for (let n = 0; n < samples; n++) {
@@ -3526,47 +3541,96 @@
     function gearHeatIntensity(gear) {
       const hz = Math.abs(Number(gear?.freq) || 0);
       const rpm = hz * 60;
-      const start = 1000;
-      const ultra = 20000 * 60;
-      if (rpm <= start) return { rpm, t:0 };
-      const t = Math.max(0, Math.min(1, Math.log(rpm / start) / Math.log(ultra / start)));
-      return { rpm, t };
+      const warmStartHz = 1000;
+      const blueStartHz = 10000;
+      const whiteHotHz = 20000;
+      if (hz <= warmStartHz) return { hz, rpm, warmT:0, hotT:0, hot:false, ultra:false };
+      const warmT = Math.max(0, Math.min(1, Math.log(hz / warmStartHz) / Math.log(blueStartHz / warmStartHz)));
+      const hotT = hz <= blueStartHz ? 0 : Math.max(0, Math.min(1, Math.log(hz / blueStartHz) / Math.log(whiteHotHz / blueStartHz)));
+      return { hz, rpm, warmT, hotT, hot:hz >= blueStartHz, ultra:hz > 20000 };
     }
 
     function drawGearHeatGlow(ctx, gear, rOuter) {
-      const { rpm, t } = gearHeatIntensity(gear);
-      if (t <= 0) return;
+      const heat = gearHeatIntensity(gear);
+      const { warmT, hotT, hot } = heat;
+      if (warmT <= 0) return;
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      const glowR = rOuter * (1.10 + t * 0.20);
-      const grad = ctx.createRadialGradient(0,0,rOuter*.35,0,0,glowR);
-      grad.addColorStop(0, `rgba(255,95,36,${0.05 + t*.11})`);
-      grad.addColorStop(.58, `rgba(255,48,24,${0.08 + t*.16})`);
-      grad.addColorStop(.82, `rgba(218,30,16,${0.05 + t*.19})`);
-      grad.addColorStop(1, 'rgba(150,15,8,0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath(); ctx.arc(0,0,glowR,0,TAU); ctx.fill();
 
-      ctx.strokeStyle = `rgba(255,${Math.round(112 - 58*t)},${Math.round(58 - 40*t)},${0.12 + .48*t})`;
-      ctx.shadowColor = `rgba(255,46,20,${.25 + .70*t})`;
-      ctx.shadowBlur = 7 + 24*t;
-      ctx.lineWidth = 1.5 + 3.5*t;
-      ctx.beginPath(); ctx.arc(0,0,rOuter*(1.015 + .03*t),0,TAU); ctx.stroke();
+      if (!hot) {
+        const glowR = rOuter * (1.10 + warmT * .16);
+        const grad = ctx.createRadialGradient(0,0,rOuter*.30,0,0,glowR);
+        grad.addColorStop(0, `rgba(255,110,32,${0.05 + warmT*.12})`);
+        grad.addColorStop(.60, `rgba(255,38,18,${0.08 + warmT*.18})`);
+        grad.addColorStop(.84, `rgba(220,24,12,${0.05 + warmT*.20})`);
+        grad.addColorStop(1, 'rgba(150,10,5,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(0,0,glowR,0,TAU); ctx.fill();
+        ctx.strokeStyle = `rgba(255,${Math.round(112-45*warmT)},${Math.round(55-38*warmT)},${.15+.48*warmT})`;
+        ctx.shadowColor = `rgba(255,40,18,${.25+.68*warmT})`;
+        ctx.shadowBlur = 7 + 22*warmT;
+        ctx.lineWidth = 1.5 + 3.5*warmT;
+        ctx.beginPath(); ctx.arc(0,0,rOuter*(1.015+.03*warmT),0,TAU); ctx.stroke();
+      } else {
+        // At 10 kHz the gear visibly transitions from hot red into an electric blue.
+        // By 20 kHz (the existing ultrasonic boundary) it is white-hot.
+        const blueToWhite = hotT;
+        const glowR = rOuter * (1.34 + blueToWhite * .72);
+        const coreR = rOuter * (.30 + blueToWhite * .10);
+        const grad = ctx.createRadialGradient(0,0,coreR*.18,0,0,glowR);
+        const r = Math.round(25 + 230*blueToWhite);
+        const g = Math.round(125 + 130*blueToWhite);
+        const b = 255;
+        grad.addColorStop(0, `rgba(255,255,255,${.28+.42*blueToWhite})`);
+        grad.addColorStop(.16, `rgba(${r},${g},${b},${.24+.34*blueToWhite})`);
+        grad.addColorStop(.48, `rgba(${Math.round(20+40*blueToWhite)},${Math.round(100+110*blueToWhite)},255,${.16+.24*blueToWhite})`);
+        grad.addColorStop(.78, `rgba(${Math.round(15+70*blueToWhite)},${Math.round(70+120*blueToWhite)},255,${.08+.15*blueToWhite})`);
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(0,0,glowR,0,TAU); ctx.fill();
 
-      if (t > .22) {
-        ctx.strokeStyle = `rgba(255,72,31,${.10 + .32*t})`;
-        ctx.lineWidth = 2 + 5*t;
-        ctx.shadowBlur = 14 + 28*t;
-        ctx.beginPath(); ctx.arc(0,0,rOuter*.88,0,TAU); ctx.stroke();
+        ctx.strokeStyle = `rgba(255,255,255,${.58+.38*blueToWhite})`;
+        ctx.shadowColor = `rgba(${Math.round(30+225*blueToWhite)},${Math.round(145+105*blueToWhite)},255,${.72+.26*blueToWhite})`;
+        ctx.shadowBlur = 18 + 42*blueToWhite;
+        ctx.lineWidth = 2.4 + 6*blueToWhite;
+        ctx.beginPath(); ctx.arc(0,0,rOuter*(1.03+.07*blueToWhite),0,TAU); ctx.stroke();
+
+        ctx.strokeStyle = `rgba(${Math.round(35+220*blueToWhite)},${Math.round(150+105*blueToWhite)},255,${.36+.42*blueToWhite})`;
+        ctx.lineWidth = 3 + 8*blueToWhite;
+        ctx.shadowBlur = 24 + 52*blueToWhite;
+        ctx.beginPath(); ctx.arc(0,0,rOuter*(.88+.06*blueToWhite),0,TAU); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawHotGearIllumination(ctx) {
+      const hotGears = state.gears.filter(g => gearHeatIntensity(g).hot);
+      if (!hotGears.length) return;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (const gear of hotGears) {
+        const heat = gearHeatIntensity(gear);
+        const t = heat.hotT;
+        const r = Math.max(12, gear.pitchRadius + Math.min(6, gear.pitchRadius*.15));
+        const spread = r * (2.8 + 4.8*t);
+        const light = ctx.createRadialGradient(gear.x,gear.y,r*.1,gear.x,gear.y,spread);
+        light.addColorStop(0, `rgba(255,255,255,${.12+.24*t})`);
+        light.addColorStop(.14, `rgba(${Math.round(20+235*t)},${Math.round(100+155*t)},255,${.10+.18*t})`);
+        light.addColorStop(.42, `rgba(${Math.round(20+55*t)},${Math.round(90+130*t)},255,${.05+.10*t})`);
+        light.addColorStop(1, 'rgba(120,180,255,0)');
+        ctx.fillStyle = light;
+        ctx.beginPath(); ctx.arc(gear.x,gear.y,spread,0,TAU); ctx.fill();
       }
       ctx.restore();
     }
 
     function drawUltrasonicSteam(ctx, gear, rOuter) {
-      if (!gear?.isUltrasonic) return;
+      const heat = gearHeatIntensity(gear);
+      if (!heat.hot && !gear?.isUltrasonic) return;
+      const heatT = heat.hot ? heat.hotT : 1;
       const t = state.visualFXTime;
       const baseR = rOuter * .68;
-      const count = 4 + (gear.id % 3);
+      const count = Math.round(4 + (gear.id % 3) + heatT * 5);
       ctx.save();
       ctx.translate(0, -rOuter*.12);
       ctx.globalCompositeOperation = 'screen';
@@ -3576,7 +3640,7 @@
         const rise = ((phase*0.42 + i*0.17) % 1.45) * rOuter*.95;
         const x = ((i-(count-1)/2) * rOuter*.16) + drift;
         const y = -rise;
-        const alpha = Math.max(0, .30 * (1 - rise/(rOuter*1.45)));
+        const alpha = Math.max(0, (.24 + heatT*.22) * (1 - rise/(rOuter*1.45)));
         const rr = rOuter*(.035 + .018*Math.sin(phase+i));
         const sg = ctx.createRadialGradient(x-rr*0.2,y-rr*0.2,1,x,y,rr*1.8);
         sg.addColorStop(0,`rgba(255,246,226,${alpha})`);
@@ -3904,6 +3968,9 @@
         ctx.arc(snap.x, snap.y, state.dragState.gear.pitchRadius, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      // Hot gears cast light across the whole machine before individual gears are drawn.
+      drawHotGearIllumination(ctx);
 
       // Draw All Gears
       state.gears.forEach(gear => drawGear(gear));
@@ -5522,7 +5589,7 @@
             <select id="inspector-tooth-waveform" style="flex:1;min-width:0;">
               <option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth">Saw</option><option value="square">Square</option><option value="clockwork">Clock</option>
             </select>
-            <input id="slider-inspector-tooth-width" type="range" min="0.02" max="0.98" step="0.01" value="${getGearToothWidth(gear)}" style="flex:1;min-width:70px;">
+            <input id="slider-inspector-tooth-width" type="range" min="0" max="0.98" step="0.01" value="${getGearToothWidth(gear)}" style="flex:1;min-width:70px;">
             <span id="val-inspector-tooth-width" style="min-width:34px;text-align:right;color:var(--accent-cyan);">${getGearToothWidth(gear).toFixed(2)}</span>
           </div>
           <div id="inspector-tooth-wave-preview" aria-hidden="true"></div>
