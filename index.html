@@ -235,8 +235,6 @@
     }
     .rational-gear-thumb:active { cursor: grabbing; }
     .rational-gear-thumb:hover { border-color: var(--accent-cyan); background: rgba(56,189,248,.11); }
-    .rational-gear-thumb.first-use-2to1 { border-color: var(--accent-cyan); box-shadow: 0 0 18px rgba(6,182,212,.22); animation: firstUseGearPulse 1.6s ease-in-out infinite; }
-    @keyframes firstUseGearPulse { 0%,100%{ box-shadow:0 0 10px rgba(6,182,212,.12); transform:translateY(0); } 50%{ box-shadow:0 0 24px rgba(6,182,212,.36); transform:translateY(-2px); } }
     .rational-gear-thumb .thumb-gear { display:none !important; }
     .rational-gear-thumb .thumb-ratio { font-weight: 900; font-size: 1rem; line-height: 1; color: var(--accent-cyan); }
     .rational-gear-thumb .thumb-name { font-size: .62rem; color: var(--text-main); line-height: 1.1; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; padding:0 3px; }
@@ -407,7 +405,7 @@
         box-shadow: 0 10px 28px rgba(0,0,0,.35);
       }
       #ratio-palette-modal.is-hidden { display:none; }
-      #ratio-palette-modal .floating-header { padding: 8px; }
+      #ratio-palette-modal .floating-header { padding: 8px; border-radius:0 !important; }
       #ratio-palette-modal .floating-title { font-size: .76rem; }
       #ratio-palette-modal .floating-actions { gap: 8px; }
       #ratio-palette-modal .floating-body {
@@ -715,6 +713,39 @@
       .keyboard-panel-pinned .keyboard-panel-title { margin-bottom:4px; }
     }
 
+    /* REUSABLE PER-GEAR ADSR GRAPH */
+    .gear-adsr-editor { width:100%; min-height:92px; margin-top:5px; touch-action:none; user-select:none; }
+    .gear-adsr-svg { display:block; width:100%; height:92px; overflow:visible; touch-action:none; }
+    .gear-adsr-bg { fill:rgba(16,10,5,.58); stroke:#765326; stroke-width:1; }
+    .gear-adsr-grid { stroke:rgba(217,196,154,.16); stroke-width:.7; }
+    .gear-adsr-line { fill:none; stroke:#f1d184; stroke-width:2.4; vector-effect:non-scaling-stroke; filter:drop-shadow(0 0 2px rgba(241,209,132,.55)); pointer-events:none; }
+    .gear-adsr-fill { fill:rgba(241,209,132,.09); pointer-events:none; }
+    .gear-adsr-hitline { fill:none; stroke:transparent; stroke-width:18; pointer-events:stroke; cursor:ns-resize; vector-effect:non-scaling-stroke; }
+    .gear-adsr-handle { fill:url(#adsrGlassHandle); stroke:#5a3813; stroke-width:1.4; cursor:grab; vector-effect:non-scaling-stroke; }
+    .gear-adsr-handle-hit { fill:transparent; stroke:transparent; stroke-width:18; cursor:grab; pointer-events:all; }
+    .gear-adsr-label { fill:#d9c49a; font:700 7px Georgia,serif; pointer-events:none; }
+    .gear-adsr-value { fill:#f1d184; font:700 6px Georgia,serif; pointer-events:none; }
+    .gear-adsr-caption { color:#bda379; font:600 9px Georgia,serif; }
+    .gear-adsr-svg { pointer-events:all; touch-action:none; }
+    .gear-adsr-hitline { pointer-events:stroke !important; }
+    .gear-adsr-line { pointer-events:stroke !important; }
+
+    .adsr-preset-row { display:flex; gap:4px; margin-top:3px; }
+    .adsr-preset-row button { flex:1; min-height:23px; padding:2px 4px; font-size:.56rem; }
+    @media (max-width:900px) and (orientation:portrait) {
+      .gear-adsr-editor { min-height:84px; }
+      .gear-adsr-svg { height:84px; }
+    }
+
+    /* KEYBOARD BLOOM CONTROL */
+    .keyboard-bloom-wrap{flex:1 1 auto;min-width:145px;max-width:270px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+    .keyboard-bloom-label{display:flex;align-items:center;justify-content:space-between;font:700 8px Georgia,serif;color:#d9c49a;letter-spacing:.5px}
+    .keyboard-bloom-label strong{color:#f1d184}
+    #slider-keyboard-bloom{width:100%;height:20px;accent-color:#d5a24b;touch-action:none}
+    .keyboard-bloom-options{display:flex;align-items:center;gap:6px;font:600 7px Georgia,serif;color:#ad956f}
+    .keyboard-bloom-options label{margin:0;display:flex;align-items:center;gap:3px;font-size:7px!important}
+    .keyboard-bloom-options input{margin:0}
+    @media (max-width:900px) and (orientation:portrait){.keyboard-bloom-wrap{min-width:132px;max-width:210px}#slider-keyboard-bloom{height:18px}}
     /* MAIN CANVAS AREA */
     #canvas-container {
       flex: 1;
@@ -1213,7 +1244,21 @@
         width:100% !important;
         min-width:0 !important;
       }
-      .mobile-settings-slide > .panel-box { padding:9px !important; }
+      /* Carousel slides are the single visual surface on mobile. Do not draw
+         another rounded rectangle around each individual panel/control group. */
+      .mobile-settings-slide > .panel-box {
+        padding:9px 2px !important;
+        background:transparent !important;
+        border:0 !important;
+        border-radius:0 !important;
+        box-shadow:none !important;
+      }
+      .mobile-settings-slide > .control-group {
+        background:transparent !important;
+        border:0 !important;
+        border-radius:0 !important;
+        box-shadow:none !important;
+      }
       .mobile-settings-slide .panel-title { margin-bottom:7px !important; }
       .mobile-settings-slide label { font-size:.72rem !important; }
       /* Keep Audio Driver's DRIVE/Clear controls visible after a recording/import. */
@@ -1284,8 +1329,10 @@
         max-height:none !important;
         height:100% !important;
         overflow:hidden !important;
-        border-radius:10px !important;
-        box-shadow:0 8px 24px rgba(0,0,0,.4) !important;
+        border-radius:0 !important;
+        border:0 !important;
+        background:transparent !important;
+        box-shadow:none !important;
       }
       .mobile-settings-slide #ratio-palette-modal.is-hidden { display:none !important; }
       .mobile-ratio-reopen {
@@ -1455,6 +1502,15 @@
         box-sizing:border-box !important;
       }
 
+      /* The Harmonic Presets slide is one surface on mobile; do not create a
+         nested rounded sub-frame around Ratio / Orbit / Pan controls. */
+      #ratio-palette-modal #ratio-add-controls {
+        border:0 !important;
+        border-radius:0 !important;
+        background:transparent !important;
+        box-shadow:none !important;
+      }
+
       #ratio-palette-modal #ratio-add-controls .ratio-add-row {
         margin-top:1px !important;
         gap:2px !important;
@@ -1481,6 +1537,45 @@
     }
 
 
+    .palette-source-buttons{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px;margin-top:4px;align-items:center;width:100%;}
+    .palette-source-btn{position:relative;display:flex!important;align-items:center!important;justify-content:center!important;width:100%!important;height:auto!important;aspect-ratio:1 / 1!important;min-width:0!important;min-height:0!important;max-width:none!important;padding:0!important;border:1px solid #7b5727!important;border-radius:50%!important;background:
+      radial-gradient(circle at 32% 24%,rgba(255,246,213,.78) 0 8%,rgba(255,239,190,.22) 18%,transparent 34%),
+      radial-gradient(circle at 48% 55%,rgba(93,62,24,.98) 0 54%,rgba(40,25,10,.99) 78%,rgba(12,8,4,.99) 100%)!important;
+      color:#f6dda0!important;box-shadow:inset 0 1px 2px rgba(255,246,214,.48),inset 0 -2px 4px rgba(0,0,0,.6),0 2px 5px rgba(0,0,0,.48)!important;
+      overflow:hidden!important;cursor:pointer!important;}
+    .palette-source-btn::before{content:"";position:absolute;inset:2px;border-radius:50%;border:1px solid rgba(240,199,113,.34);pointer-events:none;}
+    .palette-source-btn::after{content:"";position:absolute;left:6px;top:4px;width:14px;height:6px;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,0));transform:rotate(-28deg);opacity:.55;pointer-events:none;}
+    .palette-source-btn svg{width:24px!important;height:24px!important;display:block;position:relative;z-index:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.8));}
+    .palette-source-btn svg path,.palette-source-btn svg polyline,.palette-source-btn svg line,.palette-source-btn svg rect,.palette-source-btn svg circle{vector-effect:non-scaling-stroke;}
+    .palette-source-btn.active{border-color:#f2cf83!important;box-shadow:inset 0 1px 2px rgba(255,246,214,.5),inset 0 -2px 4px rgba(0,0,0,.52),0 0 10px rgba(235,180,72,.34)!important;}
+    .palette-source-btn.active::before{border-color:rgba(255,239,179,.68);}
+    .palette-source-btn:active{transform:translateY(1px);}
+    .palette-source-btn[data-source="noise"] svg line{stroke-linecap:round;}
+    .palette-source-config{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:4px;font-size:.58rem;color:var(--text-muted);}
+    .palette-source-config[hidden]{display:none!important;}
+    .palette-source-config button{padding:3px 6px;font-size:.58rem;}
+    .palette-source-config label{display:flex;align-items:center;gap:2px;margin:0;font-size:.58rem;}
+    .palette-source-config input[type=number]{width:58px;height:21px;padding:2px 3px;font-size:.6rem;}
+    .palette-source-config select{height:21px;padding:1px 3px;font-size:.58rem;max-width:135px;}
+    #palette-audio-name{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    #palette-noise-config small{opacity:.8;}
+    @media (max-width:900px) and (orientation:portrait){
+      .palette-source-buttons{grid-template-columns:repeat(8,minmax(0,1fr));gap:4px;overflow:visible;padding-bottom:2px;}
+      .palette-source-btn{width:100%!important;height:auto!important;aspect-ratio:1 / 1!important;min-width:0!important;min-height:0!important;max-width:none!important;}
+      .palette-source-btn svg{width:22px!important;height:22px!important;}
+    }
+
+
+    .main-source-buttons{width:100%;grid-column:1/-1!important;margin-top:2px!important;}
+    .main-drive-tooth-row{display:flex!important;flex-direction:column!important;align-items:stretch!important;width:100%!important;gap:4px!important;}
+    .main-drive-tooth-row > .main-source-buttons{width:100%!important;flex:0 0 auto!important;}
+    .main-drive-tooth-row #main-tooth-wave-preview{display:none!important;}
+    .inspector-source-buttons{display:grid!important;grid-template-columns:repeat(8,minmax(0,1fr))!important;width:100%!important;}
+
+    .inspector-source-buttons{grid-template-columns:repeat(8,minmax(0,1fr));width:100%;margin-top:4px;}
+    .inspector-source-buttons .palette-source-btn{height:auto!important;aspect-ratio:1 / 1!important;}
+    .main-source-buttons .palette-source-btn{height:auto!important;aspect-ratio:1 / 1!important;}
+
     .palette-shape-row{display:flex;align-items:center;gap:4px;min-width:0;flex-wrap:nowrap;}
     .palette-shape-row .palette-gear-shape-label,
     .palette-shape-row .palette-tooth-shape-label{font-size:.61rem!important;line-height:20px!important;white-space:nowrap!important;flex:0 0 auto;}
@@ -1488,8 +1583,10 @@
     #select-palette-gear-shape{flex:1 1 76px;width:auto!important;}
     #select-palette-tooth-waveform{flex:0 1 68px;width:auto!important;}
     #slider-palette-tooth-width{flex:1 1 52px;min-width:34px;width:auto;margin:0 1px;}
-    .tooth-wave-preview{height:22px;min-width:44px;flex:0 1 92px;overflow:hidden;border:1px solid #6d4b25;border-radius:4px;background:rgba(0,0,0,.28);}
+    .tooth-wave-preview{width:28px;height:28px;min-width:28px;max-width:28px;flex:0 0 28px;overflow:hidden;border:1px solid #6d4b25;border-radius:4px;background:rgba(0,0,0,.28);}
     .tooth-wave-preview svg{display:block;width:100%;height:100%;}
+    @media (max-width:900px) and (orientation:portrait){
+    }
     #inspector-tooth-wave-preview{margin-top:4px;height:32px;border:1px solid var(--border-color);border-radius:4px;overflow:hidden;background:rgba(0,0,0,.18);}
     #inspector-tooth-wave-preview svg{display:block;width:100%;height:100%;}
     @media (max-width:900px) and (orientation:portrait){
@@ -1498,51 +1595,6 @@
       #ratio-palette-modal #slider-palette-tooth-width{min-width:28px;}
     }
 
-
-    /* Persistent A/Fundamental control dock: available on every carousel tab. */
-    @media (max-width:900px) and (orientation:portrait) {
-      #app-container.mobile-carousel-mode #sidebar { position:relative !important; }
-      #mobile-frequency-dock {
-        position:relative; width:100%; min-width:0;
-        display:flex; flex-direction:column; gap:3px;
-        padding:5px 7px 6px;
-        border:1px solid #6e4b24; border-radius:8px;
-        background:linear-gradient(180deg,rgba(72,48,24,.97),rgba(20,13,8,.98));
-        box-shadow:0 -6px 16px rgba(0,0,0,.42), inset 0 1px 0 rgba(247,216,145,.10);
-        pointer-events:auto;
-      }
-      #mobile-frequency-dock #fundamental-frequency-controls {
-        display:flex !important; flex-direction:column; gap:2px; margin:0 !important;
-      }
-      #mobile-frequency-dock #fundamental-frequency-controls > label {
-        display:flex; align-items:center; justify-content:space-between; gap:6px;
-        margin:0; font-size:.60rem !important; color:#d9c49a;
-      }
-      #mobile-frequency-dock #slider-fundamental { width:100% !important; min-width:0; margin:0; height:17px; }
-      #mobile-frequency-dock .fundamental-precision-row { display:none !important; }
-      #mobile-frequency-dock .btn-group {
-        display:grid !important; grid-template-columns:repeat(7,minmax(0,1fr));
-        gap:3px; margin-top:0 !important;
-      }
-      #mobile-frequency-dock .btn-freq-preset {
-        min-width:0 !important; width:100%; height:21px; padding:2px 1px !important;
-        font-size:.52rem !important; line-height:1;
-      }
-      #mobile-frequency-dock #fundamental-label::before { content:'A / '; color:#f1d184; font-weight:900; }
-      #mobile-frequency-dock .val { color:#f4d17d !important; font-size:.60rem !important; }
-      #app-container.mobile-carousel-mode .mobile-settings-slide { padding-bottom:92px !important; }
-      #app-container.mobile-carousel-mode .mobile-ratio-slide { padding-bottom:92px !important; }
-      #app-container.mobile-carousel-mode .mobile-carousel-viewport-tools {
-        left:8px !important; right:8px !important; bottom:4px !important;
-        display:grid !important; grid-template-columns:30px minmax(0,1fr) 30px !important;
-        align-items:stretch; gap:5px; pointer-events:none;
-      }
-      #app-container.mobile-carousel-mode .mobile-carousel-viewport-tools .mobile-carousel-arrow {
-        position:relative !important; left:auto !important; right:auto !important; bottom:auto !important;
-        align-self:center;
-      }
-      #app-container.mobile-carousel-mode .mobile-carousel-dots { bottom:88px !important; z-index:21 !important; }
-    }
 
     /* Compact mobile Main Drive + Shape layout. */
     @media (max-width:900px) and (orientation:portrait){
@@ -1610,9 +1662,105 @@
       #ratio-palette-scale-handle::before { content:'◢'; }
     }
 
+
+    /* FUNDAMENTAL FREQUENCY - permanent 80px top control */
+    #fundamental-topbar {
+      position:fixed; inset:0 0 auto 0; width:100vw; height:80px; z-index:9000;
+      display:grid; grid-template-columns:minmax(150px,220px) minmax(220px,1fr) auto auto;
+      align-items:center; gap:12px; padding:8px 14px;
+      background:linear-gradient(180deg,rgba(52,36,19,.98),rgba(20,13,8,.98));
+      border-bottom:1px solid #8a6230; box-shadow:0 5px 18px rgba(0,0,0,.55);
+    }
+    .fundamental-topbar-label { display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .fundamental-topbar-label span:first-child { color:#f1d184; font:900 13px Georgia,serif; letter-spacing:1px; text-transform:uppercase; }
+    .fundamental-topbar-label span:last-child { color:#fff0bf; font:700 14px Georgia,serif; }
+    #fundamental-topbar #slider-fundamental { width:100%; min-width:0; height:30px; accent-color:#d5a24b; }
+    .fundamental-topbar-presets { display:flex; gap:5px; align-items:center; }
+    .fundamental-topbar-presets button { min-width:45px; height:34px; padding:4px 8px; font-size:.72rem; font-weight:800; }
+    .fundamental-topbar-number { display:flex; align-items:center; gap:5px; min-width:100px; }
+    .fundamental-topbar-number input { width:82px; padding:5px 6px; }
+    .fundamental-topbar-number span { font-size:.72rem; color:#d9c49a; }
+
+    /* Main Gear Drive owns gear shape, tooth shape, teeth count and presets. */
+    .main-gear-drive-panel .main-drive-controls { display:flex; flex-direction:column; gap:7px; }
+    .main-drive-row { display:flex; align-items:center; gap:7px; }
+    .main-drive-row > label { flex:0 0 auto; margin:0; }
+    .main-drive-teeth-row input { width:5ch; min-width:5ch; max-width:5ch; }
+    .main-drive-teeth-row select { flex:1; min-width:0; }
+    .main-drive-shape-row { align-items:flex-start; flex-wrap:wrap; }
+    .main-drive-shape-row > select { flex:1 1 180px; min-width:0; }
+    .main-drive-shape-row #main-shape-params { flex:1 1 100%; }
+    .main-drive-tooth-row > select { width:110px; }
+    .main-drive-tooth-row > input[type="range"] { flex:1; min-width:100px; }
+    .main-tooth-width-value { min-width:32px; text-align:right; color:var(--accent-cyan); font-size:.7rem; }
+    #main-tooth-wave-preview { width:30px; height:30px; min-width:30px; max-width:30px; flex:0 0 30px; }
+    #main-tooth-wave-preview svg { display:block; width:100%; height:100%; }
+    .main-drive-volume-row { display:flex; align-items:center; gap:7px; }
+    .main-drive-volume-row > label { flex:0 0 auto; margin:0; }
+    .main-drive-volume-row > input[type="range"] { flex:1; min-width:80px; }
+
+    /* No artificial bottom work area. Let the interface use the full viewport. */
+    #app-container { padding-top:80px !important; padding-bottom:0 !important; height:100vh; min-height:100vh; box-sizing:border-box; }
+    #canvas-container, #sidebar { min-height:0; }
+    #hud-bottom-left { bottom:8px !important; }
+    #canvas-crank-control { bottom:auto; }
+    @media (max-width:900px) and (orientation:portrait) {
+      #app-container { height:100dvh !important; min-height:100dvh !important; padding:80px 0 0 !important; gap:0 !important; }
+      #app-container.mobile-carousel-mode { height:calc(100dvh - 80px) !important; padding:0 !important; }
+      #fundamental-topbar { height:80px; grid-template-columns:minmax(86px, .65fr) minmax(0, 1.8fr) minmax(0, 2.4fr); gap:5px; padding:5px 6px; }
+      .fundamental-topbar-label span:first-child { font-size:9px; letter-spacing:.5px; }
+      .fundamental-topbar-label span:last-child { font-size:11px; }
+      #fundamental-topbar #slider-fundamental { height:26px; }
+      .fundamental-topbar-presets { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; }
+      .fundamental-topbar-presets button { min-width:0; height:27px; padding:2px 4px; font-size:.61rem; }
+      .fundamental-topbar-number { display:none; }
+      .main-drive-teeth-row { display:grid; grid-template-columns:auto 5ch minmax(0,1fr); }
+      .main-drive-teeth-row input { width:5ch; min-width:5ch; max-width:5ch; }
+      .main-drive-shape-row { display:grid; grid-template-columns:auto minmax(0,1fr); }
+      .main-drive-shape-row #main-shape-params { grid-column:1/-1; }
+      .main-drive-tooth-row { display:grid; grid-template-columns:auto minmax(0,1fr) minmax(36px,1.1fr) 3.5ch; }
+      .main-drive-tooth-row > select { width:auto; min-width:0; }
+      .main-drive-tooth-row > input[type="range"] { min-width:25px; }
+      #canvas-crank-control { display:none !important; }
+      .mobile-carousel-mode .mobile-settings-slide[data-mobile-slide="MAIN GEAR DRIVE"] > .mobile-slide-title { display:none !important; }
+      #hud-bottom-left { bottom:4px !important; left:4px !important; right:4px !important; }
+      #hud-bottom-left button { padding:5px 6px !important; font-size:.62rem !important; }
+    }
+
+
+    /* Main Gear Drive is now edited through Harmonic Presets; retain its old
+       DOM nodes only for backwards-compatible handlers. */
+    .main-gear-drive-panel { display:none !important; }
+    .harmonic-main-teeth{display:flex;align-items:center;gap:3px;margin:0!important;font-size:.55rem!important;color:#d9c49a!important;white-space:nowrap;}
+    .harmonic-main-teeth span{font-weight:800;letter-spacing:.4px;}
+    .harmonic-main-teeth input{width:5ch!important;min-width:5ch!important;max-width:5ch!important;height:24px!important;padding:2px 3px!important;font-size:.62rem!important;}
+    .harmonic-main-teeth select{width:52px!important;height:24px!important;padding:1px 2px!important;font-size:.58rem!important;}
+    .harmonic-main-teeth input:focus,.harmonic-main-teeth select:focus{border-color:#dcb15d!important;}
+    .palette-active-gear{margin:3px 0 1px;color:#f1d184;font:800 9px Georgia,serif;letter-spacing:.6px;text-transform:uppercase;}
+    @media(max-width:900px) and (orientation:portrait){
+      .harmonic-main-teeth input{height:21px!important;font-size:.58rem!important;}
+      .harmonic-main-teeth select{height:21px!important;width:48px!important;font-size:.54rem!important;}
+      .harmonic-main-teeth span{display:none;}
+    }
+
+    #ratio-palette-modal .floating-title::after{content:" · EDITS ACTIVE GEAR";font-size:.58rem;color:#8fc7a0;letter-spacing:.4px;}
 </style>
 </head>
 <body>
+
+  <div id="fundamental-topbar" aria-label="Fundamental Frequency">
+    <div class="fundamental-topbar-label"><span id="fundamental-label">Fundamental Frequency</span><span id="val-fundamental">0.0 Hz</span></div>
+    <input type="range" id="slider-fundamental" min="-1" max="4.38" step="0.005" value="-1" aria-label="Fundamental Frequency">
+    <div class="fundamental-topbar-presets">
+      <button class="btn-freq-preset" data-freq="0.5">0.5</button>
+      <button class="btn-freq-preset" data-freq="1.0">1</button>
+      <button class="btn-freq-preset" data-freq="10.0">10</button>
+      <button class="btn-freq-preset" data-freq="100.0">100</button>
+      <button class="btn-freq-preset" data-freq="432.0">432</button>
+      <button class="btn-freq-preset" data-freq="440.0">440</button>
+    </div>
+    <div class="fundamental-topbar-number"><input type="number" id="input-fundamental" min="0" max="24000" step="0.1" value="0.0"><span id="fundamental-unit">Hz</span></div>
+  </div>
 
   <div id="app-container">
   <div id="gear-add-toolbar" aria-label="Add Gear / Ratio Tool" style="display:none !important;">
@@ -1694,43 +1842,76 @@
       <div class="floating-header" id="ratio-palette-header">
         <div class="floating-title">HARMONIC PRESETS <span id="rational-palette-count" style="font-weight:400; color:var(--text-muted); font-size:0.62rem;"></span></div>
         <div class="floating-actions">
+          <label class="harmonic-main-teeth" title="Main gear tooth count"><span>MAIN</span><input id="palette-main-teeth" type="number" min="1" max="99999" value="120" aria-label="Main Gear Teeth"><select id="palette-main-teeth-preset" aria-label="Main Gear Teeth Preset"><option value="">Preset</option><option value="60">60</option><option value="120">120</option><option value="154">154</option><option value="210">210</option><option value="420">420</option><option value="504">504</option><option value="720">720</option><option value="1001">1001</option><option value="2310">2310</option><option value="30030">30030</option></select></label>
           <button id="btn-ratio-scroll-left" class="ratio-carousel-nav" title="Scroll harmonic presets left" aria-label="Scroll harmonic presets left">‹</button>
           <button id="btn-ratio-scroll-right" class="ratio-carousel-nav" title="Scroll harmonic presets right" aria-label="Scroll harmonic presets right">›</button>
           <button id="btn-close-ratio-palette" title="Hide palette" style="padding:2px 7px;">×</button>
         </div>
       </div>
       <div class="floating-body">
-        <div id="ratio-first-use-prompt" style="display:none; margin:0 0 8px; padding:10px 12px; border:1px solid var(--accent-cyan); border-radius:8px; background:rgba(6,182,212,.12); box-shadow:0 0 18px rgba(6,182,212,.16); position:relative; z-index:3;">
-          <div style="font-size:.88rem; font-weight:900; color:var(--accent-cyan); letter-spacing:.03em; text-align:center;">Drag any gear to the main flywheel and click START AUDIO</div>
-        </div>
         <div class="shape-generator">
           <div class="palette-shape-row">
             <span class="panel-title palette-gear-shape-label">Gear Shape</span>
             <select id="select-palette-gear-shape" title="Mechanical contour used by the gear">
-            <option value="circular">Circular - Standard Gear</option>
-            <option value="ellipse">Elliptical - Smooth acceleration / deceleration</option>
-            <option value="square">Square - Flat velocity + corner spikes</option>
-            <option value="hexagon">Hexagonal - Flat velocity + 6 corner spikes</option>
-            <option value="cardioid">Cardioid - Asymmetrical sawtooth motion</option>
-            <option value="heart">Heart - Asymmetrical rise / sharp return</option>
-            <option value="mobius">Möbius</option>
-          </select>
-          <span class="panel-title palette-tooth-shape-label">Tooth Shape</span>
-          <select id="select-palette-tooth-waveform" title="Waveform produced by each new gear">
-            <option value="sine">Sine</option>
-            <option value="triangle">Triangle</option>
-            <option value="sawtooth" selected>Saw</option>
-            <option value="square">Square</option>
-            <option value="clockwork">Clock</option>
-          </select>
-          <input id="slider-palette-tooth-width" type="range" min="0" max="0.98" step="0.01" value="0.50" title="Tooth Shape Width" aria-label="Tooth Shape Width">
+              <option value="circular">Circular - Standard Gear</option>
+              <option value="ellipse">Elliptical - Smooth acceleration / deceleration</option>
+              <option value="square">Square - Flat velocity + corner spikes</option>
+              <option value="hexagon">Hexagonal - Flat velocity + 6 corner spikes</option>
+              <option value="cardioid">Cardioid - Asymmetrical sawtooth motion</option>
+              <option value="heart">Heart - Asymmetrical rise / sharp return</option>
+              <option value="mobius">Möbius</option>
+            </select>
           </div>
-          <div id="palette-tooth-wave-preview" class="tooth-wave-preview" aria-hidden="true"></div>
+          <div id="palette-active-gear-title" class="palette-active-gear">ACTIVE: 1:1 MAIN · 120T</div>
+          <div class="palette-source-buttons" id="palette-source-buttons" aria-label="Gear sound source">
+            <button type="button" class="palette-source-btn" data-source="sine" aria-label="Sine"></button>
+            <button type="button" class="palette-source-btn" data-source="square" aria-label="Square"></button>
+            <button type="button" class="palette-source-btn" data-source="triangle" aria-label="Triangle"></button>
+            <button type="button" class="palette-source-btn active" data-source="sawtooth" aria-label="Saw"></button>
+            <button type="button" class="palette-source-btn" data-source="noise" aria-label="Noise"></button>
+            <button type="button" class="palette-source-btn" data-source="clockwork" aria-label="Clockwork"></button>
+            <button type="button" class="palette-source-btn" data-source="midi" aria-label="MIDI Output"></button>
+            <button type="button" class="palette-source-btn" data-source="audio" aria-label="Audio Sample"></button>
+          </div>
+          <div class="palette-source-config" id="palette-noise-config" hidden>
+            <span>Noise band</span>
+            <small>slider: HPF → LPF / Q</small>
+          </div>
+          <div class="palette-source-config" id="palette-audio-config" hidden>
+            <input type="file" id="palette-audio-file" accept="audio/*" hidden>
+            <button type="button" id="btn-palette-audio-file">LOAD AUDIO</button>
+            <span id="palette-audio-name">No audio loaded</span>
+            <label>Start <input id="palette-audio-start" type="number" min="0" step="0.001" value="0"></label>
+            <label>End <input id="palette-audio-end" type="number" min="0.001" step="0.001" value="0.001"></label>
+          </div>
+          <div class="palette-source-config" id="palette-midi-config" hidden>
+            <button type="button" id="btn-palette-midi-enable">ENABLE MIDI OUT</button>
+            <label>Out <select id="palette-midi-output"><option value="">No MIDI output</option></select></label>
+            <label>Note <select id="palette-midi-note"></select></label>
+          </div>
+          <input id="slider-palette-tooth-width" type="range" min="0" max="0.98" step="0.01" value="0.50" title="Shape Width / Noise Band Shape" aria-label="Shape Width / Noise Band Shape">
           <div id="palette-shape-params" style="margin-top:4px;"></div>
           <div id="palette-shape-description" aria-hidden="true" style="display:none;"></div>
           <div style="margin-top:6px;">
             <label style="font-size:.65rem;display:flex;justify-content:space-between"><span>Gear Volume</span><span id="val-palette-volume" style="color:var(--accent-cyan)">20%</span></label>
             <input type="range" id="slider-palette-volume" min="0" max="1" step="0.01" value="0.20" style="width:100%">
+          </div>
+          <div class="gear-adsr-section" style="margin-top:6px; border-top:1px solid var(--border-color); padding-top:5px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:var(--accent-cyan);font-size:.68rem;">GEAR ADSR</strong><span class="gear-adsr-caption">A≤2s · R≤10s</span></div>
+            <div class="gear-adsr-editor" id="palette-adsr-editor">
+              <svg class="gear-adsr-svg" id="palette-adsr-graph" viewBox="0 0 200 76" preserveAspectRatio="none" aria-label="Harmonic preset ADSR envelope">
+                <defs><radialGradient id="adsrGlassHandlePalette" cx="30%" cy="25%"><stop offset="0" stop-color="#fff3c1"/><stop offset=".4" stop-color="#e0bc68"/><stop offset="1" stop-color="#684114"/></radialGradient></defs>
+                <rect class="gear-adsr-bg" x="1" y="1" width="198" height="74" rx="5"/>
+                <line class="gear-adsr-grid" x1="8" y1="61" x2="192" y2="61"/><line class="gear-adsr-grid" x1="8" y1="8" x2="8" y2="61"/>
+                <path id="palette-adsr-fill" class="gear-adsr-fill" d=""/><path id="palette-adsr-hitline" class="gear-adsr-hitline" d=""/><path id="palette-adsr-line" class="gear-adsr-line" d=""/>
+                <circle id="palette-adsr-hit-attack" class="gear-adsr-handle-hit" r="9" data-adsr="attack"/><circle id="palette-adsr-h-attack" class="gear-adsr-handle" r="4.5"/>
+                <circle id="palette-adsr-hit-decay" class="gear-adsr-handle-hit" r="9" data-adsr="decay"/><circle id="palette-adsr-h-decay" class="gear-adsr-handle" r="4.5"/>
+                <circle id="palette-adsr-hit-sustain" class="gear-adsr-handle-hit" r="9" data-adsr="sustain"/><circle id="palette-adsr-h-sustain" class="gear-adsr-handle" r="4.5"/>
+                <circle id="palette-adsr-hit-release" class="gear-adsr-handle-hit" r="9" data-adsr="release"/><circle id="palette-adsr-h-release" class="gear-adsr-handle" r="4.5"/>
+                <text class="gear-adsr-label" x="12" y="11">A</text><text class="gear-adsr-label" x="68" y="11">D</text><text class="gear-adsr-label" x="114" y="11">S</text><text class="gear-adsr-label" x="164" y="11">R</text>
+                <text id="palette-adsr-values" class="gear-adsr-value" x="98" y="71" text-anchor="middle"></text>
+              </svg>
+            </div>
           </div>
         </div>
         <div id="rational-gear-palette" class="rational-palette" aria-label="Available rational gears"></div>
@@ -1780,8 +1961,8 @@
           </div>
         </div>
 
-        <!-- AUDIO DRIVER -->
-        <div class="panel-box">
+        <!-- AUDIO DRIVER LEGACY ENGINE (replaced in UI by per-gear AUDIO mode) -->
+        <div class="panel-box legacy-audio-driver-panel" style="display:none !important;">
           <div class="panel-title">Audio Driver</div>
           <div class="control-group">
             <label>Record or Load a sound then click DRIVE.</label>
@@ -1808,35 +1989,14 @@
           <div id="audio-driver-status" style="font-size:0.68rem; color:var(--text-muted); margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">No audio file loaded</div>
         </div>
 
-        <!-- MAIN GEAR / FUNDAMENTAL CONTROLS -->
-        <div class="panel-box">
-          <div class="panel-title">Main Drive Gear</div>
-          
-          <div id="fundamental-frequency-controls" class="control-group">
-            <label><span id="fundamental-label">Fundamental Frequency</span> <span id="val-fundamental" class="val">1.0 Hz</span></label>
-            <!-- Logarithmic positive frequencies with a true 0 Hz stop at the far-left endpoint. -->
-            <input type="range" id="slider-fundamental" min="-1" max="4.38" step="0.005" value="-1">
-            <!-- Precise Number Input -->
-            <div class="fundamental-precision-row" style="display: flex; align-items: center; gap: 6px; margin-top: 6px;">
-              <input type="number" id="input-fundamental" min="0" max="24000" step="0.1" value="0.0">
-              <span id="fundamental-unit" style="font-size: 0.8rem; color: var(--text-muted);">Hz</span>
-            </div>
-            <!-- Quick Fundamental Presets -->
-            <div class="btn-group" style="margin-top: 8px;">
-              <button class="btn-freq-preset" data-freq="0.5" style="flex:1; padding:3px 4px; font-size:0.7rem;">0.5</button>
-              <button class="btn-freq-preset" data-freq="1.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">1</button>
-              <button class="btn-freq-preset" data-freq="19.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">19</button>
-              <button class="btn-freq-preset" data-freq="199.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">199</button>
-              <button class="btn-freq-preset" data-freq="432.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">432</button>
-              <button class="btn-freq-preset" data-freq="440.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">440</button>
-              <button class="btn-freq-preset" data-freq="1000.0" style="flex:1; padding:3px 4px; font-size:0.7rem;">1k</button>
-            </div>
-          </div>
-
-          <div class="control-group main-teeth-mobile-row">
-            <label>Main Gear Teeth <span id="val-main-teeth" class="val">120</span></label>
-            <input type="number" id="input-main-teeth" min="1" max="15015" value="120">
-            <select id="select-main-teeth-preset" aria-label="Teeth Preset">
+        <!-- MAIN GEAR DRIVE -->
+        <div class="panel-box main-gear-drive-panel" aria-hidden="true">
+          <div class="panel-title">Main Gear Drive</div>
+          <div class="main-drive-controls">
+            <div class="main-drive-row main-drive-teeth-row">
+              <label for="input-main-teeth">Main Gear Teeth</label>
+              <input type="number" id="input-main-teeth" min="1" max="99999" value="120">
+              <select id="select-main-teeth-preset" aria-label="Teeth Preset">
                 <option value="" disabled selected>Select Preset...</option>
                 <option value="60">60 — 3×4×5 (Compact Triad Hub)</option>
                 <option value="120">120 — 4×5×6 (2³×3×5 - Standard JI Hub)</option>
@@ -1849,35 +2009,73 @@
                 <option value="2310">2310 — 2×3×5×7×11 (11-Limit Primorial Hub)</option>
                 <option value="30030">30030 — 2×3×5×7×11×13 (13-Limit Primorial Hub)</option>
               </select>
+            </div>
+            <div class="main-drive-row main-drive-shape-row">
+              <label>Gear Shape</label>
+              <select id="select-main-gear-shape" aria-label="Fundamental Gear Shape">
+                <option value="circular">Circular - Standard Gear</option>
+                <option value="ellipse">Elliptical - Tunable focal geometry</option>
+                <option value="square">Square - Tunable corner sharpness</option>
+                <option value="hexagon">Hexagonal - Tunable corner sharpness</option>
+                <option value="cardioid">Cardioid - Tunable cusp / depth</option>
+                <option value="heart">Heart - Tunable width / point</option>
+                <option value="mobius">Möbius - Tunable twist / width</option>
+              </select>
+              <div id="main-shape-params" style="margin-top:3px;"></div>
+            </div>
+            <div class="main-drive-row main-drive-tooth-row">
+              <span class="main-source-label" aria-hidden="true" style="display:none;">Source</span>
+              <select id="select-main-tooth-waveform" aria-label="Main Gear Tooth Shape" style="display:none;">
+                <option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth" selected>Saw</option><option value="square">Square</option><option value="clockwork">Clock</option>
+              </select>
+              <div class="main-source-buttons palette-source-buttons" id="main-source-buttons" aria-label="Main gear sound source">
+                <button type="button" class="palette-source-btn" data-source="sine" aria-label="Sine"></button>
+                <button type="button" class="palette-source-btn" data-source="square" aria-label="Square"></button>
+                <button type="button" class="palette-source-btn" data-source="triangle" aria-label="Triangle"></button>
+                <button type="button" class="palette-source-btn" data-source="sawtooth" aria-label="Saw"></button>
+                <button type="button" class="palette-source-btn" data-source="noise" aria-label="Noise"></button>
+                <button type="button" class="palette-source-btn" data-source="clockwork" aria-label="Clockwork"></button>
+                <button type="button" class="palette-source-btn" data-source="midi" aria-label="MIDI Output"></button>
+                <button type="button" class="palette-source-btn" data-source="audio" aria-label="Audio Sample"></button>
+              </div>
+              <input id="slider-main-tooth-width" type="range" min="0" max="0.98" step="0.01" value="0.50" aria-label="Main Gear Shape Width" title="Shape Width">
+              <div class="main-source-configs" style="grid-column:1/-1;">
+                <div class="palette-source-config" id="main-noise-config" hidden><span>Noise band</span><small style="opacity:.8">slider: HPF → LPF / Q</small></div>
+                <div class="palette-source-config" id="main-audio-config" hidden><input type="file" id="main-audio-file" accept="audio/*" hidden><button type="button" id="btn-main-audio-file">LOAD AUDIO</button><span id="main-audio-name">No audio loaded</span><label>Start <input id="main-audio-start" type="number" min="0" step="0.001" value="0"></label><label>End <input id="main-audio-end" type="number" min="0.001" step="0.001" value="0.001"></label></div>
+                <div class="palette-source-config" id="main-midi-config" hidden><button type="button" id="btn-main-midi-enable">ENABLE MIDI OUT</button><label>Out <select id="main-midi-output"><option value="">No MIDI output</option></select></label><label>Note <select id="main-midi-note"></select></label></div>
+              </div>
+              <span id="val-main-tooth-width" class="main-tooth-width-value">0.50</span>
+              <div id="main-tooth-wave-preview" class="tooth-wave-preview" aria-hidden="true"></div>
+            </div>
+            <div class="main-drive-volume-row">
+              <label for="slider-main-volume">Volume</label>
+              <input id="slider-main-volume" type="range" min="0" max="1" step="0.01" value="0.20" aria-label="Main Gear Volume">
+              <span id="val-main-volume" class="main-tooth-width-value">20%</span>
+            </div>
+            <div class="gear-adsr-section" style="margin-top:6px; border-top:1px solid var(--border-color); padding-top:5px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:var(--accent-cyan);font-size:.68rem;">GEAR ADSR</strong><span class="gear-adsr-caption">A≤2s · R≤10s</span></div>
+              <div class="gear-adsr-editor"><svg class="gear-adsr-svg" id="main-adsr-graph" viewBox="0 0 200 76" preserveAspectRatio="none" aria-label="Main gear ADSR envelope">
+                <defs><radialGradient id="adsrGlassHandleMain" cx="30%" cy="25%"><stop offset="0" stop-color="#fff3c1"/><stop offset=".4" stop-color="#e0bc68"/><stop offset="1" stop-color="#684114"/></radialGradient></defs>
+                <rect class="gear-adsr-bg" x="1" y="1" width="198" height="74" rx="5"/><line class="gear-adsr-grid" x1="8" y1="61" x2="192" y2="61"/><line class="gear-adsr-grid" x1="8" y1="8" x2="8" y2="61"/>
+                <path id="main-adsr-fill" class="gear-adsr-fill" d=""/><path id="main-adsr-hitline" class="gear-adsr-hitline" d=""/><path id="main-adsr-line" class="gear-adsr-line" d=""/>
+                <circle id="main-adsr-hit-attack" class="gear-adsr-handle-hit" r="9" data-adsr="attack"/><circle id="main-adsr-h-attack" class="gear-adsr-handle" r="4.5"/><circle id="main-adsr-hit-decay" class="gear-adsr-handle-hit" r="9" data-adsr="decay"/><circle id="main-adsr-h-decay" class="gear-adsr-handle" r="4.5"/><circle id="main-adsr-hit-sustain" class="gear-adsr-handle-hit" r="9" data-adsr="sustain"/><circle id="main-adsr-h-sustain" class="gear-adsr-handle" r="4.5"/><circle id="main-adsr-hit-release" class="gear-adsr-handle-hit" r="9" data-adsr="release"/><circle id="main-adsr-h-release" class="gear-adsr-handle" r="4.5"/>
+                <text class="gear-adsr-label" x="12" y="11">A</text><text class="gear-adsr-label" x="68" y="11">D</text><text class="gear-adsr-label" x="114" y="11">S</text><text class="gear-adsr-label" x="164" y="11">R</text><text id="main-adsr-values" class="gear-adsr-value" x="100" y="71" text-anchor="middle"></text>
+              </svg></div>
+            </div>
+            <div id="main-shape-description" style="display:none;"></div>
           </div>
-        </div>
-
-        <div class="control-group main-shape-mobile-row">
-          <label>Fundamental Gear Shape</label>
-          <div class="main-shape-controls">
-          <select id="select-main-gear-shape" aria-label="Fundamental Gear Shape">
-            <option value="circular">Circular - Standard Gear</option>
-            <option value="ellipse">Elliptical - Tunable focal geometry</option>
-            <option value="square">Square - Tunable corner sharpness</option>
-            <option value="hexagon">Hexagonal - Tunable corner sharpness</option>
-            <option value="cardioid">Cardioid - Tunable cusp / depth</option>
-            <option value="heart">Heart - Tunable width / point</option>
-            <option value="mobius">Möbius - Tunable twist / width</option>
-          </select>
-          <select id="select-main-tooth-waveform" aria-label="Main Gear Tooth Shape">
-            <option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth" selected>Saw</option><option value="square">Square</option><option value="clockwork">Clock</option>
-          </select>
-          <input id="slider-main-tooth-width" type="range" min="0" max="0.98" step="0.01" value="0.50" aria-label="Main Gear Tooth Shape Width" title="Tooth Shape Width">
-          <span id="val-main-tooth-width" class="main-tooth-width-value">0.50</span>
-          </div>
-          <div id="main-shape-params" style="margin-top:3px;"></div>
-          <div id="main-shape-description" style="display:none;"></div>
         </div>
 
         <!-- PIANO KEYBOARD -->
         <div class="panel-box">
           <div class="panel-title keyboard-panel-title">
-            <span id="hud-current-note" style="color: var(--accent-cyan); font-weight: bold;">C (1.00x)</span>
+            <span class="keyboard-title-label">KEYBOARD</span>
+            <span id="hud-current-note" style="color: var(--accent-cyan); font-weight: bold; white-space:nowrap;">C (1.00x)</span>
+            <div class="keyboard-bloom-wrap" aria-label="Global harmonic bloom">
+              <div class="keyboard-bloom-label"><strong>BLOOM</strong><span id="keyboard-bloom-value">0.00s · normal</span></div>
+              <input id="slider-keyboard-bloom" type="range" min="-5" max="5" step="0.01" value="0" aria-label="Global harmonic bloom time and order" title="Bloom: left = high harmonics first; right = fundamental first">
+              <div class="keyboard-bloom-options"><span>HIGH ←</span><span>0</span><span>→ LOW</span><label><input id="chk-bloom-placement-order" type="checkbox">Placement order</label></div>
+            </div>
             <button id="btn-pin-keyboard" class="keyboard-carousel-pin" type="button" aria-pressed="false" aria-label="Pin keyboard carousel" title="Pin keyboard carousel"><span class="keyboard-pin-icon" aria-hidden="true"></span></button>
           </div>
           <div class="keyboard-container" id="virtual-keyboard">
@@ -1907,20 +2105,20 @@
 
           <!-- KEYBOARD PERFORMANCE OPTIONS -->
           <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
-            <div style="display:flex; gap:6px; align-items:center;">
-              <button id="btn-poly" style="flex:1;">POLY OFF</button>
-              <span id="poly-status" style="font-size:0.68rem; color:var(--text-muted);">mono</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-              <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 5px; color: var(--text-muted); cursor: pointer;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+              <label style="font-size:0.72rem; display:flex; align-items:center; gap:5px; color:var(--text-muted); cursor:pointer;">
+                <input type="checkbox" id="chk-poly">
+                <span>Poly</span>
+              </label>
+              <label style="font-size:0.72rem; display:flex; align-items:center; gap:5px; color:var(--text-muted); cursor:pointer;">
                 <input type="checkbox" id="chk-continuous" checked>
                 <span>Continuous</span>
               </label>
-              <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 5px; color: var(--text-muted); cursor: pointer;">
+              <label style="font-size:0.72rem; display:flex; align-items:center; gap:5px; color:var(--text-muted); cursor:pointer;">
                 <input type="checkbox" id="chk-legato">
                 <span>Porta</span>
               </label>
-              <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 5px; color: var(--text-muted); cursor: pointer;">
+              <label style="font-size:0.72rem; display:flex; align-items:center; gap:5px; color:var(--text-muted); cursor:pointer;">
                 <input type="checkbox" id="chk-ji-keyboard">
                 <span>JI</span>
               </label>
@@ -2121,11 +2319,17 @@
       midiHeldNotes: new Map(),
       legato: false,             // Legato/glissando smoothing for active pitch changes and POLY voice retuning
       glissTime: 0.20,           // Glissando glide duration in seconds
+      adsr: { attack: 0.01, decay: 0.01, sustain: 0.80, release: 0.50, attackCurve: 0, decayCurve: 0, releaseCurve: 0 },
+      bloom: { amount: 0, placementOrder: false },
+      adsrGraphDragging: false,
+      keyboardEnvelopeGain: null,
+      keyboardReleaseVoices: new Set(),
       mainTeeth: 120,
       gears: [],
       gearMap: new Map(),
       nextGearId: 1,
       selectedGearId: null,
+      activePaletteGearId: null,
       hoveredGearId: null,
       camera: { x: 0, y: 0, zoom: 1.0 },
       dragState: null,
@@ -2164,7 +2368,13 @@
       polyMode: false,
       jiKeyboard: false,          // Retune POLY chords to nearest simple JI ratios
       polyVoices: new Map(),
-      midi: { access: null, enabled: false, input: null },
+      polyReleaseTails: new Set(),
+      keyboardPointerToKey: new Map(),
+      keyboardKeyPointerCounts: new Map(),
+      keyboardPointerHeldKeys: new Set(),
+      keyboardPhysicalKeyDownCodes: new Set(),
+      polyReleaseWatchdog: null,
+      midi: { access: null, enabled: false, input: null, output: null },
       audioDriver: {
         buffer: null, rawBuffer: null, fileName: '', playing: false, elapsed: 0, detectedFreq: 1, visualShape: 'sine', driverRate: 1, driverRPM: 33.3, driverRPMBase: 33.3, driverNominalRPM: 33.3,
         loopStart: 0, loopEnd: 0, crossfadeMs: 25,
@@ -2212,6 +2422,21 @@
         this.shape = 'circular';
         this.toothWaveform = isMain ? state.waveform : state.waveform;
         this.toothWidth = 0.50; // 0..1 shape width; 0.50 = neutral/default
+        this.sourceMode = this.toothWaveform === 'clockwork' ? 'clockwork' : this.toothWaveform;
+        this.adsr = { ...state.adsr };
+        this.audioBuffer = null;
+        this.audioFileName = '';
+        this.audioLoopStart = 0;
+        this.audioLoopEnd = 0;
+        this.audioSource = null;
+        this.audioGainStage = null;
+        this.noiseSource = null;
+        this.noiseHPF = null;
+        this.noiseLPF = null;
+        this.midiOutput = null;
+        this.midiNote = 60;
+        this.midiLastRotation = null;
+        this.midiOffTimer = null;
         this.magneticMesh = true; // fundamental constraint; always enabled
         this.shapeParams = { ellipseA: 1.0, ellipseEccentricity: 0.45, polygonSharpness: 0.78, cardioidDepth: 0.72, cardioidBias: 0.5, heartWidth: 0.82, heartPoint: 0.72, mobiusTwist: 1.0, mobiusWidth: 0.16 };
       }
@@ -2621,10 +2846,8 @@
       const w = normalizeToothWidth(width);
       const sine = Math.sin(TAU * t);
       if (type === 'square') {
-        // Width 0 is a genuinely hard mechanical pulse: full level, then an
-        // instantaneous drop to DC/zero. It is deliberately UNIPOLAR here so
-        // a very slow crank produces distinct click/edge transients rather than
-        // a bipolar low-frequency "wub". Wider settings retain the shaped duty cycle.
+        // Width 0 is an exact hard-edged mechanical square. No attack/release
+        // or waveform smoothing is applied here; gain slews remain independent.
         if (w <= 0) return t < 0.5 ? 1 : 0;
         const duty = Math.max(0.02, Math.min(0.98, 0.5 + (w - 0.5) * 1.80));
         return t < duty ? 1 : -1;
@@ -2641,13 +2864,12 @@
         return y;
       }
       if (type === 'sawtooth') {
-        // Width 0 is a true mechanical unipolar saw: a flat/full level at the
-        // start of the tooth, a linear fall to zero, then an instantaneous reset
-        // back to full level. There is no attack/release curve.
+        // Width 0 is a true hard mechanical saw: linear fall to zero, then
+        // instantaneous reset. The audio gain slews do not alter this contour.
         if (w <= 0) return 1 - t;
         const saw = 2 * t - 1;
         if (w <= 0.5) {
-          // Narrower = progressively more pointy/impulse-like.
+          // Narrower = more pointy, impulse-like ramp.
           const p = 1 + (0.5 - w) * 3.0;
           return Math.sign(saw) * Math.pow(Math.abs(saw), p);
         }
@@ -2675,14 +2897,6 @@
       const real = new Float32Array(bins);
       const imag = new Float32Array(bins);
       const samples = 256;
-      // Preserve the DC component for the hard mechanical zero-width pulse
-      // shapes. Without this, the unipolar level is forced back toward a
-      // bipolar AC waveform and the very slow crank loses its click/edge character.
-      if (w <= 0 && (type === 'square' || type === 'sawtooth')) {
-        let dc = 0;
-        for (let n = 0; n < samples; n++) dc += toothWaveSample(type, n / samples, w);
-        real[0] = dc / samples;
-      }
       for (let h = 1; h < bins; h++) {
         let re = 0, im = 0;
         for (let n = 0; n < samples; n++) {
@@ -2717,6 +2931,81 @@
         pts.push(`${(x + t*w).toFixed(1)},${(y + h*(0.5 - 0.45*v)).toFixed(1)}`);
       }
       return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="rgba(0,0,0,.52)" stroke="rgba(255,255,255,.22)" stroke-width=".7"/><polyline points="${pts.join(' ')}" fill="none" stroke="#f4d17d" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+
+    function makeNoiseBuffer(ctx, seconds = 1) {
+      const length = Math.max(256, Math.floor(ctx.sampleRate * seconds));
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+      return buffer;
+    }
+
+    function configureNoiseFilters(gear) {
+      if (!gear.noiseHPF || !gear.noiseLPF || !state.audioCtx) return;
+      const w = getGearToothWidth(gear);
+      const hpf = 40 * Math.pow(120, 1 - w);
+      const lpf = 500 + 11500 * w;
+      const q = 0.8 + 16 * Math.abs(w - 0.5) * 2;
+      gear.noiseHPF.frequency.setTargetAtTime(Math.min(16000, hpf), state.audioCtx.currentTime, .01);
+      gear.noiseLPF.frequency.setTargetAtTime(Math.max(hpf + 50, Math.min(18000, lpf)), state.audioCtx.currentTime, .01);
+      gear.noiseHPF.Q.setTargetAtTime(q, state.audioCtx.currentTime, .01);
+      gear.noiseLPF.Q.setTargetAtTime(q, state.audioCtx.currentTime, .01);
+    }
+
+    function stopGearSource(gear) {
+      if (gear.audioSource) { try { gear.audioSource.stop(); } catch (_) {} try { gear.audioSource.disconnect(); } catch (_) {} gear.audioSource = null; }
+      if (gear.noiseSource) { try { gear.noiseSource.stop(); } catch (_) {} try { gear.noiseSource.disconnect(); } catch (_) {} gear.noiseSource = null; }
+      if (gear.midiOffTimer) { clearTimeout(gear.midiOffTimer); gear.midiOffTimer = null; }
+    }
+    function stopGearAudioOnly(gear) { if (gear.audioSource) { try { gear.audioSource.stop(); } catch (_) {} try { gear.audioSource.disconnect(); } catch (_) {} gear.audioSource = null; } }
+    function stopGearNoiseOnly(gear) { if (gear.noiseSource) { try { gear.noiseSource.stop(); } catch (_) {} try { gear.noiseSource.disconnect(); } catch (_) {} gear.noiseSource = null; } }
+
+    function createGearAudioLoopSource(gear) {
+      if (!state.audioCtx || !gear.audioBuffer || gear.sourceMode !== 'audio' || gear.ratio === 0 || gear.isUltrasonic) return;
+      stopGearSource(gear);
+      const src = state.audioCtx.createBufferSource();
+      src.buffer = gear.audioBuffer; src.loop = true; src.loopStart = Math.max(0, Math.min(gear.audioLoopStart || 0, gear.audioBuffer.duration)); src.loopEnd = Math.max(src.loopStart + .001, Math.min(gear.audioLoopEnd || gear.audioBuffer.duration, gear.audioBuffer.duration));
+      const segmentDuration = Math.max(.001, src.loopEnd - src.loopStart);
+      src.playbackRate.value = Math.max(.00001, segmentDuration * Math.abs(gear.freq || .001));
+      src.connect(gear.delayNode);
+      src.start(0, src.loopStart);
+      gear.audioSource = src;
+    }
+
+    function createGearNoiseSource(gear) {
+      if (!state.audioCtx || gear.sourceMode !== 'noise' || gear.ratio === 0 || gear.isUltrasonic) return;
+      stopGearSource(gear);
+      const src = state.audioCtx.createBufferSource(); src.buffer = makeNoiseBuffer(state.audioCtx, 1); src.loop = true;
+      const hp = state.audioCtx.createBiquadFilter(); hp.type='highpass';
+      const lp = state.audioCtx.createBiquadFilter(); lp.type='lowpass';
+      src.connect(hp); hp.connect(lp); lp.connect(gear.delayNode); src.start();
+      gear.noiseSource=src; gear.noiseHPF=hp; gear.noiseLPF=lp; configureNoiseFilters(gear);
+    }
+
+    function midiNoteNameToNumber(name) {
+      const m=String(name||'C4').match(/^([A-Ga-g])([#b]?)(-?\d+)$/); if(!m) return 60;
+      const sem={C:0,D:2,E:4,F:5,G:7,A:9,B:11}[m[1].toUpperCase()] ?? 0;
+      const acc=m[2]==='#'?1:m[2]==='b'?-1:0; return Math.max(0,Math.min(127,(Number(m[3])+1)*12+sem+acc));
+    }
+    function midiNumberToName(n) { const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; n=Math.max(0,Math.min(127,Number(n)||60)); return `${names[n%12]}${Math.floor(n/12)-1}`; }
+    function populateMidiOutputs() {
+      const sel=document.getElementById('palette-midi-output'); if(!sel) return;
+      const outs=state.midi.access ? Array.from(state.midi.access.outputs.values()) : []; sel.innerHTML='';
+      if(!outs.length){sel.add(new Option('No MIDI outputs','')); state.midi.output=null; return;}
+      outs.forEach(o=>sel.add(new Option(o.name||o.id,o.id)));
+      const chosen=outs.find(o=>o.id===state.midi.output?.id)||outs[0]; sel.value=chosen.id; state.midi.output=chosen;
+    }
+    function populatePaletteMidiNotes(){ const sel=document.getElementById('palette-midi-note'); if(!sel) return; sel.innerHTML=''; for(let o=1;o<=9;o++) for(let n=0;n<12;n++){ const midi=(o+1)*12+n; if(midi<=127) sel.add(new Option(midiNumberToName(midi),String(midi))); } sel.value='60'; }
+    function sendGearMidiNote(gear) {
+      const out=gear.midiOutput || state.midi.output; const note=Math.max(0,Math.min(127,Number(gear.midiNote)||60)); if(!out?.send) return;
+      try { out.send([0x90,note,Math.max(1,Math.round((gear.volume||.2)*127))]); if(gear.midiOffTimer) clearTimeout(gear.midiOffTimer); const offMs=Math.max(8,Math.min(80,1000/Math.max(.01,Math.abs(gear.freq||1))*0.2)); gear.midiOffTimer=setTimeout(()=>{try{out.send([0x80,note,0]);}catch(_){ } gear.midiOffTimer=null;},offMs); } catch(_) {}
+    }
+    function triggerGearMidiRotations(gear, previousPhase, nextPhase) {
+      if(gear.sourceMode!=='midi' || gear.ratio===0 || gear.isUltrasonic) return;
+      if(!Number.isFinite(previousPhase)||!Number.isFinite(nextPhase)) return;
+      const prevTurns=Math.floor(previousPhase/TAU), nextTurns=Math.floor(nextPhase/TAU);
+      if(nextTurns!==prevTurns) { const steps=Math.min(8,Math.abs(nextTurns-prevTurns)); for(let i=0;i<steps;i++) sendGearMidiNote(gear); }
     }
 
     /* WEB AUDIO ENGINE */
@@ -2790,7 +3079,11 @@
       if (!state.audioCtx) {
         state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         state.masterGain = state.audioCtx.createGain();
+        state.keyboardEnvelopeGain = state.audioCtx.createGain();
         state.masterGain.gain.setValueAtTime(state.masterVolume, state.audioCtx.currentTime);
+        const envInitial = state.releaseOnKeyup ? 0 : 1;
+        state.keyboardEnvelopeGain.gain.setValueAtTime(envInitial, state.audioCtx.currentTime);
+        state.keyboardEnvelopeGain.connect(state.masterGain);
         state.masterGain.connect(state.audioCtx.destination);
 
         // Configure 3D Spatial Audio Listener at Center (0,0,0) facing FRONT (-Z)
@@ -2834,22 +3127,25 @@
       }
     }
 
-    function slewGain(gainNode, target, timeConstant = 0.015) {
-      if (!gainNode || !state.audioCtx) return;
-      const now = state.audioCtx.currentTime;
-      const tc = Math.max(0.001, Number(timeConstant) || 0.015);
-      try {
-        gainNode.gain.cancelScheduledValues(now);
-        gainNode.gain.setValueAtTime(Math.max(0, Math.min(1, Number(gainNode.gain.value) || 0)), now);
-        gainNode.gain.setTargetAtTime(Math.max(0, Math.min(1, Number(target) || 0)), now, tc);
-      } catch (_) {}
-    }
-
     function stopAudio() {
-      if (state.audioCtx) {
-        slewGain(state.masterGain, 0, 0.012);
-        state.gears.forEach(g => slewGain(g.gainNode, 0, 0.012));
-        window.setTimeout(() => { try { state.audioCtx?.suspend(); } catch (_) {} }, 18);
+      if (state.audioCtx && state.audioCtx.state !== 'closed') {
+        const now = state.audioCtx.currentTime;
+        // Keep the abrupt-stop protection: fade the master bus very briefly
+        // before suspension. This does not touch waveform edge geometry.
+        if (state.masterGain?.gain) {
+          state.masterGain.gain.cancelScheduledValues(now);
+          state.masterGain.gain.setValueAtTime(Math.max(0, Number(state.masterGain.gain.value) || 0), now);
+          state.masterGain.gain.linearRampToValueAtTime(0, now + 0.008);
+        }
+        state.gears.forEach(g => {
+          if (g.gainNode?.gain) {
+            const current = Math.max(0, Number(g.gainNode.gain.value) || 0);
+            g.gainNode.gain.cancelScheduledValues(now);
+            g.gainNode.gain.setValueAtTime(current, now);
+            g.gainNode.gain.linearRampToValueAtTime(0, now + 0.008);
+          }
+        });
+        state.audioCtx.suspend();
       }
       state.audioRunning = false;
       state.audioDriver.playing = false;
@@ -2916,6 +3212,7 @@
           gear.gainNode = state.audioCtx.createGain();
           gear.delayNode.connect(gear.gainNode);
         }
+        if (!gear.adsrGainNode) gear.adsrGainNode = state.audioCtx.createGain();
         if (!gear.pannerNode) {
           gear.pannerNode = state.audioCtx.createPanner();
           gear.pannerNode.panningModel = state.spatialEnabled ? state.spatialMode : 'equalpower';
@@ -2923,23 +3220,39 @@
           gear.pannerNode.refDistance = 1;
           gear.pannerNode.maxDistance = 1000;
           gear.pannerNode.rolloffFactor = 1;
-          gear.gainNode.connect(gear.pannerNode);
+          gear.gainNode.connect(gear.adsrGainNode);
+          gear.adsrGainNode.connect(gear.pannerNode);
           gear.pannerNode.connect(state.masterGain);
           gear.gainNode.gain.setValueAtTime(0, now);
+          gear.adsrGainNode.gain.setValueAtTime(state.releaseOnKeyup ? 0 : 1, now);
         }
 
         if (driverMode) {
-          // Driver mode is exclusively the loaded audio buffer. Remove any
-          // synthetic oscillator so the dry/original synth tone cannot leak through.
-          if (gear.osc) {
-            try { gear.osc.stop(); } catch(e) {}
-            try { gear.osc.disconnect(); } catch(e) {}
-            gear.osc = null;
-          }
-          if (gear.ratio !== 0) {
-            createDriverSourceForGear(gear);
-          }
+          if (gear.osc) { try { gear.osc.stop(); } catch(e) {} try { gear.osc.disconnect(); } catch(e) {} gear.osc = null; }
+          if (gear.ratio !== 0) createDriverSourceForGear(gear);
+        } else if (gear.sourceMode === 'audio') {
+          stopGearNoiseOnly(gear);
+          if (gear.osc) { try { gear.osc.stop(); } catch(e) {} try { gear.osc.disconnect(); } catch(e) {} gear.osc = null; }
+          if (gear.audioBuffer && !gear.audioSource && gear.ratio !== 0) createGearAudioLoopSource(gear);
+        } else if (gear.sourceMode === 'noise') {
+          stopGearAudioOnly(gear);
+          if (gear.osc) { try { gear.osc.stop(); } catch(e) {} try { gear.osc.disconnect(); } catch(e) {} gear.osc = null; }
+          if (!gear.noiseSource && gear.ratio !== 0) createGearNoiseSource(gear);
+        } else if (gear.sourceMode === 'midi') {
+          stopGearAudioOnly(gear);
+          stopGearNoiseOnly(gear);
+          if (gear.osc) { try { gear.osc.stop(); } catch(e) {} try { gear.osc.disconnect(); } catch(e) {} gear.osc = null; }
+          // MIDI is event-driven; do not clear the note-off timer every audio update.
         } else {
+          // Switching away from external sources must tear down the previous
+          // source immediately. Otherwise a gear that was set to NOISE keeps
+          // its looping noise buffer playing underneath the new oscillator.
+          stopGearAudioOnly(gear);
+          stopGearNoiseOnly(gear);
+          if (gear.sourceMode !== 'midi' && gear.midiOffTimer) {
+            clearTimeout(gear.midiOffTimer);
+            gear.midiOffTimer = null;
+          }
           if (!gear.osc) {
             gear.osc = state.audioCtx.createOscillator();
             if (getGearToothWaveform(gear) === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
@@ -2952,6 +3265,12 @@
           if (getGearToothWaveform(gear) === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
           else gear.osc.setPeriodicWave(getToothPeriodicWave(state.audioCtx, getGearToothWaveform(gear), getGearToothWidth(gear)));
         }
+
+        if (!driverMode && gear.sourceMode === 'audio' && gear.audioSource) {
+          const segmentDuration = Math.max(.001, (gear.audioLoopEnd || gear.audioBuffer?.duration || .001) - (gear.audioLoopStart || 0));
+          gear.audioSource.playbackRate.setTargetAtTime(Math.max(.00001, segmentDuration * Math.abs(gear.freq || .001) * (gear._shapeRate || 1)), now, state.legato ? Math.max(.005, state.glissTime/3) : .005);
+        }
+        if (!driverMode && gear.sourceMode === 'noise') configureNoiseFilters(gear);
 
         // Update 3D Panner Coordinates relative to Main Drive Hub.
         if (gear.pannerNode) {
@@ -2980,16 +3299,24 @@
           }
         }
 
-        if (!driverMode && gear.osc) {
+        if (!driverMode && gear.osc && !['audio','noise','midi'].includes(gear.sourceMode)) {
           const targetFreq = Math.max(0.001, gear.freq * (gear._shapeRate || 1));
           if (state.isSlidingFreq) {
             gear.osc.frequency.setValueAtTime(targetFreq, now);
             gear.delayNode.delayTime.setValueAtTime(0.0001, now);
-          } else {
-            const glideTc = state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005;
+          } else if (state.legato) {
+            // Porta ON: deliberately glide pitch. This is the only pitch smoothing
+            // used for keyboard note changes.
+            const glideTc = Math.max(0.005, state.glissTime / 3);
             gear.osc.frequency.setTargetAtTime(targetFreq, now, glideTc);
             const targetDelay = getPhaseAlignedDelaySeconds(gear.phaseOffsetRad, targetFreq);
             gear.delayNode.delayTime.setTargetAtTime(targetDelay, now, glideTc);
+          } else {
+            // Porta OFF: pitch must jump immediately to the new gear-derived note.
+            // Keep the gain slews elsewhere for click-safe moving/stopping behavior.
+            gear.osc.frequency.setValueAtTime(targetFreq, now);
+            const targetDelay = getPhaseAlignedDelaySeconds(gear.phaseOffsetRad, targetFreq);
+            gear.delayNode.delayTime.setValueAtTime(targetDelay, now);
           }
         } else if (driverMode) {
           const source = state.audioDriver.sources.get(gear.id);
@@ -3013,13 +3340,14 @@
         // POLY mode uses dedicated keyboard voices; mute the visible gear synth path
         // so the 1x fundamental cannot leak underneath. Driver-mode POLY voices are
         // created separately from the same sample buffer.
-        if (state.polyMode) targetVol = 0;
+        if (state.polyVoices.size || state.polyReleaseTails?.size) targetVol = 0;
         // In Audio Driver mode, gear.freq may still be zero until the first driver
         // animation tick. Do NOT use that synthesized frequency as the gate for a
         // loaded/recorded driver source; the ratio is the authoritative eligibility.
         const effectiveRatioForAudio = isGearBeingDragged(gear) ? (gear._dragHeldRatio || gear.ratio) : gear.ratio;
         const effectiveFreqForAudio = isGearBeingDragged(gear) ? (gear._dragHeldFreq || gear.freq) : gear.freq;
-        const invalidSource = gear.muted || gear.isUltrasonic || Math.abs(effectiveRatioForAudio) === 0 || (!driverMode && effectiveFreqForAudio === 0);
+        const sourceMissing = !driverMode && ((gear.sourceMode === 'audio' && !gear.audioBuffer) || (gear.sourceMode === 'noise' && !gear.noiseSource));
+        const invalidSource = gear.muted || gear.isUltrasonic || Math.abs(effectiveRatioForAudio) === 0 || (!driverMode && effectiveFreqForAudio === 0) || sourceMissing || gear.sourceMode === 'midi';
         if (invalidSource) targetVol = 0;
         else if (anySolo && !gear.solo) targetVol = 0;
         gear.gainNode.gain.setTargetAtTime(targetVol, now, 0.015);
@@ -3041,6 +3369,7 @@
         gear.osc = null;
         gear.delayNode = null;
         gear.gainNode = null;
+        gear.adsrGainNode = null;
         gear.pannerNode = null;
       }
     }
@@ -3275,14 +3604,49 @@
       const bolts = Array.from({length:6},(_,i)=>{const a=i*Math.PI/3;const x=(36+21*Math.cos(a)).toFixed(1),y=(36+21*Math.sin(a)).toFixed(1);return `<circle cx="${x}" cy="${y}" r="2.1" fill="${tone[0]}" stroke="${tone[2]}" stroke-width=".9"/>`;}).join('');
       return `<svg class="thumb-gear" style="width:${thumbSize.toFixed(1)}px;height:${thumbSize.toFixed(1)}px" viewBox="0 0 72 72" aria-hidden="true">${defs}<path d="${d}" fill="url(#${gid})" stroke="${tone[0]}" stroke-width="2"/>${spokes}${ring}${bolts}<circle cx="${cx}" cy="${cy}" r="7" fill="${tone[2]}" stroke="${tone[0]}" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="3" fill="${tone[0]}"/>${extra}${drawToothWaveGlyph(window.__paletteToothWaveform || 'sawtooth', window.__paletteToothWidth || 0.50, 22, 3, 47, 11)}</svg>`;
     }
-
-    let firstUseToastTimer = null;
-    function showFirstUseRatioToast() {
-      const prompt = document.getElementById('ratio-first-use-prompt');
-      if (!prompt) return;
-      prompt.style.display = 'block';
-      if (firstUseToastTimer) clearTimeout(firstUseToastTimer);
-      firstUseToastTimer = setTimeout(() => { prompt.style.display = 'none'; }, 5000);
+    function getActivePaletteGear(){
+      const id=state.activePaletteGearId;
+      return (id!=null ? state.gearMap.get(id) : null) || state.gears.find(g=>g.isMain) || state.gears[0] || null;
+    }
+    function setActivePaletteGear(gear){
+      if(!gear) return;
+      state.activePaletteGearId=gear.id;
+      state.selectedGearId=gear.id;
+      syncPaletteGearEditor();
+      renderRationalGearPalette();
+      updateInspector();
+    }
+    function copyPaletteEditorFromGear(gear){
+      if(!gear) return;
+      PALETTE_GEAR_VOLUME=Math.max(0,Math.min(1,Number(gear.volume)||0));
+      PALETTE_TOOTH_WIDTH=getGearToothWidth(gear);
+      PALETTE_SOURCE_MODE=gear.sourceMode||getGearToothWaveform(gear);
+      window.__paletteSourceMode=PALETTE_SOURCE_MODE;
+      window.__paletteToothWaveform=getGearToothWaveform(gear);
+      window.__paletteToothWidth=PALETTE_TOOTH_WIDTH;
+      window.__paletteAudioConfig=gear.audioBuffer?{buffer:gear.audioBuffer,name:gear.audioFileName||'',start:gear.audioLoopStart||0,end:gear.audioLoopEnd||gear.audioBuffer.duration}:null;
+      window.__paletteMidiNote=Number(gear.midiNote)||60;
+      if(paletteVolumeSlider) paletteVolumeSlider.value=PALETTE_GEAR_VOLUME;
+      if(paletteVolumeValue) paletteVolumeValue.textContent=`${Math.round(PALETTE_GEAR_VOLUME*100)}%`;
+      if(paletteToothWidthSlider) paletteToothWidthSlider.value=PALETTE_TOOTH_WIDTH;
+      if(paletteShapeSelect) paletteShapeSelect.value=gear.shape||'circular';
+      PALETTE_SHAPE_PARAMS && Object.assign(PALETTE_SHAPE_PARAMS,normalizedShapeParams(gear.shapeParams));
+      if(document.getElementById('palette-main-teeth')) document.getElementById('palette-main-teeth').value=(state.gears.find(g=>g.isMain)?.teeth||120);
+    }
+    function syncPaletteGearEditor(){
+      const gear=getActivePaletteGear(); if(!gear) return;
+      copyPaletteEditorFromGear(gear);
+      const active=document.querySelector('.palette-active-gear');
+      if(active) active.textContent=`ACTIVE: ${gear.isMain?'1:1 MAIN':floatToFraction(gear.ratio)} · ${gear.teeth}T`;
+      const title=document.getElementById('palette-active-gear-title');
+      if(title) title.textContent=`ACTIVE: ${gear.isMain?'1:1 MAIN':floatToFraction(gear.ratio)} · ${gear.teeth}T`;
+      renderShapeParamEditor(paletteShapeParamsWrap,gear.shape||'circular',gear.shapeParams,params=>{gear.shapeParams=normalizedShapeParams(params);updateAudioNodes();renderGearList();});
+      renderSourceButtonRow(paletteSourceButtons,gear.sourceMode||getGearToothWaveform(gear),getGearToothWidth(gear),src=>{
+        gear.sourceMode=src;
+        if(['sine','triangle','sawtooth','square','clockwork'].includes(src)) gear.toothWaveform=src;
+        copyPaletteEditorFromGear(gear); refreshPaletteSourceUI(); updateAudioNodes(); renderGearList();
+      });
+      const graph=document.getElementById('palette-adsr-graph'); if(graph) renderAdsrGraph(graph,gear.adsr||state.adsr,'palette-adsr');
     }
 
     function renderRationalGearPalette() {
@@ -3295,12 +3659,12 @@
       wrap.innerHTML = '';
       if (countEl) countEl.textContent = `(${candidates.length} · ${mainTeeth}T main)`;
       if (!candidates.length) { wrap.innerHTML = '<div class="rational-empty">No integer-tooth rational gears are available for this MAIN wheel.</div>'; return; }
-      const previewTooth = document.getElementById('select-palette-tooth-waveform')?.value || window.__paletteToothWaveform || 'sawtooth';
+      const previewTooth = window.__paletteToothWaveform || 'sawtooth';
       const previewToothWidth = normalizeToothWidth(document.getElementById('slider-palette-tooth-width')?.value ?? window.__paletteToothWidth ?? 0.50);
       window.__paletteToothWaveform = previewTooth; window.__paletteToothWidth = previewToothWidth;
       for (const c of candidates) {
         const card = document.createElement('div');
-        card.className = 'rational-gear-thumb' + (c.num === 2 && c.den === 1 ? ' first-use-2to1' : '');
+        card.className = 'rational-gear-thumb';
         card.draggable = true;
         card.dataset.teeth = String(c.teeth);
         card.dataset.ratioNum = String(c.num);
@@ -3308,13 +3672,14 @@
         card.title = `Drag ${c.num}:${c.den} (${c.name}) - ${c.teeth} teeth - harmonic ${c.num}`;
         card.innerHTML = `<div class="thumb-ratio">${c.num}:${c.den}</div><div class="thumb-name">${c.name}</div><div class="thumb-meta">${c.teeth}T • H${c.num}</div>`;
         card.addEventListener('dragstart', e => {
-          e.dataTransfer.setData('text/plain', JSON.stringify({ teeth: c.teeth, num: c.num, den: c.den, shape: paletteShapeSelect?.value || 'circular', shapeParams: { ...PALETTE_SHAPE_PARAMS }, volume: PALETTE_GEAR_VOLUME, toothWaveform: previewTooth, toothWidth: previewToothWidth }));
+          e.dataTransfer.setData('text/plain', JSON.stringify({ teeth: c.teeth, num: c.num, den: c.den, shape: paletteShapeSelect?.value || 'circular', shapeParams: { ...PALETTE_SHAPE_PARAMS }, volume: PALETTE_GEAR_VOLUME, toothWaveform: previewTooth, sourceMode: window.__paletteSourceMode || previewTooth, toothWidth: previewToothWidth }));
           e.dataTransfer.effectAllowed = 'copy';
         });
         card.addEventListener('pointerdown', () => { card.style.opacity = '.65'; });
         card.addEventListener('pointerup', () => { card.style.opacity = ''; });
         card.addEventListener('click', () => {
           const gear = addGear(c.teeth);
+          setActivePaletteGear(gear);
           gear.ratioLock = true;
           gear.teethLock = false;
           gear.shape = paletteShapeSelect?.value || 'circular';
@@ -3322,8 +3687,11 @@
           gear.volume = PALETTE_GEAR_VOLUME;
           gear.toothWaveform = previewTooth;
           gear.toothWidth = previewToothWidth;
-                    document.getElementById('startup-tooltip')?.remove();
+          gear.adsr = { ...(getActivePaletteGear()?.adsr || state.adsr) };
+          setActivePaletteGear(gear);
+          document.getElementById('startup-tooltip')?.remove();
               forceGearMod0Sync('palette-click-add');
+          setActivePaletteGear(gear);
           updateInspector(); renderGearList();
         });
         wrap.appendChild(card);
@@ -3605,60 +3973,7 @@
       if (hz <= warmStartHz) return { hz, rpm, warmT:0, hotT:0, hot:false, ultra:false };
       const warmT = Math.max(0, Math.min(1, Math.log(hz / warmStartHz) / Math.log(blueStartHz / warmStartHz)));
       const hotT = hz <= blueStartHz ? 0 : Math.max(0, Math.min(1, Math.log(hz / blueStartHz) / Math.log(whiteHotHz / blueStartHz)));
-      return { hz, rpm, warmT, hotT, hot:hz >= blueStartHz, ultra:hz > 20000 };
-    }
-
-    function drawGearHeatGlow(ctx, gear, rOuter) {
-      const heat = gearHeatIntensity(gear);
-      const { warmT, hotT, hot } = heat;
-      if (warmT <= 0) return;
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-
-      if (!hot) {
-        const glowR = rOuter * (1.10 + warmT * .16);
-        const grad = ctx.createRadialGradient(0,0,rOuter*.30,0,0,glowR);
-        grad.addColorStop(0, `rgba(255,110,32,${0.05 + warmT*.12})`);
-        grad.addColorStop(.60, `rgba(255,38,18,${0.08 + warmT*.18})`);
-        grad.addColorStop(.84, `rgba(220,24,12,${0.05 + warmT*.20})`);
-        grad.addColorStop(1, 'rgba(150,10,5,0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(0,0,glowR,0,TAU); ctx.fill();
-        ctx.strokeStyle = `rgba(255,${Math.round(112-45*warmT)},${Math.round(55-38*warmT)},${.15+.48*warmT})`;
-        ctx.shadowColor = `rgba(255,40,18,${.25+.68*warmT})`;
-        ctx.shadowBlur = 7 + 22*warmT;
-        ctx.lineWidth = 1.5 + 3.5*warmT;
-        ctx.beginPath(); ctx.arc(0,0,rOuter*(1.015+.03*warmT),0,TAU); ctx.stroke();
-      } else {
-        // At 10 kHz the gear visibly transitions from hot red into an electric blue.
-        // By 20 kHz (the existing ultrasonic boundary) it is white-hot.
-        const blueToWhite = hotT;
-        const glowR = rOuter * (1.34 + blueToWhite * .72);
-        const coreR = rOuter * (.30 + blueToWhite * .10);
-        const grad = ctx.createRadialGradient(0,0,coreR*.18,0,0,glowR);
-        const r = Math.round(25 + 230*blueToWhite);
-        const g = Math.round(125 + 130*blueToWhite);
-        const b = 255;
-        grad.addColorStop(0, `rgba(255,255,255,${.28+.42*blueToWhite})`);
-        grad.addColorStop(.16, `rgba(${r},${g},${b},${.24+.34*blueToWhite})`);
-        grad.addColorStop(.48, `rgba(${Math.round(20+40*blueToWhite)},${Math.round(100+110*blueToWhite)},255,${.16+.24*blueToWhite})`);
-        grad.addColorStop(.78, `rgba(${Math.round(15+70*blueToWhite)},${Math.round(70+120*blueToWhite)},255,${.08+.15*blueToWhite})`);
-        grad.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(0,0,glowR,0,TAU); ctx.fill();
-
-        ctx.strokeStyle = `rgba(255,255,255,${.58+.38*blueToWhite})`;
-        ctx.shadowColor = `rgba(${Math.round(30+225*blueToWhite)},${Math.round(145+105*blueToWhite)},255,${.72+.26*blueToWhite})`;
-        ctx.shadowBlur = 18 + 42*blueToWhite;
-        ctx.lineWidth = 2.4 + 6*blueToWhite;
-        ctx.beginPath(); ctx.arc(0,0,rOuter*(1.03+.07*blueToWhite),0,TAU); ctx.stroke();
-
-        ctx.strokeStyle = `rgba(${Math.round(35+220*blueToWhite)},${Math.round(150+105*blueToWhite)},255,${.36+.42*blueToWhite})`;
-        ctx.lineWidth = 3 + 8*blueToWhite;
-        ctx.shadowBlur = 24 + 52*blueToWhite;
-        ctx.beginPath(); ctx.arc(0,0,rOuter*(.88+.06*blueToWhite),0,TAU); ctx.stroke();
-      }
-      ctx.restore();
+      return { hz, rpm, warmT, hotT, hot:hz >= blueStartHz, ultra:hz > whiteHotHz };
     }
 
     function drawHotGearIllumination(ctx) {
@@ -3669,49 +3984,64 @@
       for (const gear of hotGears) {
         const heat = gearHeatIntensity(gear);
         const t = heat.hotT;
-        const r = Math.max(12, gear.pitchRadius + Math.min(6, gear.pitchRadius*.15));
-        const spread = r * (2.8 + 4.8*t);
-        const light = ctx.createRadialGradient(gear.x,gear.y,r*.1,gear.x,gear.y,spread);
-        light.addColorStop(0, `rgba(255,255,255,${.12+.24*t})`);
+        const r = Math.max(12, gear.pitchRadius || 12);
+        const spread = r * (2.8 + 4.8 * t);
+        const light = ctx.createRadialGradient(gear.x, gear.y, r * .1, gear.x, gear.y, spread);
+        light.addColorStop(0, `rgba(255,255,255,${.12 + .24*t})`);
         light.addColorStop(.14, `rgba(${Math.round(20+235*t)},${Math.round(100+155*t)},255,${.10+.18*t})`);
         light.addColorStop(.42, `rgba(${Math.round(20+55*t)},${Math.round(90+130*t)},255,${.05+.10*t})`);
         light.addColorStop(1, 'rgba(120,180,255,0)');
         ctx.fillStyle = light;
-        ctx.beginPath(); ctx.arc(gear.x,gear.y,spread,0,TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(gear.x, gear.y, spread, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawGearHeatGlow(ctx, gear, rOuter) {
+      const heat = gearHeatIntensity(gear);
+      const { warmT, hotT, hot } = heat;
+      if (warmT <= 0) return;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      if (!hot) {
+        const glowR=rOuter*(1.10+warmT*.16), grad=ctx.createRadialGradient(0,0,rOuter*.3,0,0,glowR);
+        grad.addColorStop(0,`rgba(255,110,32,${.05+warmT*.12})`);
+        grad.addColorStop(.6,`rgba(255,38,18,${.08+warmT*.18})`);
+        grad.addColorStop(.84,`rgba(220,24,12,${.05+warmT*.20})`); grad.addColorStop(1,'rgba(150,10,5,0)');
+        ctx.fillStyle=grad;ctx.beginPath();ctx.arc(0,0,glowR,0,TAU);ctx.fill();
+        ctx.strokeStyle=`rgba(255,${Math.round(112-45*warmT)},${Math.round(55-38*warmT)},${.15+.48*warmT})`;
+        ctx.shadowColor=`rgba(255,40,18,${.25+.68*warmT})`;ctx.shadowBlur=7+22*warmT;ctx.lineWidth=1.5+3.5*warmT;
+        ctx.beginPath();ctx.arc(0,0,rOuter*(1.015+.03*warmT),0,TAU);ctx.stroke();
+      } else {
+        const t=hotT, glowR=rOuter*(1.34+t*.72), grad=ctx.createRadialGradient(0,0,rOuter*.12,0,0,glowR);
+        grad.addColorStop(0,`rgba(255,255,255,${.30+.42*t})`);
+        grad.addColorStop(.16,`rgba(${Math.round(25+230*t)},${Math.round(125+130*t)},255,${.24+.34*t})`);
+        grad.addColorStop(.48,`rgba(${Math.round(20+45*t)},${Math.round(100+110*t)},255,${.16+.24*t})`);
+        grad.addColorStop(.80,`rgba(${Math.round(10+80*t)},${Math.round(65+120*t)},255,${.08+.15*t})`); grad.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.fillStyle=grad;ctx.beginPath();ctx.arc(0,0,glowR,0,TAU);ctx.fill();
+        ctx.strokeStyle=`rgba(255,255,255,${.58+.38*t})`;ctx.shadowColor=`rgba(${Math.round(30+225*t)},${Math.round(145+105*t)},255,.9)`;
+        ctx.shadowBlur=18+42*t;ctx.lineWidth=2.4+6*t;ctx.beginPath();ctx.arc(0,0,rOuter*(1.03+.07*t),0,TAU);ctx.stroke();
+        ctx.strokeStyle=`rgba(${Math.round(35+220*t)},${Math.round(150+105*t)},255,${.36+.42*t})`;ctx.lineWidth=3+8*t;ctx.shadowBlur=24+52*t;
+        ctx.beginPath();ctx.arc(0,0,rOuter*(.88+.06*t),0,TAU);ctx.stroke();
       }
       ctx.restore();
     }
 
     function drawUltrasonicSteam(ctx, gear, rOuter) {
-      const heat = gearHeatIntensity(gear);
+      const heat=gearHeatIntensity(gear);
       if (!heat.hot && !gear?.isUltrasonic) return;
-      const heatT = heat.hot ? heat.hotT : 1;
-      const t = state.visualFXTime;
-      const baseR = rOuter * .68;
-      const count = Math.round(4 + (gear.id % 3) + heatT * 5);
-      ctx.save();
-      ctx.translate(0, -rOuter*.12);
-      ctx.globalCompositeOperation = 'screen';
-      for (let i=0; i<count; i++) {
-        const phase = t*(.75 + (gear.id%5)*.06) + i*1.47 + gear.id*.31;
-        const drift = Math.sin(phase*1.7 + i)*rOuter*.18;
-        const rise = ((phase*0.42 + i*0.17) % 1.45) * rOuter*.95;
-        const x = ((i-(count-1)/2) * rOuter*.16) + drift;
-        const y = -rise;
-        const alpha = Math.max(0, (.24 + heatT*.22) * (1 - rise/(rOuter*1.45)));
-        const rr = rOuter*(.035 + .018*Math.sin(phase+i));
-        const sg = ctx.createRadialGradient(x-rr*0.2,y-rr*0.2,1,x,y,rr*1.8);
-        sg.addColorStop(0,`rgba(255,246,226,${alpha})`);
-        sg.addColorStop(.55,`rgba(212,210,199,${alpha*.55})`);
-        sg.addColorStop(1,'rgba(195,195,195,0)');
-        ctx.fillStyle = sg;
-        ctx.beginPath(); ctx.arc(x,y,rr*1.8,0,TAU); ctx.fill();
-        ctx.strokeStyle=`rgba(237,233,219,${alpha*.65})`;
-        ctx.lineWidth=Math.max(1,rOuter*.012);
-        ctx.beginPath();
-        ctx.moveTo(x-rr*.7,y+rr*.3);
-        ctx.bezierCurveTo(x-rr*1.8,y-rr*.8,x+rr*1.8,y-rr*1.6,x+rr*.4,y-rr*2.2);
-        ctx.stroke();
+      const heatT=heat.hot ? heat.hotT : 1;
+      const t=state.visualFXTime, baseR=rOuter*.68, count=Math.round(4+(gear.id%3)+heatT*5);
+      ctx.save();ctx.translate(0,-rOuter*.12);ctx.globalCompositeOperation='screen';
+      for(let i=0;i<count;i++){
+        const phase=t*(.75+(gear.id%5)*.06)+i*1.47+gear.id*.31;
+        const drift=Math.sin(phase*1.7+i)*rOuter*.18, rise=((phase*.42+i*.17)%1.45)*rOuter*.95;
+        const x=((i-(count-1)/2)*rOuter*.16)+drift,y=-rise;
+        const alpha=Math.max(0,(.24+heatT*.22)*(1-rise/(rOuter*1.45))),rr=rOuter*(.035+.018*Math.sin(phase+i));
+        const sg=ctx.createRadialGradient(x-rr*.2,y-rr*.2,1,x,y,rr*1.8);
+        sg.addColorStop(0,`rgba(255,246,226,${alpha})`);sg.addColorStop(.55,`rgba(212,210,199,${alpha*.55})`);sg.addColorStop(1,'rgba(195,195,195,0)');
+        ctx.fillStyle=sg;ctx.beginPath();ctx.arc(x,y,rr*1.8,0,TAU);ctx.fill();ctx.strokeStyle=`rgba(237,233,219,${alpha*.65})`;ctx.lineWidth=Math.max(1,rOuter*.012);
+        ctx.beginPath();ctx.moveTo(x-rr*.7,y+rr*.3);ctx.bezierCurveTo(x-rr*1.8,y-rr*.8,x+rr*1.8,y-rr*1.6,x+rr*.4,y-rr*2.2);ctx.stroke();
       }
       ctx.restore();
     }
@@ -3947,10 +4277,19 @@
     function renderLoop(now) {
       const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
       lastTime = now;
-      if (!state.animationStopped) state.visualFXTime += dt;
+      const keyboardTransportIdle = state.releaseOnKeyup &&
+        state.pressedKeys.size === 0 &&
+        state.midiHeldNotes.size === 0 &&
+        state.polyVoices.size === 0 &&
+        !state.audioDriver.playing &&
+        !state.crankTool.hovered;
+      if (!state.animationStopped && !keyboardTransportIdle) state.visualFXTime += dt;
       if (!state.animationStopped) {
-        updateOrbitPositions(dt);
-        updatePolyOrbitPanners();
+        // With Continuous OFF and no held notes there is no reason to advance the
+        // mechanical transport. Freezing the phase here also prevents a dormant
+        // POLY/keyboard state from being continually retuned by animation frames.
+        if (!keyboardTransportIdle) updateOrbitPositions(dt);
+        if (!keyboardTransportIdle) updatePolyOrbitPanners();
 
         // Legato Glissando Smooth Pitch Interpolation for Mechanical Gears
       if (state.legato && Math.abs(state.fundamentalFreq - state.targetFundamentalFreq) > 0.0001) {
@@ -3965,7 +4304,7 @@
       // must be evaluated every animation frame, not only when a note starts or
       // the chord changes. This makes each hidden POLY train a true copy of the
       // visible shaped machine.
-      if (state.polyMode && state.polyVoices.size) updatePolyVoices();
+      if (state.polyVoices.size) updatePolyVoices();
 
       if (state.audioSyncPending) {
         if (performance.now() >= state.audioSyncPerfMs) {
@@ -3976,12 +4315,17 @@
         }
       }
 
-      if (!state.audioSyncPending) {
+      if (!state.audioSyncPending && !keyboardTransportIdle) {
         if (state.audioDriver.buffer && state.audioDriver.playing) {
           updateDriverAnimation(dt);
         } else {
-          state.masterPhase += (TAU * state.fundamentalFreq * state.driveDirection) * dt;
-          state.masterPhase = ((state.masterPhase % TAU) + TAU) % TAU;
+          const previousMasterPhase = state.masterPhase;
+          const phaseAdvance = (TAU * state.fundamentalFreq * state.driveDirection) * dt;
+          const unwrappedMasterPhase = previousMasterPhase + phaseAdvance;
+          state.masterPhase = ((unwrappedMasterPhase % TAU) + TAU) % TAU;
+          state.gears.forEach(g => {
+            if (g.sourceMode === 'midi') triggerGearMidiRotations(g, previousMasterPhase * (g.isMain ? 1 : Math.abs(g.ratio || 1)), unwrappedMasterPhase * (g.isMain ? 1 : Math.abs(g.ratio || 1)));
+          });
           applyCurrentMasterPhaseToGears();
         }
       }
@@ -4027,7 +4371,7 @@
         ctx.fill();
       }
 
-      // Hot gears cast light across the whole machine before individual gears are drawn.
+      // Hot ultrasonic gears illuminate the surrounding machine.
       drawHotGearIllumination(ctx);
 
       // Draw All Gears
@@ -4313,7 +4657,6 @@
             if (neighbor) neighbor.neighbors.delete(clickedGear.id);
           });
           clickedGear.neighbors.clear();
-          branch.forEach(g => { if (g?.gainNode) slewGain(g.gainNode, 0, 0.015); });
           updateKinematicNetwork();
           clickedGear.angle = clickedGear.dragStartAngle;
         }
@@ -4535,6 +4878,16 @@
     function addGear(teeth = 60, x = null, y = null, isMain = false) {
       const color = isMain ? '#f59e0b' : COLOR_PALETTE[(state.gears.length - 1) % COLOR_PALETTE.length];
       const gear = new Gear(state.nextGearId++, teeth, color, isMain);
+      if (!isMain && window.__paletteSourceMode) {
+        gear.sourceMode = window.__paletteSourceMode;
+        gear.toothWaveform = window.__paletteToothWaveform || gear.toothWaveform;
+        gear.toothWidth = normalizeToothWidth(window.__paletteToothWidth ?? gear.toothWidth);
+        if (gear.sourceMode === 'audio' && window.__paletteAudioConfig?.buffer) {
+          gear.audioBuffer = window.__paletteAudioConfig.buffer; gear.audioFileName = window.__paletteAudioConfig.name || '';
+          gear.audioLoopStart = Number(window.__paletteAudioConfig.start)||0; gear.audioLoopEnd = Number(window.__paletteAudioConfig.end)||gear.audioBuffer.duration;
+        }
+        if (gear.sourceMode === 'midi') { gear.midiOutput = state.midi.output; gear.midiNote = Number(window.__paletteMidiNote)||60; }
+      }
 
       if (isMain) {
         gear.x = 0;
@@ -4726,7 +5079,7 @@
       x = Math.max(4, Math.min(rect.width - w - 4, x));
       if (isMobilePortraitLayout()) {
         // Three canvas action buttons occupy the bottom strip. Keep SPEED fully above them.
-        const safeBottom = 96;
+        const safeBottom = 8;
         y = Math.max(4, Math.min(rect.height - h - safeBottom, y));
       } else {
         y = Math.max(4, Math.min(rect.height - h - 8, y));
@@ -4807,20 +5160,91 @@
       });
     }
 
+    function adsrCurveValue(t, curve) { t=Math.max(0,Math.min(1,Number(t)||0)); const c=Math.max(-1,Math.min(1,Number(curve)||0)); if(Math.abs(c)<.001)return t; const k=1+6*Math.abs(c); return c>0?1-Math.pow(1-t,k):Math.pow(t,k); }
+    function makeAdsrCurve(from,to,duration,curve){ const n=Math.max(8,Math.min(256,Math.ceil(duration*160)+8)), a=new Float32Array(n); for(let i=0;i<n;i++)a[i]=from+(to-from)*adsrCurveValue(i/(n-1),curve); return a; }
+    function scheduleAdsrGate(open,param,adsr,now=state.audioCtx?.currentTime||0,attackOverride=null){
+      if(!param||!state.audioCtx)return;
+      const a=Math.max(0,Math.min(10,Number(attackOverride ?? adsr?.attack)||0));
+      const d=Math.max(0,Math.min(2,Number(adsr?.decay)||0));
+      const sus=Math.max(0,Math.min(1,Number(adsr?.sustain)));
+      const r=Math.max(0,Math.min(10,Number(adsr?.release)||0));
+      const holdOrCancel=(t)=>{
+        try {
+          if (typeof param.cancelAndHoldAtTime === 'function') { param.cancelAndHoldAtTime(t); return; }
+        } catch (_) {}
+        try { param.cancelScheduledValues(t); } catch (_) {}
+      };
+      const safeCurve=(from,to,dur,curve)=>{
+        if(dur<=0){ param.setValueAtTime(to,now); return; }
+        try { param.setValueCurveAtTime(makeAdsrCurve(from,to,dur,curve),now,dur); }
+        catch (_) {
+          // A rapid key-up can interrupt a curve that is already in progress.
+          // Never allow that AudioParam exception to abort note cleanup.
+          try { param.setValueAtTime(from,now); param.linearRampToValueAtTime(to,now+dur); } catch (_) { try { param.setValueAtTime(to,now+dur); } catch (_) {} }
+        }
+      };
+      holdOrCancel(now);
+      const cur=Math.max(0,Math.min(1,Number(param.value)||0));
+      try { param.setValueAtTime(cur,now); } catch (_) {}
+      if(open){
+        try { param.setValueAtTime(0,now); } catch (_) {}
+        if(a<=0){ try{param.setValueAtTime(1,now);}catch(_){} }
+        else safeCurve(0,1,a,Number(adsr?.attackCurve)||0);
+        const ds=now+a;
+        if(d<=0){ try{param.setValueAtTime(sus,ds);}catch(_){} }
+        else {
+          try { param.setValueCurveAtTime(makeAdsrCurve(1,sus,d,Number(adsr?.decayCurve)||0),ds,d); }
+          catch (_) { try { param.setValueAtTime(1,ds); param.linearRampToValueAtTime(sus,ds+d); } catch (_) { try { param.setValueAtTime(sus,ds+d); } catch (_) {} } }
+        }
+      } else {
+        if(r<=0){ try{param.setValueAtTime(0,now);}catch(_){} }
+        else safeCurve(cur,0,r,Number(adsr?.releaseCurve)||0);
+      }
+    }
+    function scheduleKeyboardAdsrGate(open,param,now=state.audioCtx?.currentTime||0){ scheduleAdsrGate(open,param,state.adsr,now); }
+
+    function createKeyboardReleaseVoice(freq,level=1){
+      if(!state.audioCtx||!state.audioRunning||!Number.isFinite(freq)||freq<=0||level<=0)return;const now=state.audioCtx.currentTime,master=state.audioCtx.createGain(),items=[];master.gain.setValueAtTime(Math.max(.0001,Math.min(1,level)),now);master.connect(state.masterGain);
+      state.gears.forEach(g=>{if(g.muted||g.isUltrasonic||g.ratio===0||g.freq===0)return;const o=state.audioCtx.createOscillator(),gn=state.audioCtx.createGain(),dl=state.audioCtx.createDelay(15),gf=Math.max(.001,freq*Math.abs(g.ratio)*(g._shapeRate||1)),wf=getGearToothWaveform(g),ww=getGearToothWidth(g);if(wf==='clockwork')o.setPeriodicWave(getClockworkWave(state.audioCtx,g));else o.setPeriodicWave(getToothPeriodicWave(state.audioCtx,wf,ww));o.frequency.setValueAtTime(gf,now);gn.gain.setValueAtTime(Math.max(.0001,Math.min(1,Number(g.volume)||.2)),now);dl.delayTime.setValueAtTime(g.isMain?.0001:getPhaseAlignedDelaySeconds(g.phaseOffsetRad,gf),now);o.connect(dl);dl.connect(gn);gn.connect(master);o.start(now);items.push({o,gn,dl});});
+      const rel=Math.max(0,Math.min(10,Number(state.adsr.release)||0));scheduleKeyboardAdsrGate(false,master.gain,now);const cleanup=()=>{items.forEach(x=>{try{x.o.disconnect();x.gn.disconnect();x.dl.disconnect()}catch(_) {}});try{master.disconnect()}catch(_){} };if(rel<=0){try{master.gain.setValueAtTime(0,now);items.forEach(x=>x.o.stop(now+.01))}catch(_){}setTimeout(cleanup,30)}else setTimeout(cleanup,Math.ceil(rel*1000)+60);return master;
+    }
+    function releaseCurrentKeyboardTail(){if(state.polyMode||state.activeSemitone===null||!state.keyboardEnvelopeGain)return;const level=Math.max(0,Math.min(1,Number(state.keyboardEnvelopeGain.gain.value)||0));if(level<=0)return;const f=state.baseFundamentalFreq*Math.pow(2,(state.activeSemitone+state.octaveShift*12)/12);createKeyboardReleaseVoice(f,level);}
+
+    function triggerKeyboardEnvelope() {
+      if (!state.audioCtx || !state.audioRunning || state.polyMode) return;
+      if (!state.keyboardEnvelopeGain) return;
+      scheduleKeyboardAdsrGate(true, state.keyboardEnvelopeGain.gain, state.audioCtx.currentTime);
+    }
+
+    function scheduleVisibleGearAdsr(open, now=state.audioCtx?.currentTime||0){
+      if(!state.audioCtx) return;
+      state.gears.forEach(g=>{ if(g.adsrGainNode?.gain) scheduleBloomedGearAdsr(open,g,g.adsrGainNode.gain,now); });
+    }
+
     function setKeyboardAudioActive(active) {
+      const wasActive = !!state.keyboardAudioActive;
       state.keyboardAudioActive = !!active;
       if (!state.audioCtx || !state.audioRunning) return;
       const now = state.audioCtx.currentTime;
+      // Each visible gear owns its own ADSR. Open only on a true gate transition;
+      // this preserves a sustained envelope while notes change in Continuous/Porta mode.
+      if (!state.polyMode && state.keyboardAudioActive !== wasActive) scheduleVisibleGearAdsr(state.keyboardAudioActive, now);
       // In POLY, the visible machine is muted; the virtual gear trains are the sound source.
+      // Continuous NEVER gates a POLY voice bus. Each gear's own ADSR gain node
+      // is the only envelope authority for that note. The voice bus remains at 1
+      // for the complete life of the voice, including its release tail.
       if (state.polyMode) {
         state.masterGain.gain.setTargetAtTime(state.masterVolume, now, 0.005);
         state.polyVoices.forEach(voice => {
-          const voiceTarget = (!state.releaseOnKeyup || state.keyboardAudioActive) ? 1 : 0;
-          voice.masterGain.gain.setTargetAtTime(voiceTarget, now, 0.005);
+          if (voice.masterGain) voice.masterGain.gain.setTargetAtTime(1, now, 0.005);
         });
         return;
       }
-      const target = (state.releaseOnKeyup && !state.keyboardAudioActive) ? 0 : state.masterVolume;
+      if (state.keyboardEnvelopeGain) {
+        const open = !state.releaseOnKeyup || state.keyboardAudioActive;
+        scheduleKeyboardAdsrGate(open, state.keyboardEnvelopeGain.gain, now);
+      }
+      const target = state.masterVolume;
       state.masterGain.gain.setTargetAtTime(target, now, 0.005);
     }
 
@@ -4830,7 +5254,9 @@
     }
 
     function getPolyGearVolume(gear, driverMode = false) {
-      if (gear.muted || gear.isUltrasonic || Math.abs(gear.ratio) === 0 || (!driverMode && gear.freq === 0)) return 0;
+      // POLY has its own note-frequency calculation. The visible mechanical
+      // gear frequency can legitimately be zero/frozen while the poly note is active.
+      if (gear.muted || gear.isUltrasonic || Math.abs(gear.ratio) === 0) return 0;
       const anySolo = state.gears.some(g => g.solo);
       if (anySolo && !gear.solo) return 0;
       // Keep each virtual train balanced as the number of active gear trains increases.
@@ -4933,6 +5359,155 @@
       return Math.max(0.001, freq);
     }
 
+    function renderAdsrGraph(svg, adsr, id) {
+      if(!svg || !adsr) return;
+      const l=8,r=192,t=8,b=61,w=r-l,h=b-t;
+      const A=Math.max(0,Math.min(2,Number(adsr.attack)||0)),D=Math.max(0,Math.min(2,Number(adsr.decay)||0)),S=Math.max(0,Math.min(1,Number(adsr.sustain ?? 0.8))),R=Math.max(0,Math.min(10,Number(adsr.release)||0));
+      const ax=l+47*(A/2), dx=55+45*(D/2), sx=125, rx=sx+67*(R/10), yp=t+2, ys=b-S*h;
+      const bend=(x1,y1,x2,y2,c)=>`${((x1+x2)/2).toFixed(2)} ${((y1+y2)/2-c*12).toFixed(2)}`;
+      const d=`M ${l} ${b} Q ${bend(l,b,ax,yp,adsr.attackCurve)} ${ax} ${yp} Q ${bend(ax,yp,dx,ys,adsr.decayCurve)} ${dx} ${ys} L ${sx} ${ys} Q ${bend(sx,ys,rx,b,adsr.releaseCurve)} ${rx} ${b}`;
+      svg.querySelector(`#${id}-line`)?.setAttribute('d',d);svg.querySelector(`#${id}-hitline`)?.setAttribute('d',d);svg.querySelector(`#${id}-fill`)?.setAttribute('d',d+' Z');
+      const pts={attack:[ax,yp],decay:[dx,ys],sustain:[sx,ys],release:[rx,b]};
+      for(const [k,[x,y]] of Object.entries(pts)){svg.querySelector(`#${id}-h-${k}`)?.setAttribute('cx',x);svg.querySelector(`#${id}-h-${k}`)?.setAttribute('cy',y);svg.querySelector(`#${id}-hit-${k}`)?.setAttribute('cx',x);svg.querySelector(`#${id}-hit-${k}`)?.setAttribute('cy',y);}
+      const val=svg.querySelector(`#${id}-values`); if(val)val.textContent=`A ${(A*1000).toFixed(0)}ms   D ${(D*1000).toFixed(0)}ms   S ${Math.round(S*100)}%   R ${R.toFixed(2)}s`;
+    }
+    function bindAdsrGraph(svg, getAdsr, setAdsr, id) {
+      if (!svg || svg.dataset.bound === '1') return;
+      svg.dataset.bound = '1';
+      svg.style.touchAction = 'none';
+      svg.style.pointerEvents = 'all';
+
+      let drag = null;
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const toSvg = e => {
+        const q = svg.getBoundingClientRect();
+        return {
+          x: clamp((e.clientX - q.left) * 200 / Math.max(1, q.width), 8, 192),
+          y: clamp((e.clientY - q.top) * 76 / Math.max(1, q.height), 8, 61)
+        };
+      };
+      const getPts = () => {
+        const a = getAdsr() || {};
+        const A = clamp(Number(a.attack) || 0, 0, 2);
+        const D = clamp(Number(a.decay) || 0, 0, 2);
+        const S = clamp(Number(a.sustain), 0, 1);
+        const R = clamp(Number(a.release) || 0, 0, 10);
+        return {
+          attack:[8 + 47*A/2, 10],
+          decay:[55 + 45*D/2, 61 - S*53],
+          sustain:[125, 61 - S*53],
+          release:[125 + 67*R/10, 61]
+        };
+      };
+      const nearestHandle = p => {
+        const q = getPts();
+        let best = null, dist = Infinity;
+        for (const k of ['attack','decay','sustain','release']) {
+          const d = Math.hypot(q[k][0]-p.x, q[k][1]-p.y);
+          if (d < dist && d <= 16) { dist = d; best = k; }
+        }
+        return best;
+      };
+      const curveKind = p => {
+        const q = getPts();
+        if (p.x >= 8 && p.x <= q.attack[0] + 8) return 'attackCurve';
+        if (p.x >= q.attack[0] - 3 && p.x <= q.decay[0] + 7) return 'decayCurve';
+        if (p.x >= q.sustain[0] - 4 && p.x <= q.release[0] + 4) return 'releaseCurve';
+        return null;
+      };
+
+      // Use the graph itself as the exclusive interaction surface. Curve drags
+      // must never fall through to the mobile carousel, panel drag, or canvas.
+      const begin = e => {
+        const p = toSvg(e);
+        let k = e.target?.dataset?.adsr || nearestHandle(p);
+        if (!k && (e.target?.id === `${id}-hitline` || e.target?.id === `${id}-line`)) k = curveKind(p);
+        if (!k) return;
+        drag = { k, id:e.pointerId };
+        state.adsrGraphDragging = true;
+        try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation?.();
+      };
+      const move = e => {
+        if (!drag || drag.id !== e.pointerId) return;
+        const p = toSvg(e), a = { ...(getAdsr() || {}) }, q = getPts();
+        if (drag.k === 'attack') {
+          a.attack = clamp((p.x - 8) / 47 * 2, 0, 2);
+        } else if (drag.k === 'decay') {
+          a.decay = clamp((p.x - 55) / 45 * 2, 0, 2);
+        } else if (drag.k === 'sustain') {
+          a.sustain = clamp((61 - p.y) / 53, 0, 1);
+        } else if (drag.k === 'release') {
+          a.release = clamp((p.x - 125) / 67 * 10, 0, 10);
+        } else {
+          const kind = drag.k.slice(0, -5);
+          const mids = {
+            attack:[(8+q.attack[0])/2, (61+10)/2],
+            decay:[(q.attack[0]+q.decay[0])/2, (10+q.decay[1])/2],
+            release:[(q.sustain[0]+q.release[0])/2, (q.sustain[1]+61)/2]
+          };
+          const mid = mids[kind];
+          if (mid) a[drag.k] = clamp((mid[1] - p.y) / 18, -1, 1);
+        }
+
+        // Update only the SVG geometry. Never replace the graph's DOM while the
+        // pointer is captured; this prevents the editor disappearing mid-drag.
+        setAdsr(a);
+        renderAdsrGraph(svg, a, id);
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation?.();
+      };
+      const end = e => {
+        if (!drag || drag.id !== e.pointerId) return;
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.();
+        drag = null;
+        state.adsrGraphDragging = false;
+        try { svg.releasePointerCapture(e.pointerId); } catch (_) {}
+      };
+
+      svg.addEventListener('pointerdown', begin, {capture:true, passive:false});
+      svg.addEventListener('pointermove', move, {capture:true, passive:false});
+      svg.addEventListener('pointerup', end, {capture:true, passive:false});
+      svg.addEventListener('pointercancel', end, {capture:true, passive:false});
+      svg.addEventListener('lostpointercapture', () => { drag = null; state.adsrGraphDragging = false; });
+      svg.addEventListener('contextmenu', e => e.preventDefault());
+      renderAdsrGraph(svg, getAdsr(), id);
+    }
+
+    function getBloomOrderedGears(){const gs=state.gears.filter(g=>!g.muted&&!g.isUltrasonic&&Math.abs(g.ratio)>0);return state.bloom?.placementOrder?gs.slice():gs.slice().sort((a,b)=>Math.abs(a.ratio)-Math.abs(b.ratio));}
+    // Bloom never delays an oscillator/gear trigger. It only redistributes the
+    // attack time so every gear starts at the same instant, with one end of the
+    // harmonic set attacking immediately and the other end taking up to 5s.
+    function getBloomAttackForGear(gear){
+      const base=Math.max(0,Math.min(2,Number(gear?.adsr?.attack ?? state.adsr?.attack)||0));
+      const amount=Number(state.bloom?.amount)||0;
+      if(!amount)return base;
+      const gs=getBloomOrderedGears(),i=gs.indexOf(gear);
+      if(i<0||gs.length<2)return base;
+      const t=i/(gs.length-1);
+      const added=Math.min(5,Math.abs(amount))*(amount<0?1-t:t);
+      return Math.min(10,base+added);
+    }
+    function scheduleBloomedGearAdsr(open,gear,param,now){
+      if(!param||!state.audioCtx)return;
+      const base=gear?.adsr||state.adsr;
+      if(!open){
+        // Bloom is an attack-only control. Release remains the gear's own ADSR.
+        schedulePerGearAdsr(false,gear,param,now);
+        return;
+      }
+      const attack=getBloomAttackForGear(gear);
+      scheduleAdsrGate(true,param,base,now,attack);
+    }
+
+    function schedulePerGearAdsr(gateOpen, gear, param, now=state.audioCtx?.currentTime||0) {
+      if (!gear || !param || !state.audioCtx) return;
+      scheduleAdsrGate(gateOpen, param, gear.adsr || state.adsr, now);
+    }
+
     function createPolyTrain(semitone, keyId) {
       if (!state.audioCtx || !state.audioRunning) return null;
       const now = state.audioCtx.currentTime;
@@ -4950,23 +5525,32 @@
         voiceRatio,
         driverMode,
         masterGain: state.audioCtx.createGain(),
-        gears: new Map()
+        gears: new Map(),
+        keyHeld: true
       };
 
-      voice.masterGain.gain.setValueAtTime((!state.releaseOnKeyup || state.keyboardAudioActive) ? 1 : 0, now);
+      // Constant routing bus. Continuous is implemented only by deciding whether
+      // a key release schedules each gear's ADSR release; it never closes this bus.
+      voice.masterGain.gain.setValueAtTime(1, now);
       voice.masterGain.connect(state.masterGain);
 
       state.gears.forEach(gear => {
-        if (gear.isUltrasonic || Math.abs(gear.ratio) === 0 || (!driverMode && gear.freq === 0)) return;
+        // POLY calculates each note's frequency independently. Never gate a
+        // poly gear on the normal machine `gear.freq`, which can legitimately
+        // be zero before the visible 1:1 drive has advanced. Ratio is the
+        // authoritative eligibility test here.
+        if (gear.isUltrasonic || Math.abs(gear.ratio) === 0) return;
         const delayNode = state.audioCtx.createDelay(15.0);
         const gainNode = state.audioCtx.createGain();
+        const adsrGainNode = state.audioCtx.createGain();
         const pannerNode = state.audioCtx.createPanner();
         pannerNode.panningModel = state.spatialEnabled ? state.spatialMode : 'equalpower';
         pannerNode.distanceModel = 'inverse';
         pannerNode.refDistance = 1;
         pannerNode.maxDistance = 1000;
         pannerNode.rolloffFactor = 1;
-        gainNode.connect(pannerNode);
+        gainNode.connect(adsrGainNode);
+        adsrGainNode.connect(pannerNode);
         pannerNode.connect(voice.masterGain);
         delayNode.connect(gainNode);
 
@@ -4993,7 +5577,10 @@
         // A driver-backed POLY voice is valid as soon as it has a non-zero gear ratio;
         // do not suppress it because the synth-side gear frequency has not been updated yet.
         if (driverMode && gear.isUltrasonic) vol = 0;
-        gainNode.gain.setValueAtTime(vol, now);
+        // The per-gear ADSR is the envelope. Keep the voice routing gain open
+        // so an oscillator can actually reach the ADSR node.
+        gainNode.gain.setValueAtTime(Math.max(0, vol), now);
+        adsrGainNode.gain.setValueAtTime(0, now);
 
         if (driverMode) {
           const source = state.audioCtx.createBufferSource();
@@ -5007,7 +5594,7 @@
           const duration = state.audioDriver.buffer.duration || 0;
           const offset = duration > 0 ? (state.audioDriver.elapsed % duration) : 0;
           try { source.start(now, offset); } catch(e) { source.start(); }
-          voice.gears.set(gear.id, { source, delayNode, gainNode, pannerNode, gear });
+          voice.gears.set(gear.id, { source, delayNode, gainNode, adsrGainNode, pannerNode, gear });
         } else {
           const osc = state.audioCtx.createOscillator();
           if (getGearToothWaveform(gear) === 'clockwork') osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
@@ -5015,35 +5602,127 @@
           osc.frequency.setValueAtTime(gearFreq, now);
           osc.connect(delayNode);
           osc.start(now);
-          voice.gears.set(gear.id, { osc, delayNode, gainNode, pannerNode, gear });
+          voice.gears.set(gear.id, { osc, delayNode, gainNode, adsrGainNode, pannerNode, gear });
         }
       });
 
+      voice.envelopeStarted = true;
+      // Each cog has its own ADSR. The voice master is only a routing bus and
+      // never terminates a cog's envelope.
+      voice.gears.forEach(pg => scheduleBloomedGearAdsr(true, pg.gear, pg.adsrGainNode.gain, now));
+      voice.masterGain.gain.setValueAtTime(1, now);
       return voice;
     }
 
     function stopPolyVoice(keyId) {
       const voice = state.polyVoices.get(keyId);
       if (!voice || voice.releasing) return;
-
-      const now = state.audioCtx.currentTime;
-      const releaseTime = 0.025; // short musical release; prevents DC-crossing clicks
-      voice.releasing = true;
-
-      // Never hard-stop an active oscillator at the current waveform value.
-      // Ramp the complete train to silence first, then dispose of its nodes.
-      voice.masterGain.gain.cancelScheduledValues(now);
-      voice.masterGain.gain.setValueAtTime(Math.max(0, voice.masterGain.gain.value), now);
-      voice.masterGain.gain.linearRampToValueAtTime(0, now + releaseTime);
-
-      setTimeout(() => {
+      // Never leave a logical keyboard note held merely because the AudioContext
+      // is unavailable/closed. Remove it from the active map even in that case.
+      if (!state.audioCtx) {
+        state.polyVoices.delete(keyId);
+        voice.releasing = true;
+        voice.keyHeld = false;
         voice.gears.forEach(disconnectPolyGear);
         try { voice.masterGain.disconnect(); } catch(e) {}
-        state.polyVoices.delete(keyId);
-        // Recalculate the balance of the remaining virtual trains without touching their pitch.
-        updatePolyVoices();
-        syncKeyboardAudioGate();
-      }, Math.ceil(releaseTime * 1000) + 8);
+        state.polyReleaseTails?.delete(voice);
+        return;
+      }
+
+      const now = state.audioCtx.currentTime;
+      // Release is always finite. Bad/legacy ADSR values (NaN, Infinity,
+      // negatives) are normalized to the legal 0..10 second range here.
+      const releaseValues = Array.from(voice.gears.values()).map(pg => {
+        const value = Number(pg.gear.adsr?.release);
+        return Number.isFinite(value) ? Math.min(10, Math.max(0, value)) : 0;
+      });
+      const releaseTime = releaseValues.length ? Math.max(...releaseValues) : 0;
+      voice.keyHeld = false;
+      voice.releasing = true;
+
+      // Continuous is OFF here by contract: the note was physically released,
+      // so every gear envelope must enter its ADSR release stage. Never use the
+      // voice bus as the sustain gate. A malformed/interrupted AudioParam schedule
+      // must never prevent the voice from reaching the hard-release fallback.
+      voice.gears.forEach(pg => {
+        try { scheduleBloomedGearAdsr(false, pg.gear, pg.adsrGainNode?.gain, now); } catch (err) {
+          try { pg.adsrGainNode?.gain?.setValueAtTime(0, now); } catch (_) {}
+        }
+      });
+      // Keep the routing bus open while the individual gear ADSRs perform their
+      // releases, then force the entire voice to exact silence at the latest legal
+      // release endpoint. This is a safety cutoff only; it does not shape the ADSR.
+      try { voice.masterGain.gain.cancelAndHoldAtTime?.(now); } catch (_) {}
+      try { voice.masterGain.gain.cancelScheduledValues(now); } catch (_) {}
+      try { voice.masterGain.gain.setValueAtTime(1, now); } catch (_) {}
+      voice.releaseEndTime = now + releaseTime;
+      voice.gears.forEach(pg => {
+        const ag = pg.adsrGainNode?.gain;
+        if (ag) {
+          try { ag.setValueAtTime(0, voice.releaseEndTime); } catch (_) {}
+        }
+        const stopAt = voice.releaseEndTime + 0.005;
+        try { if (pg.source) pg.source.stop(stopAt); } catch (_) {}
+        try { if (pg.osc) pg.osc.stop(stopAt); } catch (_) {}
+      });
+      if (releaseTime <= 0) {
+        voice.masterGain.gain.setValueAtTime(0, now);
+      } else {
+        voice.masterGain.gain.setValueAtTime(0, voice.releaseEndTime);
+      }
+
+      // Remove the released voice from the active-note map immediately. This
+      // permits the same key to be retriggered during its release tail. The
+      // already-playing tail remains alive until all of its individual ADSRs end.
+      state.polyVoices.delete(keyId);
+      state.polyReleaseTails?.add(voice);
+      updatePolyVoices();
+
+      voice._cleanupTimer = setTimeout(() => {
+        voice.gears.forEach(pg => {
+          try { pg.adsrGainNode?.gain?.cancelScheduledValues?.(state.audioCtx?.currentTime || 0); } catch (_) {}
+          try { pg.adsrGainNode?.gain?.setValueAtTime?.(0, state.audioCtx?.currentTime || 0); } catch (_) {}
+          disconnectPolyGear(pg);
+        });
+        try { voice.masterGain.gain.cancelScheduledValues(state.audioCtx?.currentTime || 0); } catch(e) {}
+        try { voice.masterGain.disconnect(); } catch(e) {}
+        state.polyReleaseTails?.delete(voice);
+        if (state.polyMode && state.polyVoices.size === 0 && (!state.polyReleaseTails || state.polyReleaseTails.size === 0)) {
+          state.activeSemitone = null;
+          if (state.audioDriver.buffer && state.audioDriver.playing) applyKeyboardDriverPitch();
+          else setFundamentalFrequency(state.baseFundamentalFreq, false);
+          state.keyboardAudioActive = false;
+          syncKeyboardAudioGate();
+        }
+        updateAudioNodes();
+      }, Math.ceil(releaseTime * 1000) + 12);
+    }
+
+    function isPolyKeyPhysicallyHeld(keyId) {
+      if (!keyId) return false;
+      if (String(keyId).startsWith('midi-')) {
+        const n = Number(String(keyId).slice(5));
+        return Number.isFinite(n) && state.midiHeldNotes.has(n);
+      }
+      return state.keyboardPointerHeldKeys.has(keyId) || state.keyboardPhysicalKeyDownCodes.has(keyId);
+    }
+
+    function startPolyReleaseWatchdog() {
+      if (state.polyReleaseWatchdog) return;
+      state.polyReleaseWatchdog = setInterval(() => {
+        if (!state.polyMode || !state.releaseOnKeyup) return;
+        state.polyVoices.forEach((voice, keyId) => {
+          if (voice.releasing || voice.keyHeld === false) return;
+          // The logical pressed set and the physical pointer/key state must agree.
+          // If a browser drops an input-up event, release the voice anyway.
+          const physicallyHeld = isPolyKeyPhysicallyHeld(keyId);
+          if (!physicallyHeld) {
+            state.pressedKeys.delete(keyId);
+            state.keyboardPointerHeldKeys.delete(keyId);
+            stopPolyVoice(keyId);
+          }
+        });
+      }, 25);
     }
 
     function stopAllPolyVoices() {
@@ -5057,6 +5736,7 @@
       const baseFund = Math.max(0.001, state.baseFundamentalFreq || 1);
 
       state.polyVoices.forEach(voice => {
+        if (voice.releasing) return;
         voice.absoluteSemitone = voice.semitone + state.octaveShift * 12;
         voice.masterFreq = getPolyMasterFrequency(voice.absoluteSemitone);
         voice.voiceRatio = Math.max(0.000001, voice.masterFreq / baseFund);
@@ -5078,16 +5758,22 @@
             );
             pg.source.playbackRate.setTargetAtTime(playbackRate, now, state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005);
           } else if (!driverMode && pg.osc) {
-            pg.osc.frequency.setTargetAtTime(
-              gearFreq,
-              now,
-              state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005
-            );
+            if (state.legato) {
+              pg.osc.frequency.setTargetAtTime(
+                gearFreq,
+                now,
+                Math.max(0.005, state.glissTime / 3)
+              );
+            } else {
+              // POLY + Porta OFF: every pressed note gets its exact frequency immediately.
+              pg.osc.frequency.setValueAtTime(gearFreq, now);
+            }
           }
         });
 
-        const gate = (!state.releaseOnKeyup || state.keyboardAudioActive) ? 1 : 0;
-        voice.masterGain.gain.setTargetAtTime(gate, now, 0.005);
+        // Voice master stays open for its lifetime; individual gear ADSRs own
+        // the attack/decay/sustain/release timing.
+        voice.masterGain.gain.setTargetAtTime(1, now, 0.005);
       });
     }
 
@@ -5113,63 +5799,58 @@
     }
 
     function playSemitone(semitone, keyId = `note-${semitone}`) {
-      // semitone may be signed for MIDI: 0 = C4, -39 = MIDI 21 (A0),
-      // +48 = MIDI 108 (C8). QWERTY still supplies 0..11 plus octaveShift.
       if (!state.audioRunning) initAudio();
-      setKeyboardAudioActive(true);
       const totalSemitones = semitone + (state.octaveShift * 12);
       const ratio = Math.pow(2, totalSemitones / 12);
-      if (state.polyMode) {
-        state.activeSemitone = semitone;
-        startPolyVoice(semitone, keyId);
-        updateKeyboardUI(semitone, ratio);
-        return;
-      }
+      const wasNoteActive = state.activeSemitone !== null;
       state.activeSemitone = semitone;
-      if (state.audioDriver.buffer && state.audioDriver.playing) {
-        // Keyboard has its own fundamental RPM. The driver RPM slider stays untouched.
+      setKeyboardAudioActive(true);
+      // Continuous mode keeps the ADSR open across pitch changes. The first
+      // actual note still needs to begin its attack from zero.
+      if (!state.polyMode && !wasNoteActive && state.audioCtx && state.audioRunning) {
+        scheduleVisibleGearAdsr(true, state.audioCtx.currentTime);
+      }
+      if (state.polyMode) {
+        startPolyVoice(semitone, keyId);
+      } else if (state.audioDriver.buffer && state.audioDriver.playing) {
         state.audioDriver.keyboardKeyRatio = ratio;
         applyKeyboardDriverPitch();
       } else {
-        const activeFreq = state.baseFundamentalFreq * ratio;
-        setFundamentalFrequency(activeFreq, false);
+        setFundamentalFrequency(state.baseFundamentalFreq * ratio, false);
       }
-
       updateKeyboardUI(semitone, ratio);
     }
 
     function releaseKeyboardNotes(keyId = null) {
-      if (state.polyMode) {
-        if (keyId) stopPolyVoice(keyId);
-        else stopAllPolyVoices();
-        if (state.polyVoices.size === 0) {
-          state.activeSemitone = null;
-          updateKeyboardUI(null, 1.0);
-        }
-        syncKeyboardAudioGate();
-        return;
-      }
+      // Continuous is exclusively the release policy. POLY does not override
+      // it: when Continuous is OFF, a released key must close its own voice
+      // and run that voice's ADSR release immediately.
       if (!state.releaseOnKeyup) return;
-
-      // A MIDI note or another QWERTY key may still be holding the synth.
-      if (state.pressedKeys.size > 0 || state.midiHeldNotes.size > 0) {
-        const lastMidi = Array.from(state.midiHeldNotes.values()).pop();
-        if (state.pressedKeys.size === 0 && lastMidi) {
-          const oldOct = state.octaveShift;
-          state.octaveShift = lastMidi.octave;
-          playSemitone(lastMidi.semitone, `midi-${lastMidi.note}`);
-          state.octaveShift = oldOct;
+      if (state.polyMode && keyId) {
+        const voice = state.polyVoices.get(keyId);
+        if (voice) {
+          voice.keyHeld = false;
+          stopPolyVoice(keyId);
         }
-        syncKeyboardAudioGate();
+      } else if (keyId && state.polyVoices.has(keyId)) stopPolyVoice(keyId);
+      if (state.polyVoices.size > 0) {
+        const held = Array.from(state.midiHeldNotes.values()).pop();
+        if (state.pressedKeys.size > 0) {
+          const k = Array.from(state.pressedKeys).pop();
+          state.activeSemitone = KEY_TO_SEMITONE[k];
+          updateKeyboardUI(state.activeSemitone, Math.pow(2,(state.activeSemitone + state.octaveShift*12)/12));
+        } else if (held) {
+          state.activeSemitone = held.semitone;
+          updateKeyboardUI(held.semitone, Math.pow(2,(held.semitone + held.octave*12)/12));
+        }
+        state.keyboardAudioActive = true;
         return;
       }
-
       state.activeSemitone = null;
       state.audioDriver.keyboardKeyRatio = 1;
-      if (state.audioDriver.buffer && state.audioDriver.playing) applyKeyboardDriverPitch();
-      else setFundamentalFrequency(state.baseFundamentalFreq, false);
-      updateKeyboardUI(null, 1.0);
-      setKeyboardAudioActive(false);
+      if (!state.polyMode && state.audioCtx && state.audioRunning) scheduleVisibleGearAdsr(false, state.audioCtx.currentTime);
+      updateKeyboardUI(null,1.0);
+      syncKeyboardAudioGate();
     }
 
     function updateKeyboardUI(activeSemitone, ratio = 1.0) {
@@ -5198,26 +5879,107 @@
 
     function initVirtualKeyboardEvents() {
       const keys = document.querySelectorAll('#virtual-keyboard .key');
+      const keyboardPointerToKey = state.keyboardPointerToKey;
+      const keyboardKeyPointerCounts = state.keyboardKeyPointerCounts;
+      startPolyReleaseWatchdog();
       keys.forEach(key => {
+        key.style.touchAction = 'none';
         const semitone = parseInt(key.getAttribute('data-note'));
-        
         const keyId = key.getAttribute('data-key');
-        const startNote = (e) => {
-          e.preventDefault();
-          state.pressedKeys.add(keyId);
-          playSemitone(semitone, keyId);
-        };
-        const stopNote = (e) => {
-          e.preventDefault();
+
+        const releasePointer = (pid, event = null) => {
+          const mappedKeyId = keyboardPointerToKey.get(pid);
+          if (mappedKeyId !== keyId) return false;
+          keyboardPointerToKey.delete(pid);
+          if (event) { event.preventDefault(); event.stopPropagation(); }
+          try { key.releasePointerCapture?.(pid); } catch (_) {}
+
+          const count = Math.max(0, (keyboardKeyPointerCounts.get(keyId) || 1) - 1);
+          if (count > 0) {
+            keyboardKeyPointerCounts.set(keyId, count);
+            return true;
+          }
+          keyboardKeyPointerCounts.delete(keyId);
+          state.keyboardPointerHeldKeys.delete(keyId);
           state.pressedKeys.delete(keyId);
           releaseKeyboardNotes(keyId);
+          return true;
         };
 
-        key.addEventListener('mousedown', startNote);
-        key.addEventListener('mouseup', stopNote);
-        key.addEventListener('mouseleave', stopNote);
-        key.addEventListener('touchstart', startNote, { passive: false });
-        key.addEventListener('touchend', stopNote, { passive: false });
+        const startNote = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const pid = e.pointerId ?? 'mouse';
+          // A duplicate pointerdown must never retrigger the same pointer.
+          if (keyboardPointerToKey.has(pid)) return;
+          keyboardPointerToKey.set(pid, keyId);
+          try { key.setPointerCapture?.(pid); } catch (_) {}
+
+          const count = (keyboardKeyPointerCounts.get(keyId) || 0) + 1;
+          keyboardKeyPointerCounts.set(keyId, count);
+          state.keyboardPointerHeldKeys.add(keyId);
+          if (count === 1) {
+            state.pressedKeys.add(keyId);
+            playSemitone(semitone, keyId);
+          }
+        };
+
+        // A pointer can disappear without pointerup on mobile (gesture takeover,
+        // OS interruption, loss of capture). Every exit path below releases the
+        // exact pointer that started this key - never an unrelated note.
+        const stopNote = (e) => releasePointer(e.pointerId ?? 'mouse', e);
+
+        key.addEventListener('pointerdown', startNote, { passive: false });
+        key.addEventListener('pointerup', stopNote, { passive: false });
+        key.addEventListener('pointercancel', stopNote, { passive: false });
+        key.addEventListener('lostpointercapture', (e) => releasePointer(e.pointerId, e));
+      });
+
+      // Global fallback: if pointer capture vanishes before the key receives its
+      // pointerup event, the keyboard still gets a deterministic note-off.
+      const releaseLostKeyboardPointer = (e) => {
+        const pid = e.pointerId;
+        const keyId = keyboardPointerToKey.get(pid);
+        if (!keyId) return;
+        keyboardPointerToKey.delete(pid);
+        const count = Math.max(0, (keyboardKeyPointerCounts.get(keyId) || 1) - 1);
+        if (count > 0) {
+          keyboardKeyPointerCounts.set(keyId, count);
+          return;
+        }
+        keyboardKeyPointerCounts.delete(keyId);
+        state.keyboardPointerHeldKeys.delete(keyId);
+        state.pressedKeys.delete(keyId);
+        releaseKeyboardNotes(keyId);
+      };
+      window.addEventListener('pointerup', releaseLostKeyboardPointer, true);
+      window.addEventListener('pointercancel', releaseLostKeyboardPointer, true);
+
+      // A page visibility/focus loss must release every logical keyboard note.
+      // This prevents a mobile touch from remaining held forever when the OS or
+      // browser steals the gesture.
+      const releaseAllPhysicalKeyboardNotes = () => {
+        keyboardPointerToKey.clear();
+        keyboardKeyPointerCounts.clear();
+        state.keyboardPointerHeldKeys.clear();
+        state.keyboardPhysicalKeyDownCodes.clear();
+        const ids = Array.from(state.pressedKeys);
+        ids.forEach(keyId => {
+          state.pressedKeys.delete(keyId);
+          releaseKeyboardNotes(keyId);
+        });
+        if (state.releaseOnKeyup && state.polyMode) {
+          Array.from(state.polyVoices.keys()).forEach(stopPolyVoice);
+        }
+        if (state.releaseOnKeyup && state.midiHeldNotes.size === 0) {
+          state.activeSemitone = null;
+          syncKeyboardAudioGate();
+          updateKeyboardUI(null, 1.0);
+        }
+      };
+      window.addEventListener('blur', releaseAllPhysicalKeyboardNotes);
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) releaseAllPhysicalKeyboardNotes();
       });
 
       document.getElementById('btn-oct-down').addEventListener('click', () => {
@@ -5246,15 +6008,70 @@
         updateKeyboardUI(null, 1.0);
       });
 
-      document.getElementById('btn-poly').addEventListener('click', () => {
-        state.polyMode = !state.polyMode;
-        const btn = document.getElementById('btn-poly');
-        const status = document.getElementById('poly-status');
-        btn.textContent = state.polyMode ? 'POLY ON' : 'POLY OFF';
-        btn.style.background = state.polyMode ? 'var(--accent-green)' : 'var(--border-color)';
-        btn.style.color = state.polyMode ? '#000' : 'var(--text-main)';
-        status.textContent = state.polyMode ? 'One full gear train per held note' : 'Keyboard plays the visible gear machine';
-        if (!state.polyMode) stopAllPolyVoices();
+      const polyCheckbox = document.getElementById('chk-poly');
+      polyCheckbox?.addEventListener('change', (e) => {
+        const wasPoly = state.polyMode;
+        state.polyMode = !!e.target.checked;
+
+        if (!state.polyMode) {
+          // Leave POLY cleanly and restore the currently held note (if any) to
+          // the normal monophonic engine. Released voices are allowed to finish
+          // their own ADSR tails rather than being hard-cut.
+          stopAllPolyVoices();
+          const heldQ = Array.from(state.pressedKeys);
+          const heldM = Array.from(state.midiHeldNotes.entries());
+          const fallback = heldQ.length ? heldQ[heldQ.length - 1] : null;
+          if (fallback) {
+            const semitone = KEY_TO_SEMITONE[fallback];
+            state.activeSemitone = semitone;
+            setKeyboardAudioActive(true);
+            if (state.audioCtx && state.audioRunning) {
+              const ratio = Math.pow(2, (semitone + state.octaveShift * 12) / 12);
+              if (state.audioDriver.buffer && state.audioDriver.playing) {
+                state.audioDriver.keyboardKeyRatio = ratio;
+                applyKeyboardDriverPitch();
+              } else {
+                setFundamentalFrequency(state.baseFundamentalFreq * ratio, false);
+              }
+            }
+            updateKeyboardUI(semitone, Math.pow(2, (semitone + state.octaveShift * 12) / 12));
+          } else if (heldM.length) {
+            const [midiId, note] = heldM[heldM.length - 1];
+            const semitone = Number(note.semitone);
+            state.activeSemitone = semitone;
+            setKeyboardAudioActive(true);
+            if (state.audioDriver.buffer && state.audioDriver.playing) {
+              state.audioDriver.keyboardKeyRatio = Math.pow(2, (semitone + state.octaveShift * 12) / 12);
+              applyKeyboardDriverPitch();
+            } else {
+              setFundamentalFrequency(state.baseFundamentalFreq * Math.pow(2, (semitone + state.octaveShift * 12) / 12), false);
+            }
+            updateKeyboardUI(semitone, Math.pow(2, (semitone + state.octaveShift * 12) / 12));
+          } else {
+            state.activeSemitone = null;
+            syncKeyboardAudioGate();
+          }
+          updateAudioNodes();
+          return;
+        }
+
+        // Entering POLY: create a dedicated voice for every note that is
+        // already physically/logically held. This makes POLY independent of
+        // when the checkbox was changed. Existing monophonic sound is muted by
+        // updateAudioNodes once the first poly voice exists.
+        stopAllPolyVoices();
+        const heldQ = Array.from(state.pressedKeys);
+        heldQ.forEach(code => {
+          if (Object.prototype.hasOwnProperty.call(KEY_TO_SEMITONE, code)) {
+            startPolyVoice(KEY_TO_SEMITONE[code], code);
+          }
+        });
+        state.midiHeldNotes.forEach((note, noteId) => {
+          startPolyVoice(Number(note.semitone), `midi-${noteId}`);
+        });
+        state.activeSemitone = heldQ.length
+          ? KEY_TO_SEMITONE[heldQ[heldQ.length - 1]]
+          : (state.midiHeldNotes.size ? Array.from(state.midiHeldNotes.values()).at(-1).semitone : null);
         updateAudioNodes();
         syncKeyboardAudioGate();
       });
@@ -5262,9 +6079,16 @@
       // Bind Continuous, Legato, and Gliss Speed controls
       document.getElementById('chk-continuous').addEventListener('change', (e) => {
         state.releaseOnKeyup = !e.target.checked;
+        // Continuous OFF changes release policy only. Notes already held stay
+        // held; their individual ADSRs release when their own key is released.
+        // Continuous ON never re-triggers or reopens a poly envelope.
         syncKeyboardAudioGate();
         if (state.releaseOnKeyup && state.pressedKeys.size === 0 && state.midiHeldNotes.size === 0) {
-          releaseKeyboardNotes();
+          if (state.polyMode) {
+            Array.from(state.polyVoices.keys()).forEach(stopPolyVoice);
+          } else {
+            releaseKeyboardNotes();
+          }
         }
       });
 
@@ -5289,7 +6113,7 @@
         state.glissTime = parseFloat(e.target.value);
         glissVal.textContent = `${state.glissTime.toFixed(2)}s`;
       });
-    }
+      }
 
     // WEB MIDI INPUT
     function setMidiStatus(text, ok = false) {
@@ -5356,21 +6180,8 @@
           syncKeyboardAudioGate();
           return;
         }
-        if (!state.releaseOnKeyup) {
-          syncKeyboardAudioGate();
-          return;
-        }
-        if (state.midiHeldNotes.size === 0 && state.pressedKeys.size === 0) {
-          releaseKeyboardNotes();
-        } else if (state.pressedKeys.size === 0) {
-          const last = Array.from(state.midiHeldNotes.values()).pop();
-          const oldOct = state.octaveShift;
-          state.octaveShift = 0;
-          playSemitone(last.semitone, `midi-${last.note}`);
-          state.octaveShift = oldOct;
-        } else {
-          syncKeyboardAudioGate();
-        }
+        if (!state.releaseOnKeyup) { syncKeyboardAudioGate(); return; }
+        releaseKeyboardNotes(`midi-${note}`);
       }
     }
 
@@ -5382,8 +6193,8 @@
       try {
         state.midi.access = await navigator.requestMIDIAccess({ sysex: false });
         state.midi.enabled = true;
-        state.midi.access.onstatechange = populateMidiInputs;
-        populateMidiInputs();
+        state.midi.access.onstatechange = () => { populateMidiInputs(); populateMidiOutputs(); };
+        populateMidiInputs(); populateMidiOutputs();
         const count = state.midi.access.inputs.size;
         const loop = Array.from(state.midi.access.inputs.values()).some(i => /loopmidi/i.test(`${i.name || ''} ${i.manufacturer || ''}`));
         setMidiStatus(loop ? 'WebMIDI ready - LoopMIDI detected' : `WebMIDI ready - ${count} input(s)`, true);
@@ -5603,6 +6414,7 @@
     }
 
     function updateInspector() {
+      if (state.adsrGraphDragging) return;
       const panel = document.getElementById('inspector-panel');
       const content = document.getElementById('inspector-content');
 
@@ -5639,19 +6451,40 @@
         quadrantText = `${fb} ${lr}`.trim() || 'CENTER';
       }
 
+      const oldInspectorGraph = document.getElementById('inspector-adsr-graph');
+      try { oldInspectorGraph?._gearAdsrRO?.disconnect(); } catch (_) {}
       content.innerHTML = `
         <div><strong>Role:</strong> ${gear.isMain ? 'Main Drive Hub (Listener Center)' : 'Secondary Harmonic Gear'}</div>
         <div><strong>Current Shape:</strong> <span style="color:var(--accent-cyan);">${gear.shape || 'circular'}</span></div>
         <div style="margin-top:6px; border-top:1px solid var(--border-color); padding-top:5px;">
-          <strong style="color:var(--accent-cyan);">Tooth Shape</strong>
+          <strong style="color:var(--accent-cyan);">Sound Source</strong>
+          <div class="inspector-source-buttons palette-source-buttons" id="inspector-source-buttons" aria-label="Selected gear sound source">
+            <button type="button" class="palette-source-btn" data-source="sine" aria-label="Sine"></button>
+            <button type="button" class="palette-source-btn" data-source="square" aria-label="Square"></button>
+            <button type="button" class="palette-source-btn" data-source="triangle" aria-label="Triangle"></button>
+            <button type="button" class="palette-source-btn" data-source="sawtooth" aria-label="Saw"></button>
+            <button type="button" class="palette-source-btn" data-source="noise" aria-label="Noise"></button>
+            <button type="button" class="palette-source-btn" data-source="clockwork" aria-label="Clockwork"></button>
+            <button type="button" class="palette-source-btn" data-source="midi" aria-label="MIDI Output"></button>
+            <button type="button" class="palette-source-btn" data-source="audio" aria-label="Audio Sample"></button>
+          </div>
           <div style="display:flex;align-items:center;gap:5px;margin-top:4px;">
-            <select id="inspector-tooth-waveform" style="flex:1;min-width:0;">
-              <option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth">Saw</option><option value="square">Square</option><option value="clockwork">Clock</option>
-            </select>
+            <input id="inspector-tooth-waveform" type="hidden" value="${getGearToothWaveform(gear)}">
             <input id="slider-inspector-tooth-width" type="range" min="0" max="0.98" step="0.01" value="${getGearToothWidth(gear)}" style="flex:1;min-width:70px;">
             <span id="val-inspector-tooth-width" style="min-width:34px;text-align:right;color:var(--accent-cyan);">${getGearToothWidth(gear).toFixed(2)}</span>
           </div>
-          <div id="inspector-tooth-wave-preview" aria-hidden="true"></div>
+          <div class="palette-source-config" id="inspector-noise-config" hidden><span>Noise band</span><small style="opacity:.8">slider: HPF → LPF / Q</small></div>
+          <div class="palette-source-config" id="inspector-audio-config" hidden>
+            <input type="file" id="inspector-audio-file" accept="audio/*" hidden>
+            <button type="button" id="btn-inspector-audio-file">LOAD AUDIO</button><span id="inspector-audio-name" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${gear.audioFileName || 'No audio loaded'}</span>
+            <label>Start <input id="inspector-audio-start" type="number" min="0" step="0.001" value="${Number(gear.audioLoopStart||0).toFixed(3)}"></label>
+            <label>End <input id="inspector-audio-end" type="number" min="0.001" step="0.001" value="${Number(gear.audioLoopEnd||0.001).toFixed(3)}"></label>
+          </div>
+          <div class="palette-source-config" id="inspector-midi-config" hidden>
+            <button type="button" id="btn-inspector-midi-enable">ENABLE MIDI OUT</button>
+            <label>Out <select id="inspector-midi-output"><option value="">No MIDI output</option></select></label>
+            <label>Note <select id="inspector-midi-note"></select></label>
+          </div>
         </div>
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin:4px 0 2px;">
           <strong>Teeth Count:</strong>
@@ -5664,6 +6497,16 @@
         <div style="margin-top:6px;">
           <label style="font-size:.7rem;display:flex;justify-content:space-between"><span>Gear Volume</span><span id="val-inspector-volume" style="color:var(--accent-cyan)">${Math.round(Math.max(0,Math.min(1,gear.volume))*100)}%</span></label>
           <input type="range" id="slider-inspector-volume" min="0" max="1" step="0.01" value="${Math.max(0,Math.min(1,gear.volume))}" style="width:100%;">
+        </div>
+        <div class="gear-adsr-section" style="margin-top:8px; border-top:1px solid var(--border-color); padding-top:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:var(--accent-cyan);">Independent Gear ADSR</strong><span class="gear-adsr-caption">A≤2s · R≤10s</span></div>
+          <div class="gear-adsr-editor"><svg class="gear-adsr-svg" id="inspector-adsr-graph" viewBox="0 0 200 76" preserveAspectRatio="none" aria-label="Selected gear ADSR envelope">
+            <defs><radialGradient id="adsrGlassHandle" cx="30%" cy="25%"><stop offset="0" stop-color="#fff3c1"/><stop offset=".4" stop-color="#e0bc68"/><stop offset="1" stop-color="#684114"/></radialGradient></defs>
+            <rect class="gear-adsr-bg" x="1" y="1" width="198" height="74" rx="5"/><line class="gear-adsr-grid" x1="8" y1="61" x2="192" y2="61"/><line class="gear-adsr-grid" x1="8" y1="8" x2="8" y2="61"/>
+            <path id="inspector-adsr-fill" class="gear-adsr-fill" d=""/><path id="inspector-adsr-hitline" class="gear-adsr-hitline" d=""/><path id="inspector-adsr-line" class="gear-adsr-line" d=""/>
+            <circle id="inspector-adsr-hit-attack" class="gear-adsr-handle-hit" r="9" data-adsr="attack"/><circle id="inspector-adsr-h-attack" class="gear-adsr-handle" r="4.5"/><circle id="inspector-adsr-hit-decay" class="gear-adsr-handle-hit" r="9" data-adsr="decay"/><circle id="inspector-adsr-h-decay" class="gear-adsr-handle" r="4.5"/><circle id="inspector-adsr-hit-sustain" class="gear-adsr-handle-hit" r="9" data-adsr="sustain"/><circle id="inspector-adsr-h-sustain" class="gear-adsr-handle" r="4.5"/><circle id="inspector-adsr-hit-release" class="gear-adsr-handle-hit" r="9" data-adsr="release"/><circle id="inspector-adsr-h-release" class="gear-adsr-handle" r="4.5"/>
+            <text class="gear-adsr-label" x="12" y="11">A</text><text class="gear-adsr-label" x="68" y="11">D</text><text class="gear-adsr-label" x="114" y="11">S</text><text class="gear-adsr-label" x="164" y="11">R</text><text id="inspector-adsr-values" class="gear-adsr-value" x="100" y="71" text-anchor="middle"></text>
+          </svg></div>
         </div>
         <div style="margin-top:6px;">
           <label style="font-size:.7rem;display:flex;justify-content:space-between"><span>Ratio Target</span><span id="val-inspector-ratio" style="color:var(--accent-cyan)">${gear.isMain ? '1:1' : floatToFraction(gear.ratio)}</span></label>
@@ -5742,9 +6585,21 @@
       const inspectorToothWidth = document.getElementById('slider-inspector-tooth-width');
       const inspectorToothWidthVal = document.getElementById('val-inspector-tooth-width');
       const inspectorToothPreview = document.getElementById('inspector-tooth-wave-preview');
+      const syncInspectorSourceConfigs = () => {
+        const mode=gear.sourceMode || getGearToothWaveform(gear);
+        const n=document.getElementById('inspector-noise-config'), a=document.getElementById('inspector-audio-config'), m=document.getElementById('inspector-midi-config');
+        if(n)n.hidden=mode!=='noise'; if(a)a.hidden=mode!=='audio'; if(m)m.hidden=mode!=='midi';
+        if(mode==='midi') populateInspectorMidiControls(gear);
+      };
       const refreshInspectorTooth = () => {
         const type = getGearToothWaveform(gear);
         const width = getGearToothWidth(gear);
+        renderSourceButtonRow(document.getElementById('inspector-source-buttons'), gear.sourceMode || type, width, src=>{
+          gear.sourceMode=src;
+          if(['sine','triangle','sawtooth','square','clockwork'].includes(src)) gear.toothWaveform=src;
+          syncInspectorSourceConfigs();
+          updateAudioNodes();
+        });
         if (inspectorToothSelect) inspectorToothSelect.value = type;
         if (inspectorToothWidth) inspectorToothWidth.value = width;
         if (inspectorToothWidthVal) inspectorToothWidthVal.textContent = width.toFixed(2);
@@ -5752,10 +6607,58 @@
       };
       inspectorToothSelect?.addEventListener('change', e => {
         gear.toothWaveform = e.target.value;
+        gear.sourceMode = gear.toothWaveform;
         refreshInspectorTooth();
         updateAudioNodes();
         renderGearList();
       });
+      document.getElementById('btn-inspector-audio-file')?.addEventListener('click',()=>document.getElementById('inspector-audio-file')?.click());
+      document.getElementById('inspector-audio-file')?.addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{if(!state.audioCtx)initAudio();const buffer=await state.audioCtx.decodeAudioData((await file.arrayBuffer()).slice(0));gear.audioBuffer=buffer;gear.audioFileName=file.name;gear.audioLoopStart=0;gear.audioLoopEnd=buffer.duration;const nm=document.getElementById('inspector-audio-name');if(nm)nm.textContent=file.name;document.getElementById('inspector-audio-start').value='0.000';document.getElementById('inspector-audio-end').value=buffer.duration.toFixed(3);gear.sourceMode='audio';updateAudioNodes();}catch(err){console.error(err);}});
+      const syncInspectorAudioRange=()=>{if(!gear.audioBuffer)return;const st=Math.max(0,Math.min(Number(document.getElementById('inspector-audio-start')?.value)||0,gear.audioBuffer.duration-.001));const en=Math.max(st+.001,Math.min(Number(document.getElementById('inspector-audio-end')?.value)||gear.audioBuffer.duration,gear.audioBuffer.duration));gear.audioLoopStart=st;gear.audioLoopEnd=en;if(gear.audioSource)createGearAudioLoopSource(gear);};
+      document.getElementById('inspector-audio-start')?.addEventListener('input',syncInspectorAudioRange);document.getElementById('inspector-audio-end')?.addEventListener('input',syncInspectorAudioRange);
+      document.getElementById('btn-inspector-midi-enable')?.addEventListener('click',async()=>{await initWebMIDI();populateInspectorMidiControls(gear);});
+      document.getElementById('inspector-midi-output')?.addEventListener('change',e=>{gear.midiOutput=state.midi.access?.outputs.get(e.target.value)||null;});
+      document.getElementById('inspector-midi-note')?.addEventListener('change',e=>{gear.midiNote=Number(e.target.value)||60;});
+      syncInspectorSourceConfigs();
+      const inspectorAdsrGraph = document.getElementById('inspector-adsr-graph');
+      if (inspectorAdsrGraph) {
+        // The inspector DOM is rebuilt on every selection. Bind and paint both
+        // immediately and on the next frame so layout/visibility cannot leave
+        // a freshly-created SVG blank.
+        bindAdsrGraph(inspectorAdsrGraph,()=>gear.adsr,a=>{gear.adsr={...gear.adsr,...a};},'inspector-adsr');
+        renderAdsrGraph(inspectorAdsrGraph, gear.adsr || state.adsr, 'inspector-adsr');
+        const paintInspectorAdsr = () => {
+          const g = document.getElementById('inspector-adsr-graph');
+          if (!g) return;
+          const env = gear.adsr || state.adsr;
+          g.style.display = 'block';
+          g.style.width = '100%';
+          g.style.height = '92px';
+          g.style.visibility = 'visible';
+          g.style.opacity = '1';
+          renderAdsrGraph(g, env, 'inspector-adsr');
+          // Verify the path was actually painted. This prevents a transient SVG
+          // layout/update race from leaving an otherwise valid inspector blank.
+          if (!g.querySelector('#inspector-adsr-line')?.getAttribute('d')) {
+            const A=Math.max(0,Math.min(2,Number(env.attack)||0)),D=Math.max(0,Math.min(2,Number(env.decay)||0)),S=Math.max(0,Math.min(1,Number(env.sustain ?? .8))),R=Math.max(0,Math.min(10,Number(env.release)||0));
+            const ax=8+47*A/2,dx=55+45*D/2,sx=125,rx=sx+67*R/10,ys=61-S*53;
+            const d=`M 8 61 L ${ax} 10 L ${dx} ${ys} L ${sx} ${ys} L ${rx} 61`;
+            g.querySelector('#inspector-adsr-line')?.setAttribute('d',d);
+            g.querySelector('#inspector-adsr-hitline')?.setAttribute('d',d);
+            g.querySelector('#inspector-adsr-fill')?.setAttribute('d',d+' Z');
+          }
+        };
+        paintInspectorAdsr();
+        requestAnimationFrame(paintInspectorAdsr);
+        requestAnimationFrame(() => requestAnimationFrame(paintInspectorAdsr));
+        setTimeout(paintInspectorAdsr, 50);
+        setTimeout(paintInspectorAdsr, 250);
+        if (window.ResizeObserver) {
+          const ro = new ResizeObserver(() => paintInspectorAdsr());
+          ro.observe(inspectorAdsrGraph);
+          inspectorAdsrGraph._gearAdsrRO = ro;
+        }
+      }
       inspectorToothWidth?.addEventListener('input', e => {
         gear.toothWidth = normalizeToothWidth(e.target.value);
         refreshInspectorTooth();
@@ -6248,7 +7151,7 @@
       const val = Math.min(15015, Math.max(1, parseInt(e.target.value) || 120));
       state.mainTeeth = val;
       e.target.value = val;
-      document.getElementById('val-main-teeth').textContent = val;
+      document.getElementById('val-main-teeth')?.setAttribute('data-value',val); if(document.getElementById('palette-main-teeth')) document.getElementById('palette-main-teeth').value=val;
       document.getElementById('select-main-teeth-preset').value = '';
 
       const main = state.gears.find(g => g.isMain);
@@ -6278,7 +7181,7 @@
       if (!isNaN(val)) {
         state.mainTeeth = val;
         document.getElementById('input-main-teeth').value = val;
-        document.getElementById('val-main-teeth').textContent = val;
+        document.getElementById('val-main-teeth')?.setAttribute('data-value',val); if(document.getElementById('palette-main-teeth')) document.getElementById('palette-main-teeth').value=val;
 
         const main = state.gears.find(g => g.isMain);
       if (main) {
@@ -6301,6 +7204,19 @@
         }
       }
     });
+
+    function applyPaletteMainTeeth(val){
+      const e={target:{value:String(val)}};
+      const main=state.gears.find(g=>g.isMain); if(!main)return;
+      const v=Math.min(99999,Math.max(1,parseInt(val)||120));
+      const oldMainTeeth=main.teeth; const oldRatios=new Map(state.gears.map(g=>[g.id,Math.abs(g.ratio)])); main.teeth=v;state.mainTeeth=v;
+      state.gears.forEach(g=>{if(g.isMain)return;if(g.ratioLock){const r=oldRatios.get(g.id)||1;g.teeth=Math.min(15015,Math.max(1,Math.round(v/Math.max(1e-9,r))));}else if(!g.teethLock){g.teeth=Math.min(15015,Math.max(1,Math.round(g.teeth*(oldMainTeeth>0?v/oldMainTeeth:1))));}});
+      const field=document.getElementById('input-main-teeth');if(field)field.value=v; const pf=document.getElementById('palette-main-teeth');if(pf)pf.value=v;
+      const ps=document.getElementById('select-main-teeth-preset');if(ps)ps.value='';const pps=document.getElementById('palette-main-teeth-preset');if(pps)pps.value='';
+      updateKinematicNetwork();renderRationalGearPalette();syncPaletteGearEditor();updateAudioNodes();renderGearList();
+    }
+    document.getElementById('palette-main-teeth')?.addEventListener('change',e=>applyPaletteMainTeeth(e.target.value));
+    document.getElementById('palette-main-teeth-preset')?.addEventListener('change',e=>applyPaletteMainTeeth(e.target.value));
 
     // ADD GEAR / RATIO TOOLBAR
     const ratioNumInput = document.getElementById('input-ratio-num');
@@ -6372,6 +7288,7 @@
       }
 
       const gear = addGear(teeth);
+      setActivePaletteGear(gear);
       gear.setPhaseOffsetDeg(phaseDeg);
       gear.ratioLock = ratioLock;
       gear.teethLock = teethLock;
@@ -6380,8 +7297,11 @@
       gear.orbitPeriodSec = orbitPeriodSec;
       gear.orbitDirection = orbitDirection;
       gear.orbitPreservePhase = orbitPreservePhase;
-      gear.toothWaveform = paletteToothWaveSelect?.value || 'sawtooth';
+      gear.toothWaveform = window.__paletteToothWaveform || 'sawtooth';
       gear.toothWidth = PALETTE_TOOTH_WIDTH;
+      gear.sourceMode = window.__paletteSourceMode || gear.toothWaveform;
+      if (gear.sourceMode === 'audio' && window.__paletteAudioConfig?.buffer) { gear.audioBuffer=window.__paletteAudioConfig.buffer; gear.audioFileName=window.__paletteAudioConfig.name; gear.audioLoopStart=window.__paletteAudioConfig.start; gear.audioLoopEnd=window.__paletteAudioConfig.end; }
+      if (gear.sourceMode === 'midi') { gear.midiOutput=state.midi.output; gear.midiNote=Number(window.__paletteMidiNote || 60); }
 
       const main = state.gears.find(g => g.isMain) || state.gears[0];
       if (orbitEnabled && main && !gear.isMain) {
@@ -6395,6 +7315,7 @@
       updateKinematicNetwork();
       updateAudioNodes();
       forceGearMod0Sync('ratio-toolbar-add');
+      setActivePaletteGear(gear);
       updateInspector();
       renderGearList();
       document.getElementById('startup-tooltip')?.remove();
@@ -6413,13 +7334,25 @@
         if (!Number.isFinite(Number(data.teeth))) return;
         const mouse = screenToWorld(e.offsetX, e.offsetY);
         const gear = addGear(Math.max(1, Math.min(15015, Number(data.teeth))), mouse.x, mouse.y);
+        setActivePaletteGear(gear);
         gear.ratioLock = true;
         gear.teethLock = false;
         gear.shape = paletteShapeSelect?.value || data.shape || 'circular';
         gear.shapeParams = normalizedShapeParams(data.shapeParams || PALETTE_SHAPE_PARAMS);
         gear.volume = Math.max(0, Math.min(1, Number.isFinite(Number(data.volume)) ? Number(data.volume) : PALETTE_GEAR_VOLUME));
-        gear.toothWaveform = ['sine','triangle','sawtooth','square','clockwork'].includes(data.toothWaveform) ? data.toothWaveform : (paletteToothWaveSelect?.value || 'sawtooth');
+        gear.toothWaveform = ['sine','triangle','sawtooth','square','clockwork'].includes(data.toothWaveform) ? data.toothWaveform : 'sawtooth';
         gear.toothWidth = normalizeToothWidth(data.toothWidth ?? PALETTE_TOOTH_WIDTH);
+        gear.sourceMode = data.sourceMode || gear.toothWaveform;
+        if (gear.sourceMode === 'audio' && window.__paletteAudioConfig?.buffer) {
+          gear.audioBuffer = window.__paletteAudioConfig.buffer;
+          gear.audioFileName = window.__paletteAudioConfig.name || '';
+          gear.audioLoopStart = Number(window.__paletteAudioConfig.start) || 0;
+          gear.audioLoopEnd = Number(window.__paletteAudioConfig.end) || gear.audioBuffer.duration;
+        }
+        if (gear.sourceMode === 'midi') {
+          gear.midiOutput = state.midi.output;
+          gear.midiNote = Number(window.__paletteMidiNote) || 60;
+        }
         gear.setPhaseOffsetDeg(0);
           updateKinematicNetwork();
         forceGearMod0Sync('palette-drag-add');
@@ -6441,56 +7374,126 @@
     const mainToothWaveSelect = document.getElementById('select-main-tooth-waveform');
     const mainToothWidthSlider = document.getElementById('slider-main-tooth-width');
     const mainToothWidthValue = document.getElementById('val-main-tooth-width');
+    const mainToothPreview = document.getElementById('main-tooth-wave-preview');
+    const mainVolumeSlider = document.getElementById('slider-main-volume');
+    const mainVolumeValue = document.getElementById('val-main-volume');
 
+    const paletteToothWaveSelect = null;
     const paletteShapeParamsWrap = document.getElementById('palette-shape-params');
     const paletteVolumeSlider = document.getElementById('slider-palette-volume');
     const paletteVolumeValue = document.getElementById('val-palette-volume');
-    const paletteToothWaveSelect = document.getElementById('select-palette-tooth-waveform');
     const paletteToothWidthSlider = document.getElementById('slider-palette-tooth-width');
     const paletteToothPreview = document.getElementById('palette-tooth-wave-preview');
+    const paletteSourceButtons = document.getElementById('palette-source-buttons');
+    const paletteNoiseConfig = document.getElementById('palette-noise-config');
+    const paletteAudioConfig = document.getElementById('palette-audio-config');
+    const paletteMidiConfig = document.getElementById('palette-midi-config');
+    const paletteAudioFile = document.getElementById('palette-audio-file');
+    const paletteAudioName = document.getElementById('palette-audio-name');
+    const paletteAudioStart = document.getElementById('palette-audio-start');
+    const paletteAudioEnd = document.getElementById('palette-audio-end');
+    const paletteMidiOutput = document.getElementById('palette-midi-output');
+    const paletteMidiNote = document.getElementById('palette-midi-note');
     let PALETTE_TOOTH_WIDTH = 0.50;
-    window.__paletteToothWaveform = 'sawtooth'; window.__paletteToothWidth = PALETTE_TOOTH_WIDTH;
     let PALETTE_GEAR_VOLUME = 0.20;
+    let PALETTE_SOURCE_MODE = 'sawtooth';
+    window.__paletteSourceMode = PALETTE_SOURCE_MODE; window.__paletteToothWaveform = 'sawtooth'; window.__paletteToothWidth = PALETTE_TOOTH_WIDTH;
+    window.__paletteAudioConfig = null; window.__paletteMidiNote = 60;
     const PALETTE_SHAPE_PARAMS = { ...DEFAULT_SHAPE_PARAMS }; window.__paletteShapeParams = PALETTE_SHAPE_PARAMS;
     const SHAPE_PARAM_DEFS = {
-      circular: [],
-      ellipse: [['ellipseA','Aspect Ratio',0.35,1.00,0.01],['ellipseEccentricity','Focal Distance / Eccentricity',0,0.95,0.01]],
-      square: [['polygonSharpness','Corner Sharpness',0,1,0.01]],
-      hexagon: [['polygonSharpness','Corner Sharpness',0,1,0.01]],
+      circular: [], ellipse: [['ellipseA','Aspect Ratio',0.35,1.00,0.01],['ellipseEccentricity','Focal Distance / Eccentricity',0,0.95,0.01]],
+      square: [['polygonSharpness','Corner Sharpness',0,1,0.01]], hexagon: [['polygonSharpness','Corner Sharpness',0,1,0.01]],
       cardioid: [['cardioidDepth','Depth / Lobe',0.2,1.3,0.01],['cardioidBias','Asymmetry Bias',0,1,0.01]],
       heart: [['heartWidth','Width',0.45,1.25,0.01],['heartPoint','Point / Cusp',0,1,0.01]],
       mobius: [['mobiusTwist','Twist Amount',0.25,1.75,0.01],['mobiusWidth','Band Width',0.03,0.42,0.01]]
     };
     function renderShapeParamEditor(wrap, shape, params, onInput) {
-      if (!wrap) return;
-      const safe = normalizedShapeParams(params);
-      const defs = SHAPE_PARAM_DEFS[shape] || [];
-      wrap.innerHTML = defs.map(([key,label,min,max,step]) => `<div style="margin-top:5px;"><label style="font-size:.65rem;display:flex;justify-content:space-between"><span>${label}</span><span style="color:var(--accent-cyan)" data-param-value="${key}">${Number(safe[key]).toFixed(2)}</span></label><input type="range" data-shape-param="${key}" min="${min}" max="${max}" step="${step}" value="${safe[key]}" style="width:100%"></div>`).join('');
-      wrap.querySelectorAll('input[data-shape-param]').forEach(input => input.addEventListener('input', e => { const key=e.target.dataset.shapeParam; params[key]=Number(e.target.value); const v=wrap.querySelector(`[data-param-value="${key}"]`); if(v) v.textContent=Number(e.target.value).toFixed(2); onInput?.(params); }));
+      if (!wrap) return; const safe=normalizedShapeParams(params); const defs=SHAPE_PARAM_DEFS[shape]||[];
+      wrap.innerHTML=defs.map(([key,label,min,max,step])=>`<div style="margin-top:5px;"><label style="font-size:.65rem;display:flex;justify-content:space-between"><span>${label}</span><span style="color:var(--accent-cyan)" data-param-value="${key}">${Number(safe[key]).toFixed(2)}</span></label><input type="range" data-shape-param="${key}" min="${min}" max="${max}" step="${step}" value="${safe[key]}" style="width:100%"></div>`).join('');
+      wrap.querySelectorAll('input[data-shape-param]').forEach(input=>input.addEventListener('input',e=>{const key=e.target.dataset.shapeParam;params[key]=Number(e.target.value);const v=wrap.querySelector(`[data-param-value="${key}"]`);if(v)v.textContent=Number(e.target.value).toFixed(2);onInput?.(params);}));
       bindWheelControls(wrap);
     }
-    const refreshPaletteToothShape = () => {
-      const type = paletteToothWaveSelect?.value || 'sawtooth';
-      window.__paletteToothWaveform = type;
-      window.__paletteToothWidth = PALETTE_TOOTH_WIDTH;
-      if (paletteToothPreview) {
-        paletteToothPreview.innerHTML = `<svg viewBox="0 0 120 22" preserveAspectRatio="none" aria-label="${type} tooth waveform preview">${drawToothWaveGlyph(type, PALETTE_TOOTH_WIDTH, 2, 3, 116, 16)}</svg>`;
+    function sourceButtonSVG(source, width) {
+      const stroke='#f4d17d';
+      if(source==='audio') return `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 13h5l9-7v20l-9-7H5z" fill="rgba(240,194,104,.20)" stroke="${stroke}" stroke-width="1.6"/><path d="M22 11c2.1 1.8 2.1 7.2 0 9.0M25 8c4 3.2 4 12.8 0 16" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+      if(source==='midi') return `<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="6" width="24" height="20" rx="2" fill="rgba(240,194,104,.18)" stroke="${stroke}" stroke-width="1.5"/><path d="M8 7v11h4V7m4 0v11h4V7m4 0v11h4V7" fill="none" stroke="${stroke}" stroke-width="1.3"/><path d="M10 26V18m6 8V18m6 8V18" stroke="#3a2410" stroke-width="1.8"/></svg>`;
+      if(source==='noise') {
+        const pts=[]; for(let i=0;i<=20;i++){ const x=3+i*1.3; const y=16-(i%2?((i*7)%9):((i*11)%7)); pts.push(`${x.toFixed(1)},${y.toFixed(1)}`); }
+        return `<svg viewBox="0 0 32 32" aria-hidden="true"><polyline points="${pts.join(' ')}" fill="none" stroke="${stroke}" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
       }
+      const type=source==='sqr'?'square':source==='saw'?'sawtooth':source;
+      if(['sine','square','triangle','sawtooth','clockwork'].includes(type)) return `<svg viewBox="0 0 32 32" aria-hidden="true">${drawToothWaveGlyph(type,width,3,9,26,14)}</svg>`;
+      return '';
+    }
+
+    function renderSourceButtonRow(container, sourceMode, width, onSelect) {
+      if(!container) return;
+      container.querySelectorAll('.palette-source-btn').forEach(b=>{
+        const src=b.dataset.source;
+        b.innerHTML=sourceButtonSVG(src, width);
+        const title=src==='sawtooth'?'Saw':src==='square'?'Square':src==='triangle'?'Triangle':src==='sine'?'Sine':src==='clockwork'?'Clockwork':src==='noise'?'Noise':src==='midi'?'MIDI Output':'Audio Sample';
+        b.title=title; b.setAttribute('aria-label',title); b.classList.toggle('active',src===sourceMode);
+        b.onclick=()=>onSelect?.(src);
+      });
+    }
+
+    function populateInspectorMidiControls(gear){
+      const outSel=document.getElementById('inspector-midi-output'), noteSel=document.getElementById('inspector-midi-note');
+      if(outSel){ outSel.innerHTML=''; const outs=state.midi.access?Array.from(state.midi.access.outputs.values()):[]; if(!outs.length) outSel.add(new Option('No MIDI output','')); else outs.forEach(o=>outSel.add(new Option(o.name||o.id,o.id))); const chosen=outs.find(o=>o.id===gear.midiOutput?.id)||outs.find(o=>o.id===state.midi.output?.id)||outs[0]; if(chosen){outSel.value=chosen.id;gear.midiOutput=chosen;} }
+      if(noteSel){noteSel.innerHTML='';for(let o=1;o<=9;o++)for(let n=0;n<12;n++){const midi=(o+1)*12+n;if(midi<=127)noteSel.add(new Option(midiNumberToName(midi),String(midi)));}noteSel.value=String(Number(gear.midiNote)||60);}
+    }
+
+    function refreshPaletteSourceUI(){
+      window.__paletteSourceMode=PALETTE_SOURCE_MODE;
+      renderSourceButtonRow(document.getElementById('main-source-buttons'), (state.gears.find(g=>g.isMain)?.sourceMode || getGearToothWaveform(state.gears.find(g=>g.isMain)) || PALETTE_SOURCE_MODE), PALETTE_TOOTH_WIDTH, src=>{
+        const main=state.gears.find(g=>g.isMain); if(!main)return; main.sourceMode=src; main.toothWaveform=['sine','triangle','sawtooth','square','clockwork'].includes(src)?src:main.toothWaveform; main.toothWidth=PALETTE_TOOTH_WIDTH; syncMainSourceConfigs(); syncMainToothControls(); updateAudioNodes(); renderGearList();
+      });
+      paletteSourceButtons?.querySelectorAll('.palette-source-btn').forEach(b=>{
+        b.classList.toggle('active',b.dataset.source===PALETTE_SOURCE_MODE);
+        b.innerHTML=sourceButtonSVG(b.dataset.source, PALETTE_TOOTH_WIDTH);
+        b.title=b.dataset.source==='sawtooth'?'Saw':b.dataset.source==='square'?'Square':b.dataset.source==='triangle'?'Triangle':b.dataset.source==='sine'?'Sine':b.dataset.source==='clockwork'?'Clockwork':b.dataset.source==='noise'?'Noise':b.dataset.source==='midi'?'MIDI Output':'Audio Sample';
+        b.setAttribute('aria-label',b.title);
+      });
+      if(paletteNoiseConfig) paletteNoiseConfig.hidden=PALETTE_SOURCE_MODE!=='noise';
+      if(paletteAudioConfig) paletteAudioConfig.hidden=PALETTE_SOURCE_MODE!=='audio';
+      if(paletteMidiConfig) paletteMidiConfig.hidden=PALETTE_SOURCE_MODE!=='midi';
+      const glyphType=['sine','triangle','sawtooth','square','clockwork'].includes(PALETTE_SOURCE_MODE)?PALETTE_SOURCE_MODE:'sawtooth';
+      window.__paletteToothWaveform=glyphType; window.__paletteToothWidth=PALETTE_TOOTH_WIDTH;
       renderRationalGearPalette();
-    };
-    paletteToothWaveSelect?.addEventListener('change', refreshPaletteToothShape);
-    paletteToothWidthSlider?.addEventListener('input', e => {
-      PALETTE_TOOTH_WIDTH = normalizeToothWidth(e.target.value);
-      refreshPaletteToothShape();
-    });
+    }
+    paletteSourceButtons?.querySelectorAll('.palette-source-btn').forEach(btn=>btn.addEventListener('click',()=>{
+      const gear=getActivePaletteGear();
+      PALETTE_SOURCE_MODE=btn.dataset.source;
+      if(gear){
+        gear.sourceMode=PALETTE_SOURCE_MODE;
+        if(['sine','triangle','sawtooth','square','clockwork'].includes(PALETTE_SOURCE_MODE)) gear.toothWaveform=PALETTE_SOURCE_MODE;
+        gear.toothWidth=PALETTE_TOOTH_WIDTH;
+        if(PALETTE_SOURCE_MODE==='audio' && window.__paletteAudioConfig?.buffer){ gear.audioBuffer=window.__paletteAudioConfig.buffer;gear.audioFileName=window.__paletteAudioConfig.name||'';gear.audioLoopStart=window.__paletteAudioConfig.start||0;gear.audioLoopEnd=window.__paletteAudioConfig.end||gear.audioBuffer.duration; }
+        if(PALETTE_SOURCE_MODE==='midi'){if(!state.midi.access)initWebMIDI();else populateMidiOutputs();populatePaletteMidiNotes();gear.midiOutput=state.midi.output;gear.midiNote=Number(window.__paletteMidiNote)||60;}
+        updateAudioNodes(); renderGearList();
+      }
+      refreshPaletteSourceUI();
+    }));
+    paletteToothWidthSlider?.addEventListener('input',e=>{ const g=getActivePaletteGear(); PALETTE_TOOTH_WIDTH=normalizeToothWidth(e.target.value); if(g){g.toothWidth=PALETTE_TOOTH_WIDTH;if(g.sourceMode==='noise')configureNoiseFilters(g);} refreshPaletteSourceUI(); updateAudioNodes(); });
+    document.getElementById('btn-palette-audio-file')?.addEventListener('click',()=>paletteAudioFile?.click());
+    paletteAudioFile?.addEventListener('change',async e=>{const file=e.target.files?.[0]; if(!file)return; try{if(!state.audioCtx)initAudio();const ab=await file.arrayBuffer();const buffer=await state.audioCtx.decodeAudioData(ab.slice(0));paletteAudioStart.max=buffer.duration;paletteAudioEnd.max=buffer.duration;paletteAudioStart.value=0;paletteAudioEnd.value=buffer.duration.toFixed(3);paletteAudioName.textContent=file.name;window.__paletteAudioConfig={buffer,name:file.name,start:0,end:buffer.duration};const g=getActivePaletteGear();if(g&&g.sourceMode==='audio'){g.audioBuffer=buffer;g.audioFileName=file.name;g.audioLoopStart=0;g.audioLoopEnd=buffer.duration;updateAudioNodes();}}catch(err){console.error(err);paletteAudioName.textContent='Could not decode audio';}});
+    const syncPaletteAudioRange=()=>{if(!window.__paletteAudioConfig)return;let st=Math.max(0,Math.min(Number(paletteAudioStart.value)||0,window.__paletteAudioConfig.buffer.duration-.001));let en=Math.max(st+.001,Math.min(Number(paletteAudioEnd.value)||window.__paletteAudioConfig.buffer.duration,window.__paletteAudioConfig.buffer.duration));paletteAudioStart.value=st.toFixed(3);paletteAudioEnd.value=en.toFixed(3);window.__paletteAudioConfig.start=st;window.__paletteAudioConfig.end=en;const g=getActivePaletteGear();if(g&&g.sourceMode==='audio'){g.audioBuffer=window.__paletteAudioConfig.buffer;g.audioLoopStart=st;g.audioLoopEnd=en;if(g.audioSource)createGearAudioLoopSource(g);updateAudioNodes();}};
+    paletteAudioStart?.addEventListener('input',syncPaletteAudioRange); paletteAudioEnd?.addEventListener('input',syncPaletteAudioRange);
+    document.getElementById('btn-palette-midi-enable')?.addEventListener('click',async()=>{await initWebMIDI();populateMidiOutputs();populatePaletteMidiNotes();});
+    paletteMidiOutput?.addEventListener('change',()=>{state.midi.output=state.midi.access?.outputs.get(paletteMidiOutput.value)||null;});
+    paletteMidiNote?.addEventListener('change',()=>{window.__paletteMidiNote=Number(paletteMidiNote.value)||60;});
+    syncPaletteGearEditor();
+    refreshPaletteSourceUI();
 
     const refreshPaletteShapeDescription = () => {
-      const shape = paletteShapeSelect?.value || 'circular';
+      const gear=getActivePaletteGear();
+      const shape = gear?.shape || paletteShapeSelect?.value || 'circular';
+      if (paletteShapeSelect) paletteShapeSelect.value=shape;
       if (paletteShapeDesc) paletteShapeDesc.textContent = GEAR_SHAPE_DESCRIPTIONS[shape];
-      renderShapeParamEditor(paletteShapeParamsWrap, shape, PALETTE_SHAPE_PARAMS, () => { renderRationalGearPalette(); });
-      refreshPaletteToothShape();
+      if (gear) renderShapeParamEditor(paletteShapeParamsWrap, shape, gear.shapeParams, params => { gear.shapeParams=normalizedShapeParams(params); updateAudioNodes(); renderGearList(); });
+      refreshPaletteSourceUI();
     };
-    paletteShapeSelect?.addEventListener('change', refreshPaletteShapeDescription);
+    paletteShapeSelect?.addEventListener('change', () => { const g=getActivePaletteGear(); if(g){g.shape=paletteShapeSelect.value;g.shapeParams=normalizedShapeParams(g.shapeParams);} refreshPaletteShapeDescription(); updateAudioNodes(); renderGearList(); });
     const ratioPaletteBody = document.querySelector('#ratio-palette-modal .floating-body');
     const mobilePortraitLayoutQuery = window.matchMedia('(max-width: 900px) and (orientation: portrait)');
     const isMobilePortraitLayout = () => mobilePortraitLayoutQuery.matches;
@@ -6511,6 +7514,7 @@
     }, { passive: false });
     paletteVolumeSlider?.addEventListener('input', e => {
       PALETTE_GEAR_VOLUME = Math.max(0, Math.min(1, Number(e.target.value) || 0));
+      const g=getActivePaletteGear(); if(g){g.volume=PALETTE_GEAR_VOLUME;updateAudioNodes();renderGearList();}
       if (paletteVolumeValue) paletteVolumeValue.textContent = `${Math.round(PALETTE_GEAR_VOLUME * 100)}%`;
     });
     mainShapeSelect?.addEventListener('change', () => {
@@ -6522,36 +7526,72 @@
       updateAudioNodes();
       renderGearList();
     });
+    const syncMainSourceConfigs = () => {
+      const main=state.gears.find(g=>g.isMain); if(!main)return; const mode=main.sourceMode||getGearToothWaveform(main);
+      const n=document.getElementById('main-noise-config'),a=document.getElementById('main-audio-config'),m=document.getElementById('main-midi-config'); if(n)n.hidden=mode!=='noise';if(a)a.hidden=mode!=='audio';if(m)m.hidden=mode!=='midi';
+      if(mode==='midi'){const os=document.getElementById('main-midi-output'),ns=document.getElementById('main-midi-note');if(os){os.innerHTML='';const outs=state.midi.access?Array.from(state.midi.access.outputs.values()):[];if(!outs.length)os.add(new Option('No MIDI output',''));else outs.forEach(o=>os.add(new Option(o.name||o.id,o.id)));const ch=outs.find(o=>o.id===main.midiOutput?.id)||outs[0];if(ch){os.value=ch.id;main.midiOutput=ch;}}if(ns){ns.innerHTML='';for(let o=1;o<=9;o++)for(let n=0;n<12;n++){const midi=(o+1)*12+n;if(midi<=127)ns.add(new Option(midiNumberToName(midi),String(midi)));}ns.value=String(Number(main.midiNote)||60);}}
+    };
+
     const syncMainToothControls = () => {
       const main = state.gears.find(g => g.isMain);
       if (!main) return;
       const type = getGearToothWaveform(main);
       const width = getGearToothWidth(main);
       if (mainToothWaveSelect) mainToothWaveSelect.value = type;
+      renderSourceButtonRow(document.getElementById('main-source-buttons'), main.sourceMode || type, width, src=>{ main.sourceMode=src; main.toothWaveform=['sine','triangle','sawtooth','square','clockwork'].includes(src)?src:type; syncMainSourceConfigs(); syncMainToothControls(); updateAudioNodes(); renderGearList(); });
       if (mainToothWidthSlider) mainToothWidthSlider.value = width;
       if (mainToothWidthValue) mainToothWidthValue.textContent = width.toFixed(2);
+      if (mainVolumeSlider) mainVolumeSlider.value = Math.max(0, Math.min(1, Number(main.volume) || 0.2));
+      if (mainVolumeValue) mainVolumeValue.textContent = `${Math.round((Number(main.volume) || 0.2) * 100)}%`;
+      if (mainAdsrGraph) renderAdsrGraph(mainAdsrGraph, main.adsr || state.adsr, 'main-adsr');
+      if (mainToothPreview) mainToothPreview.innerHTML = `<svg viewBox="0 0 120 22" preserveAspectRatio="none" aria-label="${type} tooth waveform preview">${drawToothWaveGlyph(type, width, 2, 3, 116, 16)}</svg>`;
     };
     mainToothWaveSelect?.addEventListener('change', e => {
       const main = state.gears.find(g => g.isMain);
       if (!main) return;
       main.toothWaveform = e.target.value;
+      main.sourceMode = e.target.value;
+      syncMainToothControls();
       updateAudioNodes(); renderGearList();
+    });
+    document.getElementById('btn-main-audio-file')?.addEventListener('click',()=>document.getElementById('main-audio-file')?.click());
+    document.getElementById('main-audio-file')?.addEventListener('change',async e=>{const file=e.target.files?.[0];const main=state.gears.find(g=>g.isMain);if(!file||!main)return;try{if(!state.audioCtx)initAudio();const buffer=await state.audioCtx.decodeAudioData((await file.arrayBuffer()).slice(0));main.audioBuffer=buffer;main.audioFileName=file.name;main.audioLoopStart=0;main.audioLoopEnd=buffer.duration;main.sourceMode='audio';document.getElementById('main-audio-name').textContent=file.name;document.getElementById('main-audio-start').value='0';document.getElementById('main-audio-end').value=buffer.duration.toFixed(3);syncMainSourceConfigs();updateAudioNodes();}catch(err){console.error(err);}});
+    const syncMainAudioRange=()=>{const main=state.gears.find(g=>g.isMain);if(!main?.audioBuffer)return;const st=Math.max(0,Math.min(Number(document.getElementById('main-audio-start')?.value)||0,main.audioBuffer.duration-.001));const en=Math.max(st+.001,Math.min(Number(document.getElementById('main-audio-end')?.value)||main.audioBuffer.duration,main.audioBuffer.duration));main.audioLoopStart=st;main.audioLoopEnd=en;if(main.audioSource)createGearAudioLoopSource(main);};
+    document.getElementById('main-audio-start')?.addEventListener('input',syncMainAudioRange);document.getElementById('main-audio-end')?.addEventListener('input',syncMainAudioRange);
+    document.getElementById('btn-main-midi-enable')?.addEventListener('click',async()=>{const main=state.gears.find(g=>g.isMain);if(!main)return;await initWebMIDI();syncMainSourceConfigs();});
+    document.getElementById('main-midi-output')?.addEventListener('change',e=>{const main=state.gears.find(g=>g.isMain);if(main)main.midiOutput=state.midi.access?.outputs.get(e.target.value)||null;});
+    document.getElementById('main-midi-note')?.addEventListener('change',e=>{const main=state.gears.find(g=>g.isMain);if(main)main.midiNote=Number(e.target.value)||60;});
+
+    mainVolumeSlider?.addEventListener('input', e => {
+      const main = state.gears.find(g => g.isMain);
+      if (!main) return;
+      main.volume = Math.max(0, Math.min(1, Number(e.target.value) || 0));
+      if (mainVolumeValue) mainVolumeValue.textContent = `${Math.round(main.volume * 100)}%`;
+      updateAudioNodes();
+      renderGearList();
     });
     mainToothWidthSlider?.addEventListener('input', e => {
       const main = state.gears.find(g => g.isMain);
       if (!main) return;
       main.toothWidth = normalizeToothWidth(e.target.value);
       if (mainToothWidthValue) mainToothWidthValue.textContent = main.toothWidth.toFixed(2);
+      syncMainToothControls();
       updateAudioNodes(); renderGearList();
     });
+    const mainAdsrGraph = document.getElementById('main-adsr-graph');
+    const paletteAdsrGraph = document.getElementById('palette-adsr-graph');
+    if (paletteAdsrGraph) bindAdsrGraph(paletteAdsrGraph,()=>getActivePaletteGear()?.adsr||state.adsr,a=>{const g=getActivePaletteGear();if(g)g.adsr={...g.adsr,...a};else state.adsr={...state.adsr,...a};updateAudioNodes();},'palette-adsr');
+    if (mainAdsrGraph) bindAdsrGraph(mainAdsrGraph,()=>state.gears.find(g=>g.isMain)?.adsr||state.adsr,a=>{const m=state.gears.find(g=>g.isMain);if(m)m.adsr={...m.adsr,...a};},'main-adsr');
+
     refreshPaletteShapeDescription();
+    syncMainSourceConfigs();
     syncMainToothControls();
     { const main=state.gears.find(g=>g.isMain); if(main){ main.shapeParams=normalizedShapeParams(main.shapeParams); if(mainShapeSelect) mainShapeSelect.value=main.shape||'circular'; renderShapeParamEditor(mainShapeParamsWrap,main.shape||'circular',main.shapeParams,params=>{main.shapeParams=normalizedShapeParams(params);}); if(mainShapeDesc) mainShapeDesc.textContent=GEAR_SHAPE_DESCRIPTIONS[main.shape||'circular']||''; } }
+    syncPaletteGearEditor();
     openRatioPaletteBtn?.addEventListener('click', () => {
       ratioPaletteModal?.classList.remove('is-hidden');
       renderRationalGearPalette();
       if (!sessionStorage.getItem('gearFirstUseToastShown') && !state.gears.some(g => !g.isMain)) {
-        showFirstUseRatioToast();
         sessionStorage.setItem('gearFirstUseToastShown', '1');
       }
     });
@@ -6803,6 +7843,7 @@
 
       if (e.code in KEY_TO_SEMITONE) {
         if (e.repeat) return;
+        state.keyboardPhysicalKeyDownCodes.add(e.code);
         state.pressedKeys.add(e.code);
         setKeyboardAudioActive(true);
         playSemitone(KEY_TO_SEMITONE[e.code], e.code);
@@ -6832,15 +7873,9 @@
       if (e.target.tagName.match(/INPUT|SELECT/i)) return;
 
       if (e.code in KEY_TO_SEMITONE) {
+        state.keyboardPhysicalKeyDownCodes.delete(e.code);
         state.pressedKeys.delete(e.code);
-        if (state.polyMode) {
-          releaseKeyboardNotes(e.code);
-        } else if (state.pressedKeys.size > 0) {
-          const lastKey = Array.from(state.pressedKeys).pop();
-          playSemitone(KEY_TO_SEMITONE[lastKey], lastKey);
-        } else {
-          releaseKeyboardNotes();
-        }
+        releaseKeyboardNotes(e.code);
         syncKeyboardAudioGate();
       }
     });
@@ -6851,6 +7886,7 @@
       // Preserve 1 Hz as the pre-crank setting so deleting the crank restores normal generation.
       addGear(120, 0, 0, true);
       state.selectedGearId = null;
+      state.activePaletteGearId = state.gears.find(g => g.isMain)?.id || null;
 
       setFundamentalFrequency(1.0);
       placeCrankTool(true);
@@ -6865,7 +7901,6 @@
     initApp();
     renderRationalGearPalette();
     if (!sessionStorage.getItem('gearFirstUseToastShown') && !state.gears.some(g => !g.isMain)) {
-      showFirstUseRatioToast();
       sessionStorage.setItem('gearFirstUseToastShown', '1');
     }
   
@@ -6925,6 +7960,12 @@
         }, { passive: false });
       });
     }
+    const bloomSlider=document.getElementById('slider-keyboard-bloom'), bloomValue=document.getElementById('keyboard-bloom-value'), bloomPlacement=document.getElementById('chk-bloom-placement-order');
+    function syncBloomUI(){const a=Number(state.bloom?.amount)||0;if(bloomSlider)bloomSlider.value=a;if(bloomPlacement)bloomPlacement.checked=!!state.bloom?.placementOrder;if(bloomValue){const label=Math.abs(a)<.005?'normal':a<0?'high → fundamental':'fundamental → high';bloomValue.textContent=`${a>0?'+':''}${a.toFixed(2)}s · ${label}`;}}
+    bloomSlider?.addEventListener('input',e=>{state.bloom.amount=Math.max(-5,Math.min(5,Number(e.target.value)||0));syncBloomUI();});
+    bloomPlacement?.addEventListener('change',e=>{state.bloom.placementOrder=!!e.target.checked;syncBloomUI();});
+    syncBloomUI();
+
     bindWheelControls();
 
 
@@ -6980,10 +8021,8 @@
       });
 
       const closestPanel = selector => document.querySelector(selector)?.closest('.panel-box') || null;
-      const mainPanel = closestPanel('#input-fundamental');
-      const fundamentalControls = document.getElementById('fundamental-frequency-controls');
-      const mainTeeth = document.querySelector('.main-teeth-mobile-row');
-      const mainShape = document.querySelector('#select-main-gear-shape')?.closest('.control-group');
+      const mainPanel = closestPanel('#input-main-teeth');
+      const mainShape = null;
       const keyboard = closestPanel('#virtual-keyboard');
       const midi = closestPanel('#btn-midi-enable');
       const binaural = closestPanel('#chk-spatial-enable');
@@ -6992,7 +8031,7 @@
       const master = closestPanel('#btn-toggle-audio');
       const openRatioPanel = document.querySelector('#btn-open-ratio-palette')?.closest('.panel-box');
 
-      [ratioModal, mainPanel, fundamentalControls, mainShape, keyboard, midi, binaural, audioDriver, gearNetwork, master, openRatioPanel].forEach(remember);
+      [ratioModal, mainPanel, mainShape, keyboard, midi, binaural, audioDriver, gearNetwork, master, openRatioPanel].forEach(remember);
 
       function clearTrackChildren(){
         while (track.firstChild) track.removeChild(track.firstChild);
@@ -7002,10 +8041,6 @@
         app.classList.remove('mobile-carousel-mode');
         setKeyboardPinned(false);
         clearTrackChildren();
-        const restoredMainPanelTitle = mainPanel?.querySelector('.panel-title');
-        if (restoredMainPanelTitle) restoredMainPanelTitle.textContent = 'Main Drive Gear';
-        const restoredShapeLabel = mainShape?.querySelector('label');
-        if (restoredShapeLabel) restoredShapeLabel.firstChild.textContent = 'Fundamental Gear Shape';
         const groups = new Map();
         records.forEach((pos,node) => {
           if (!pos.parent) return;
@@ -7036,21 +8071,8 @@
         app.classList.add('mobile-carousel-mode');
         clearTrackChildren();
 
-        // Fundamental/A is kept outside the swipe track so it stays available on every tab.
-        if (fundamentalControls) fundamentalControls.remove();
-        if (mainPanel && mainShape) {
-          const title = mainPanel.querySelector('.panel-title');
-          if (title) title.textContent = 'MAIN GEAR DRIVE';
-          const teethNode = mainTeeth || mainPanel.querySelector('.main-teeth-mobile-row');
-          if (teethNode) mainPanel.insertBefore(mainShape, teethNode);
-          else mainPanel.appendChild(mainShape);
-          const shapeLabel = mainShape.querySelector('label');
-          if (shapeLabel) shapeLabel.firstChild.textContent = 'Gear Shape';
-        }
-
         const plan = [
           ['RATIO & HARMONICS', [ratioModal]],
-          ['MAIN GEAR DRIVE', [mainPanel]],
           ['KEYBOARD', [keyboard]],
           ['MIDI INPUT', [midi]],
           ['BINAURAL', [binaural]],
@@ -7093,10 +8115,7 @@
         const next=document.createElement('button'); next.className='mobile-carousel-arrow'; next.type='button'; next.textContent='›'; next.setAttribute('aria-label','Next settings');
         prev.addEventListener('click',()=>updateActive(activeIndex-1,true));
         next.addEventListener('click',()=>updateActive(activeIndex+1,true));
-        const frequencyDock=document.createElement('div');
-        frequencyDock.id='mobile-frequency-dock';
-        if (fundamentalControls) frequencyDock.appendChild(fundamentalControls);
-        tools.append(prev,frequencyDock,next);
+        tools.append(prev,next);
         sidebar.appendChild(tools);
 
         dots=document.createElement('div');
@@ -7138,6 +8157,14 @@
     })();
 </script>
 
+<style id="selected-gear-adsr-visibility-fix">
+#selected-gear-detail { overflow: hidden !important; }
+#selected-gear-detail #inspector-panel { display:block !important; min-height:0; overflow-y:auto !important; }
+#selected-gear-detail #inspector-content { min-width:0; }
+#selected-gear-detail .gear-adsr-section { display:block !important; visibility:visible !important; opacity:1 !important; }
+#selected-gear-detail .gear-adsr-editor { display:block !important; width:100% !important; min-height:92px !important; height:92px !important; visibility:visible !important; opacity:1 !important; flex:0 0 auto !important; }
+#selected-gear-detail #inspector-adsr-graph { display:block !important; width:100% !important; height:92px !important; min-height:92px !important; visibility:visible !important; opacity:1 !important; overflow:visible !important; }
+</style>
 <style id="final-ui-positioning-overrides">
 @media (min-width:901px) {
   #hud-top-right { top:8px !important; right:8px !important; bottom:auto !important; left:auto !important; }
@@ -7146,5 +8173,6 @@
   #selected-gear-detail { z-index:7000 !important; }
 }
 </style>
+<style id="adsr-interaction-override">.gear-adsr-editor,.gear-adsr-svg{position:relative;z-index:20}#selected-gear-detail .gear-adsr-editor{pointer-events:auto}</style>
 </body>
 </html>
