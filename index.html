@@ -1897,7 +1897,7 @@
             <input type="range" id="slider-palette-volume" min="0" max="1" step="0.01" value="0.20" style="width:100%">
           </div>
           <div class="gear-adsr-section" style="margin-top:6px; border-top:1px solid var(--border-color); padding-top:5px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:var(--accent-cyan);font-size:.68rem;">GEAR ADSR</strong><span class="gear-adsr-caption">A≤2s · R≤10s</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:var(--accent-cyan);font-size:.68rem;">GEAR ADSR</strong><span class="gear-adsr-caption">A≤2s · D≤2s · R≤10s</span></div>
             <div class="gear-adsr-editor" id="palette-adsr-editor">
               <svg class="gear-adsr-svg" id="palette-adsr-graph" viewBox="0 0 200 76" preserveAspectRatio="none" aria-label="Harmonic preset ADSR envelope">
                 <defs><radialGradient id="adsrGlassHandlePalette" cx="30%" cy="25%"><stop offset="0" stop-color="#fff3c1"/><stop offset=".4" stop-color="#e0bc68"/><stop offset="1" stop-color="#684114"/></radialGradient></defs>
@@ -2053,7 +2053,7 @@
               <span id="val-main-volume" class="main-tooth-width-value">20%</span>
             </div>
             <div class="gear-adsr-section" style="margin-top:6px; border-top:1px solid var(--border-color); padding-top:5px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:var(--accent-cyan);font-size:.68rem;">GEAR ADSR</strong><span class="gear-adsr-caption">A≤2s · R≤10s</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:var(--accent-cyan);font-size:.68rem;">GEAR ADSR</strong><span class="gear-adsr-caption">A≤2s · D≤2s · R≤10s</span></div>
               <div class="gear-adsr-editor"><svg class="gear-adsr-svg" id="main-adsr-graph" viewBox="0 0 200 76" preserveAspectRatio="none" aria-label="Main gear ADSR envelope">
                 <defs><radialGradient id="adsrGlassHandleMain" cx="30%" cy="25%"><stop offset="0" stop-color="#fff3c1"/><stop offset=".4" stop-color="#e0bc68"/><stop offset="1" stop-color="#684114"/></radialGradient></defs>
                 <rect class="gear-adsr-bg" x="1" y="1" width="198" height="74" rx="5"/><line class="gear-adsr-grid" x1="8" y1="61" x2="192" y2="61"/><line class="gear-adsr-grid" x1="8" y1="8" x2="8" y2="61"/>
@@ -2698,6 +2698,24 @@
         }
         if (gear.delayNode) gear.delayNode.delayTime.value = 0;
       });
+    }
+
+    function resetMachineViewAndPhase() {
+      // Visual/mechanical Mod-0 reset must work even when audio is stopped.
+      // When audio is running, the existing hard sync additionally rebuilds
+      // audible sources on the same audio clock so sound and animation agree.
+      state.masterPhase = 0;
+      state.gears.forEach(g => {
+        g.setPhaseOffsetDeg(0);
+        if (g.ratio !== 0 || g.isMain) g.angle = -Math.PI / 2;
+        if (g.orbitPhase !== undefined) g.orbitPhase = 0;
+      });
+      if (state.audioCtx && state.audioRunning) {
+        hardResetAudioPhaseToMod0();
+      }
+      updateInspector?.();
+      renderGearList?.();
+      requestAnimationFrame(() => fitMachineToView(true));
     }
 
     function hardResetAudioPhaseToMod0() {
@@ -5216,6 +5234,30 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
     canvas.addEventListener('pointercancel', finishPointerDrag);
     window.addEventListener('pointerup', finishPointerDrag);
 
+    // Touch fallback: some mobile browsers do not synthesize dblclick reliably.
+    // A close pair of taps on the canvas performs the same full reset, while a
+    // normal single tap continues to use the existing pointer interaction.
+    let lastCanvasTapTime = 0;
+    let lastCanvasTapX = 0;
+    let lastCanvasTapY = 0;
+    let lastCanvasTouchResetTime = 0;
+    canvas.addEventListener('pointerup', (e) => {
+      if (e.pointerType !== 'touch') return;
+      if (state.dragState) return;
+      const now = performance.now();
+      const dx = e.clientX - lastCanvasTapX, dy = e.clientY - lastCanvasTapY;
+      const isDoubleTap = now - lastCanvasTapTime > 80 && now - lastCanvasTapTime < 420 && Math.hypot(dx, dy) < 28;
+      lastCanvasTapTime = now; lastCanvasTapX = e.clientX; lastCanvasTapY = e.clientY;
+      if (isDoubleTap) {
+        e.preventDefault();
+        e.stopPropagation();
+        lastCanvasTapTime = 0;
+        lastCanvasTouchResetTime = now;
+        document.getElementById('startup-tooltip')?.remove();
+        try { resetMachineViewAndPhase(); } catch (_) {}
+      }
+    }, {capture:true, passive:false});
+
     // Zoom Canvas via Mouse Wheel
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -5224,13 +5266,15 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
     });
 
     // Double click to create new gear at mouse location
+    // Double-click / double-tap is a reset gesture, never gear creation.
     canvas.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.pointerType === 'touch' && performance.now() - lastCanvasTouchResetTime < 500) return;
       document.getElementById('startup-tooltip')?.remove();
-      const mouse = screenToWorld(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
-      const clicked = getGearAtPosition(mouse.x, mouse.y);
-      if (!clicked) {
-        addGear(60, mouse.x, mouse.y);
-      }
+      // Sync all visible/audio phases to Mod-0 (12 o'clock), then fit the
+      // complete machine and crank into the viewport.
+      try { resetMachineViewAndPhase(); } catch (_) {}
     });
 
     /* SYNTHESIZER CORE & PRESETS */
@@ -5799,17 +5843,35 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       return Math.max(0.001, freq);
     }
 
+    // ADSR time controls use a logarithmic response so the first half of each
+    // horizontal travel is devoted to the musically useful short-time range.
+    // Attack/decay: 5ms..2s. Release: 5ms..10s. At 50% travel = 100ms.
+    function adsrTimeFromUnit(u, maxSeconds) {
+      const x=Math.max(0,Math.min(1,Number(u)||0));
+      const short=0.005, pivot=0.1, half=0.5;
+      if(x<=half) return short*Math.pow(pivot/short, x/half);
+      return pivot*Math.pow(maxSeconds/pivot, (x-half)/half);
+    }
+    function adsrTimeToUnit(seconds, maxSeconds) {
+      const v=Math.max(0.005,Math.min(maxSeconds,Number(seconds)||0.005));
+      if(v<=0.1) return 0.5*Math.log(v/0.005)/Math.log(0.1/0.005);
+      return 0.5+0.5*Math.log(v/0.1)/Math.log(maxSeconds/0.1);
+    }
+    function formatAdsrTime(seconds) {
+      const v=Math.max(0.005,Number(seconds)||0.005);
+      return v<0.1 ? `${Math.round(v*1000)}ms` : `${v.toFixed(2)}s`;
+    }
     function renderAdsrGraph(svg, adsr, id) {
       if(!svg || !adsr) return;
       const l=8,r=192,t=8,b=61,w=r-l,h=b-t;
       const A=Math.max(0,Math.min(2,Number(adsr.attack)||0)),D=Math.max(0,Math.min(2,Number(adsr.decay)||0)),S=Math.max(0,Math.min(1,Number(adsr.sustain ?? 0.8))),R=Math.max(0,Math.min(10,Number(adsr.release)||0));
-      const ax=l+47*(A/2), dx=55+45*(D/2), sx=125, rx=sx+67*(R/10), yp=t+2, ys=b-S*h;
+      const ax=l+47*adsrTimeToUnit(A,2), dx=55+45*adsrTimeToUnit(D,2), sx=125, rx=sx+67*adsrTimeToUnit(R,10), yp=t+2, ys=b-S*h;
       const bend=(x1,y1,x2,y2,c)=>`${((x1+x2)/2).toFixed(2)} ${((y1+y2)/2-c*12).toFixed(2)}`;
       const d=`M ${l} ${b} Q ${bend(l,b,ax,yp,adsr.attackCurve)} ${ax} ${yp} Q ${bend(ax,yp,dx,ys,adsr.decayCurve)} ${dx} ${ys} L ${sx} ${ys} Q ${bend(sx,ys,rx,b,adsr.releaseCurve)} ${rx} ${b}`;
       svg.querySelector(`#${id}-line`)?.setAttribute('d',d);svg.querySelector(`#${id}-hitline`)?.setAttribute('d',d);svg.querySelector(`#${id}-fill`)?.setAttribute('d',d+' Z');
       const pts={attack:[ax,yp],decay:[dx,ys],sustain:[sx,ys],release:[rx,b]};
       for(const [k,[x,y]] of Object.entries(pts)){svg.querySelector(`#${id}-h-${k}`)?.setAttribute('cx',x);svg.querySelector(`#${id}-h-${k}`)?.setAttribute('cy',y);svg.querySelector(`#${id}-hit-${k}`)?.setAttribute('cx',x);svg.querySelector(`#${id}-hit-${k}`)?.setAttribute('cy',y);}
-      const val=svg.querySelector(`#${id}-values`); if(val)val.textContent=`A ${(A*1000).toFixed(0)}ms   D ${(D*1000).toFixed(0)}ms   S ${Math.round(S*100)}%   R ${R.toFixed(2)}s`;
+      const val=svg.querySelector(`#${id}-values`); if(val)val.textContent=`A ${formatAdsrTime(A)}   D ${formatAdsrTime(D)}   S ${Math.round(S*100)}%   R ${formatAdsrTime(R)}`;
     }
     function bindAdsrGraph(svg, getAdsr, setAdsr, id) {
       if (!svg || svg.dataset.bound === '1') return;
@@ -5833,10 +5895,10 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
         const S = clamp(Number(a.sustain), 0, 1);
         const R = clamp(Number(a.release) || 0, 0, 10);
         return {
-          attack:[8 + 47*A/2, 10],
-          decay:[55 + 45*D/2, 61 - S*53],
+          attack:[8 + 47*adsrTimeToUnit(A,2), 10],
+          decay:[55 + 45*adsrTimeToUnit(D,2), 61 - S*53],
           sustain:[125, 61 - S*53],
-          release:[125 + 67*R/10, 61]
+          release:[125 + 67*adsrTimeToUnit(R,10), 61]
         };
       };
       const nearestHandle = p => {
@@ -5874,13 +5936,13 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
         if (!drag || drag.id !== e.pointerId) return;
         const p = toSvg(e), a = { ...(getAdsr() || {}) }, q = getPts();
         if (drag.k === 'attack') {
-          a.attack = clamp((p.x - 8) / 47 * 2, 0, 2);
+          a.attack = adsrTimeFromUnit(clamp((p.x - 8) / 47, 0, 1), 2);
         } else if (drag.k === 'decay') {
-          a.decay = clamp((p.x - 55) / 45 * 2, 0, 2);
+          a.decay = adsrTimeFromUnit(clamp((p.x - 55) / 45, 0, 1), 2);
         } else if (drag.k === 'sustain') {
           a.sustain = clamp((61 - p.y) / 53, 0, 1);
         } else if (drag.k === 'release') {
-          a.release = clamp((p.x - 125) / 67 * 10, 0, 10);
+          a.release = adsrTimeFromUnit(clamp((p.x - 125) / 67, 0, 1), 10);
         } else {
           const kind = drag.k.slice(0, -5);
           const mids = {
@@ -6035,6 +6097,25 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
           const offset = duration > 0 ? (state.audioDriver.elapsed % duration) : 0;
           try { source.start(now, offset); } catch(e) { source.start(); }
           voice.gears.set(gear.id, { source, delayNode, gainNode, adsrGainNode, pannerNode, gear });
+        } else if (gear.sourceMode === 'audio' && gear.audioBuffer) {
+          // A per-gear loaded sample is a real looping BufferSource in POLY,
+          // just like the normal gear engine. Its playback rate follows the
+          // selected note/gear frequency rather than falling back to an oscillator.
+          const source = state.audioCtx.createBufferSource();
+          source.buffer = gear.audioBuffer;
+          source.loop = true;
+          const loopStart = Math.max(0, Math.min(Number(gear.audioLoopStart) || 0, gear.audioBuffer.duration));
+          const loopEnd = Math.max(loopStart + 0.001, Math.min(Number(gear.audioLoopEnd) || gear.audioBuffer.duration, gear.audioBuffer.duration));
+          const segmentDuration = Math.max(0.001, loopEnd - loopStart);
+          source.playbackRate.setValueAtTime(Math.max(0.00001, segmentDuration * Math.abs(gearFreq)), now);
+          source.loopStart = loopStart;
+          source.loopEnd = loopEnd;
+          source.connect(delayNode);
+          source.start(now, loopStart);
+          voice.gears.set(gear.id, {
+            source, delayNode, gainNode, adsrGainNode, pannerNode,
+            gear, isAudio: true, audioSegmentDuration: segmentDuration
+          });
         } else if (gear.sourceMode === 'noise') {
           // True broadband noise source: independent random buffer + filter band per cog.
           const source = state.audioCtx.createBufferSource();
@@ -6062,6 +6143,10 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
             source, delayNode, gainNode, adsrGainNode, pannerNode,
             noiseHPF, noiseLPF, gear, isNoise: true
           });
+        } else if (gear.sourceMode === 'midi' || (gear.sourceMode === 'audio' && !gear.audioBuffer)) {
+          // MIDI Output is event-driven and must not synthesize a local sine fallback.
+          // Audio mode without a loaded buffer is likewise silent until a buffer exists.
+          voice.gears.set(gear.id, { delayNode, gainNode, adsrGainNode, pannerNode, gear, isExternalNoLocalAudio: true });
         } else {
           const osc = state.audioCtx.createOscillator();
           if (getGearToothWaveform(gear) === 'clockwork') osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
@@ -6195,6 +6280,10 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
               Math.abs(gear.ratio) * shapeMotion.rate * state.audioDriver.driverRate * voice.voiceRatio
             );
             pg.source.playbackRate.setTargetAtTime(playbackRate, now, state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005);
+          } else if (pg.isAudio && pg.source) {
+            const segmentDuration = Math.max(0.001, Number(pg.audioSegmentDuration) || 0.001);
+            const playbackRate = Math.max(0.00001, segmentDuration * Math.abs(gearFreq));
+            pg.source.playbackRate.setTargetAtTime(playbackRate, now, state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005);
           } else if (pg.isNoise && pg.source) {
             const w = normalizeToothWidth(getGearToothWidth(gear));
             const hpf = Math.min(16000, 40 * Math.pow(120, 1 - w));
@@ -6233,7 +6322,11 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       assert(a.includes("makeNoiseBuffer(state.audioCtx, 1)"),"POLY noise buffer missing");
       assert(a.includes("createBiquadFilter()"),"POLY noise filters missing");
       assert(a.includes("isNoise: true"),"POLY noise marker missing");
+      assert(a.includes("gear.sourceMode === 'audio' && gear.audioBuffer"),"POLY audio source branch missing");
+      assert(a.includes("isAudio: true"),"POLY audio marker missing");
+      assert(a.includes("gear.sourceMode === 'midi'"),"POLY MIDI no-local-audio branch missing");
       assert(b.includes("pg.isNoise && pg.source"),"POLY noise update branch missing");
+      assert(b.includes("pg.isAudio && pg.source"),"POLY audio update branch missing");
       const result={ok:!failures.length,failures};
       console[result.ok?'log':'error']('NOISE SOURCE TOPOLOGY TEST',result);
       return result;
@@ -6270,6 +6363,22 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       }
       state.polyVoices.set(keyId, voice);
       updatePolyVoices();
+    }
+
+    function runAdsrTimeMappingConsoleTest(){
+      const checks=[
+        ['attack/decay minimum',Math.abs(adsrTimeFromUnit(0,2)-0.005)<1e-9],
+        ['attack/decay midpoint',Math.abs(adsrTimeFromUnit(0.5,2)-0.1)<1e-9],
+        ['attack/decay maximum',Math.abs(adsrTimeFromUnit(1,2)-2)<1e-9],
+        ['release minimum',Math.abs(adsrTimeFromUnit(0,10)-0.005)<1e-9],
+        ['release midpoint',Math.abs(adsrTimeFromUnit(0.5,10)-0.1)<1e-9],
+        ['release maximum',Math.abs(adsrTimeFromUnit(1,10)-10)<1e-9],
+        ['attack inverse',Math.abs(adsrTimeToUnit(.02,2)-adsrTimeToUnit(adsrTimeFromUnit(adsrTimeToUnit(.02,2),2),2))<1e-9]
+      ];
+      const failures=checks.filter(x=>!x[1]).map(x=>x[0]);
+      const result={ok:!failures.length,failures};
+      console[result.ok?'log':'error']('ADSR LOG TIME MAPPING TEST',result);
+      return result;
     }
 
     async function runMonoAdsrReleaseConsoleTest(iterations=1000, intervalMs=0.5){
@@ -7045,7 +7154,7 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
           <input type="range" id="slider-inspector-volume" min="0" max="1" step="0.01" value="${Math.max(0,Math.min(1,gear.volume))}" style="width:100%;">
         </div>
         <div class="gear-adsr-section" style="margin-top:8px; border-top:1px solid var(--border-color); padding-top:6px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:var(--accent-cyan);">Independent Gear ADSR</strong><span class="gear-adsr-caption">A≤2s · R≤10s</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:var(--accent-cyan);">Independent Gear ADSR</strong><span class="gear-adsr-caption">A≤2s · D≤2s · R≤10s</span></div>
           <div class="gear-adsr-editor"><svg class="gear-adsr-svg" id="inspector-adsr-graph" viewBox="0 0 200 76" preserveAspectRatio="none" aria-label="Selected gear ADSR envelope">
             <defs><radialGradient id="adsrGlassHandle" cx="30%" cy="25%"><stop offset="0" stop-color="#fff3c1"/><stop offset=".4" stop-color="#e0bc68"/><stop offset="1" stop-color="#684114"/></radialGradient></defs>
             <rect class="gear-adsr-bg" x="1" y="1" width="198" height="74" rx="5"/><line class="gear-adsr-grid" x1="8" y1="61" x2="192" y2="61"/><line class="gear-adsr-grid" x1="8" y1="8" x2="8" y2="61"/>
@@ -8702,5 +8811,263 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
 }
 </style>
 <style id="adsr-interaction-override">.gear-adsr-editor,.gear-adsr-svg{position:relative;z-index:20}#selected-gear-detail .gear-adsr-editor{pointer-events:auto}</style>
+
+<style id="mobile-one-screen-mode-css">
+@media (max-width:900px) and (orientation:portrait) {
+  html,body{height:100dvh!important;min-height:100dvh!important;overflow:hidden!important;}
+  body{touch-action:none!important;}
+  #fundamental-topbar{
+    height:44px!important; padding:4px 8px!important; display:block!important;
+    background:linear-gradient(180deg,rgba(52,36,19,.98),rgba(20,13,8,.98));
+    z-index:12000!important;
+  }
+  #fundamental-topbar .fundamental-topbar-label,
+  #fundamental-topbar .fundamental-topbar-presets,
+  #fundamental-topbar .fundamental-topbar-number{display:none!important;}
+  #fundamental-topbar #slider-fundamental{display:block!important;width:100%!important;height:34px!important;margin:0!important;}
+
+  #app-container.mobile-one-screen-mode{
+    position:fixed!important;left:0!important;right:0!important;top:44px!important;bottom:0!important;
+    width:100vw!important;height:auto!important;min-height:0!important;padding:0!important;margin:0!important;
+    display:block!important;overflow:hidden!important;background:transparent!important;
+  }
+  #app-container.mobile-one-screen-mode #canvas-container{
+    position:absolute!important;inset:0 0 92px 0!important;width:100%!important;height:auto!important;
+    min-height:0!important;display:block!important;border:0!important;border-radius:0!important;z-index:1!important;
+  }
+  #app-container.mobile-one-screen-mode #canvas-container canvas{width:100%!important;height:100%!important;border-radius:0!important;}
+  #app-container.mobile-one-screen-mode.mobile-controls-open #canvas-container{display:none!important;}
+  #app-container.mobile-one-screen-mode #sidebar{display:none!important;}
+  #app-container.mobile-one-screen-mode #hud-top-right,
+  #app-container.mobile-one-screen-mode #selected-gear-detail,
+  #app-container.mobile-one-screen-mode #hud-bottom-left,
+  #app-container.mobile-one-screen-mode #canvas-crank-control{display:none!important;}
+
+  #mobile-keyboard-dock{
+    position:absolute!important;left:0!important;right:0!important;bottom:0!important;height:92px!important;
+    z-index:11000!important;display:flex!important;align-items:flex-end!important;
+    padding:6px 3px 4px!important;background:linear-gradient(180deg,rgba(31,21,12,.98),rgba(11,8,5,.99));
+    border-top:1px solid #765326!important;box-shadow:0 -7px 20px rgba(0,0,0,.62)!important;
+  }
+  #mobile-keyboard-dock #virtual-keyboard{display:flex!important;position:relative!important;width:100%!important;height:80px!important;margin:0!important;padding:2px!important;border-radius:5px!important;}
+  #mobile-keyboard-dock .key span{display:none!important;}
+  #mobile-keyboard-settings-button{
+    position:absolute!important;right:7px!important;top:-8px!important;width:30px!important;height:30px!important;
+    min-width:30px!important;min-height:30px!important;padding:0!important;border-radius:50%!important;z-index:3!important;
+    font-size:16px!important;line-height:1!important;background:linear-gradient(180deg,#d3a04a,#754b18)!important;
+    color:#140d05!important;border:1px solid #edca82!important;
+  }
+
+  #mobile-one-screen-drawer{
+    position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:92px!important;
+    z-index:10500!important;display:none!important;flex-direction:column!important;overflow:hidden!important;
+    background:linear-gradient(180deg,rgba(27,19,12,.99),rgba(10,7,5,.99));
+    border-bottom:1px solid #765326!important;box-shadow:0 12px 30px rgba(0,0,0,.6)!important;
+  }
+  #mobile-one-screen-drawer.is-open{display:flex!important;}
+  .mobile-one-screen-drawer-head{height:32px!important;min-height:32px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;padding:3px 7px!important;border-bottom:1px solid #604826!important;color:#f1d184!important;font:900 10px Georgia,serif!important;letter-spacing:1px!important;}
+  .mobile-one-screen-drawer-head button{width:28px!important;height:25px!important;padding:0!important;font-size:15px!important;}
+  #mobile-one-screen-scroll{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;padding:5px 7px 8px!important;touch-action:pan-y!important;}
+  #mobile-one-screen-scroll>.panel-box,
+  #mobile-one-screen-scroll>#ratio-palette-modal,
+  #mobile-one-screen-scroll>#inspector-panel{margin:0 0 6px!important;width:100%!important;box-sizing:border-box!important;}
+  #mobile-one-screen-scroll>.panel-box{background:rgba(55,38,21,.34)!important;border:1px solid #5f4324!important;border-radius:7px!important;padding:7px!important;}
+  #mobile-one-screen-scroll .panel-title{font-size:.7rem!important;margin-bottom:5px!important;}
+  #mobile-one-screen-scroll label{font-size:.65rem!important;}
+  #mobile-one-screen-scroll input[type=range]{min-height:22px!important;}
+
+  /* The existing Harmonic Presets editor duplicates the detailed active-gear inspector.
+     Keep its preset picker + ratio-add machinery, while the inspector is the sole gear editor. */
+  #mobile-one-screen-scroll #ratio-palette-modal .shape-generator{display:none!important;}
+  #mobile-one-screen-scroll #ratio-palette-modal{
+    position:relative!important;top:auto!important;left:auto!important;right:auto!important;width:100%!important;max-width:none!important;
+    max-height:none!important;height:auto!important;z-index:auto!important;display:flex!important;
+    box-shadow:none!important;border-radius:7px!important;overflow:hidden!important;
+  }
+  #mobile-one-screen-scroll #ratio-palette-modal .floating-header{padding:3px 5px!important;min-height:27px!important;}
+  #mobile-one-screen-scroll #ratio-palette-modal .floating-title{font-size:.66rem!important;}
+  #mobile-one-screen-scroll #ratio-palette-modal .floating-actions{gap:4px!important;}
+  #mobile-one-screen-scroll #ratio-palette-modal .floating-actions #btn-close-ratio-palette{display:none!important;}
+  #mobile-one-screen-scroll #ratio-palette-modal .floating-body{padding:4px!important;overflow:visible!important;}
+  #mobile-one-screen-scroll #ratio-palette-modal .rational-palette{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;height:58px!important;max-height:none!important;gap:4px!important;touch-action:pan-x!important;}
+  #mobile-one-screen-scroll #ratio-palette-modal #ratio-add-controls{margin-top:4px!important;padding:4px!important;}
+  #mobile-one-screen-scroll #ratio-palette-modal #ratio-add-controls .ratio-add-row{flex-wrap:wrap!important;}
+
+  #mobile-one-screen-scroll #inspector-panel{display:block!important;min-height:0!important;overflow:visible!important;}
+  #mobile-one-screen-scroll #inspector-content{display:flex!important;flex-direction:column!important;gap:3px!important;min-width:0!important;font-size:.68rem!important;}
+  #mobile-one-screen-scroll #inspector-content>.gear-adsr-section{margin-top:5px!important;padding-top:5px!important;}
+  #mobile-one-screen-scroll #inspector-content .gear-adsr-editor{min-height:86px!important;height:86px!important;}
+  #mobile-one-screen-scroll #inspector-content .gear-adsr-svg{height:86px!important;}
+  #mobile-one-screen-scroll #inspector-content .phase-btn-group button{padding:3px 4px!important;font-size:.58rem!important;}
+
+  /* Pull keyboard performance controls into the drawer, leaving only the keys at the bottom. */
+  #mobile-one-screen-scroll #mobile-keyboard-options,
+  #mobile-one-screen-scroll #keyboard-bloom-drawer{display:block!important;}
+  #mobile-keyboard-dock .keyboard-panel-title,#mobile-keyboard-dock #mobile-keyboard-options{display:none!important;}
+  #mobile-keyboard-dock .keyboard-bloom-wrap{display:none!important;}
+
+  #mobile-one-screen-scroll #mobile-keyboard-options{background:rgba(55,38,21,.34);border:1px solid #5f4324;border-radius:7px;padding:7px;}
+  #mobile-one-screen-scroll #keyboard-bloom-drawer{background:rgba(55,38,21,.34);border:1px solid #5f4324;border-radius:7px;padding:7px;margin-bottom:6px;}
+  #mobile-one-screen-scroll #keyboard-bloom-drawer .keyboard-bloom-wrap{display:flex!important;max-width:none!important;min-width:0!important;}
+
+  #mobile-one-screen-scroll .mobile-one-section-title{display:block!important;color:#e0ba6a!important;font:900 9px Georgia,serif!important;letter-spacing:.8px!important;text-transform:uppercase!important;margin:0 0 4px!important;}
+  #mobile-one-screen-scroll #gear-network-mobile .gear-list{max-height:150px!important;}
+
+  /* Drawer contains all non-keyboard controls; suppress the old horizontal carousel scaffolding. */
+  #app-container.mobile-one-screen-mode .mobile-settings-slide,
+  #app-container.mobile-one-screen-mode .mobile-carousel-viewport-tools,
+  #app-container.mobile-one-screen-mode .mobile-carousel-dots{display:none!important;}
+  #app-container.mobile-one-screen-mode .mobile-ratio-reopen{display:none!important;}
+}
+</style>
+
+
+<script id="mobile-one-screen-mode-js">
+(function initMobileOneScreenMode(){
+  const mq=window.matchMedia('(max-width:900px) and (orientation:portrait)');
+  const app=document.getElementById('app-container');
+  const sidebar=document.getElementById('sidebar');
+  const keyboardPanel=document.querySelector('#virtual-keyboard')?.closest('.panel-box');
+  if(!app||!sidebar||!keyboardPanel)return;
+
+  const q=(sel,root=document)=>root.querySelector(sel);
+  const panel=(sel)=>q(sel)?.closest('.panel-box')||null;
+  const nodes={
+    keyboardPanel,
+    master:panel('#btn-toggle-audio'),
+    midi:panel('#btn-midi-enable'),
+    spatial:panel('#chk-spatial-enable'),
+    audioDriver:panel('#btn-driver-record'),
+    gearNetwork:panel('#gear-list-container'),
+    openRatio:panel('#btn-open-ratio-palette'),
+    ratioModal:document.getElementById('ratio-palette-modal'),
+    detail:document.getElementById('selected-gear-detail'),
+    inspector:document.getElementById('inspector-panel'),
+  };
+  const original={
+    inspectorParent:nodes.inspector?.parentNode||null,
+    inspectorNext:nodes.inspector?.nextSibling||null,
+    keyboardTitle:q('.keyboard-panel-title',keyboardPanel),
+    keyboardContainer:q('#virtual-keyboard',keyboardPanel),
+    keyboardChildren:Array.from(keyboardPanel.children)
+  };
+  let inMode=false,drawerOpen=false,drawer=null,dock=null,drawerScroll=null,keyboardOptions=null,bloomDrawer=null;
+
+  function makeSectionTitle(text){
+    const h=document.createElement('div');h.className='mobile-one-section-title';h.textContent=text;return h;
+  }
+  function createShell(){
+    if(drawer)return;
+    dock=document.createElement('div');dock.id='mobile-keyboard-dock';
+    const kb=q('#virtual-keyboard');
+    const settingsBtn=document.createElement('button');settingsBtn.id='mobile-keyboard-settings-button';settingsBtn.type='button';settingsBtn.textContent='⚙';settingsBtn.title='Open controls';settingsBtn.setAttribute('aria-label','Open controls');
+    settingsBtn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setDrawer(!drawerOpen);});
+    dock.append(settingsBtn,kb);
+    app.appendChild(dock);
+
+    drawer=document.createElement('section');drawer.id='mobile-one-screen-drawer';drawer.setAttribute('aria-label','Synth controls');
+    const head=document.createElement('div');head.className='mobile-one-screen-drawer-head';head.innerHTML='<span>CONTROLS</span>';
+    const close=document.createElement('button');close.type='button';close.textContent='×';close.title='Close controls';close.setAttribute('aria-label','Close controls');close.addEventListener('click',()=>setDrawer(false));head.appendChild(close);
+    drawer.appendChild(head);
+    drawerScroll=document.createElement('div');drawerScroll.id='mobile-one-screen-scroll';drawer.appendChild(drawerScroll);app.appendChild(drawer);
+
+    // Pull only the octave/performance controls out of the keyboard card. The keyboard itself stays docked.
+    const kbChildren=Array.from(keyboardPanel.children);
+    keyboardOptions=document.createElement('div');keyboardOptions.id='mobile-keyboard-options';keyboardOptions.appendChild(makeSectionTitle('PERFORMANCE'));
+    const title=q('.keyboard-panel-title',keyboardPanel);
+    const bloom=q('.keyboard-bloom-wrap',keyboardPanel);
+    const direct=kbChildren.filter(el=>el!==title && el!==q('#virtual-keyboard',keyboardPanel));
+    const octaveRow=direct[0]||null;
+    const perfBlock=direct[1]||null;
+    if(perfBlock)keyboardOptions.appendChild(perfBlock);
+    if(octaveRow)keyboardOptions.appendChild(octaveRow);
+    keyboardOptions.style.display='block';
+    bloomDrawer=document.createElement('div');bloomDrawer.id='keyboard-bloom-drawer';bloomDrawer.appendChild(makeSectionTitle('BLOOM'));if(bloom)bloomDrawer.appendChild(bloom);
+    drawerScroll.appendChild(keyboardOptions);drawerScroll.appendChild(bloomDrawer);
+
+    // Master, MIDI, spatial and legacy driver controls.
+    [nodes.master,nodes.midi,nodes.spatial,nodes.audioDriver].filter(Boolean).forEach(n=>drawerScroll.appendChild(n));
+
+    // Harmonic preset picker + ratio creation, followed by the current gear inspector.
+    if(nodes.ratioModal){
+      nodes.ratioModal.classList.remove('is-hidden');
+      drawerScroll.appendChild(nodes.ratioModal);
+    }
+    if(nodes.gearNetwork){
+      const wrap=document.createElement('div');wrap.id='gear-network-mobile';wrap.appendChild(makeSectionTitle('CURRENT GEAR / NETWORK'));wrap.appendChild(nodes.gearNetwork);drawerScroll.appendChild(wrap);
+    }
+    if(nodes.inspector){
+      const wrap=document.createElement('div');wrap.id='mobile-current-gear-editor';wrap.appendChild(makeSectionTitle('CURRENT GEAR'));wrap.appendChild(nodes.inspector);drawerScroll.appendChild(wrap);
+    }
+
+    // Keep the existing network/open-ratio panels out of the one-screen layout.
+    if(nodes.openRatio)nodes.openRatio.style.display='none';
+    if(nodes.detail)nodes.detail.style.display='none';
+    if(nodes.master)nodes.master.style.display='block';
+  }
+
+  function setDrawer(open){
+    drawerOpen=!!open;
+    if(drawer){drawer.classList.toggle('is-open',drawerOpen);}
+    if(app)app.classList.toggle('mobile-controls-open',drawerOpen);
+    if(drawerOpen){
+      try{
+        if(!state.selectedGearId){
+          const main=state.gears.find(g=>g.isMain)||state.gears[0];
+          if(main) state.selectedGearId=main.id;
+        }
+        window.updateInspector?.();
+        window.renderGearList?.();
+      }catch(_){ }
+      requestAnimationFrame(()=>drawerScroll?.scrollTo({top:0,behavior:'auto'}));
+    } else if(inMode) {
+      // Restore the complete machine/crank framing after the drawer has been
+      // hidden. Run after the style/display change so fitMachineToView sees
+      // the real canvas dimensions.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => fitMachineToView(true));
+      });
+    }
+  }
+
+  function enter(){
+    if(inMode)return;
+    createShell();
+    inMode=true;
+    app.classList.add('mobile-one-screen-mode');
+    // The old mobile carousel may have moved these nodes into slides already. They now belong in this drawer.
+    [nodes.master,nodes.midi,nodes.spatial,nodes.audioDriver].filter(Boolean).forEach(n=>drawerScroll.appendChild(n));
+    if(nodes.ratioModal)drawerScroll.appendChild(nodes.ratioModal);
+    if(nodes.gearNetwork){const wrap=q('#gear-network-mobile');if(wrap&&!wrap.contains(nodes.gearNetwork))wrap.appendChild(nodes.gearNetwork);}
+    if(nodes.inspector){const wrap=q('#mobile-current-gear-editor');if(wrap&&!wrap.contains(nodes.inspector))wrap.appendChild(nodes.inspector);}
+    setDrawer(false);
+  }
+
+  function leave(){
+    if(!inMode)return;
+    setDrawer(false);
+    app.classList.remove('mobile-one-screen-mode','mobile-controls-open');
+    // Put inspector internals back where the original inspector system expects them.
+    if(nodes.inspector&&original.inspectorParent) original.inspectorParent.appendChild(nodes.inspector);
+    // Rebuild the keyboard card's original direct-child order. The legacy carousel restores
+    // its outer panel location separately on the media-query transition.
+    if(keyboardPanel){
+      original.keyboardChildren.forEach(ch=>{if(ch&&ch.parentNode!==keyboardPanel)keyboardPanel.appendChild(ch);});
+    }
+    // Remove our shells; outer panels are restored by the existing mobile-carousel implementation.
+    dock?.remove();dock=null;
+    drawer?.remove();drawer=null;drawerScroll=null;keyboardOptions=null;bloomDrawer=null;
+    inMode=false;
+  }
+
+  function sync(){
+    if(mq.matches)enter(); else leave();
+  }
+  mq.addEventListener?.('change',sync);
+  window.addEventListener('resize',()=>{if(mq.matches&&!inMode)enter();});
+  sync();
+})();
+</script>
+
 </body>
 </html>
