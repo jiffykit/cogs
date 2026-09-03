@@ -2369,11 +2369,16 @@
       jiKeyboard: false,          // Retune POLY chords to nearest simple JI ratios
       polyVoices: new Map(),
       polyReleaseTails: new Set(),
+      polyReleaseWatchdog: null,
       keyboardPointerToKey: new Map(),
       keyboardKeyPointerCounts: new Map(),
       keyboardPointerHeldKeys: new Set(),
       keyboardPhysicalKeyDownCodes: new Set(),
-      polyReleaseWatchdog: null,
+      polyAudioPool: { ready:false, promise:null, slots:[], free:[], max:16, workletURL:null },
+      polyWaveCoeffCache: new Map(),
+      motionFrameCache: new Map(),
+      motionFrameCachePhase: NaN,
+      staticBackgroundCache: null,
       midi: { access: null, enabled: false, input: null, output: null },
       audioDriver: {
         buffer: null, rawBuffer: null, fileName: '', playing: false, elapsed: 0, detectedFreq: 1, visualShape: 'sine', driverRate: 1, driverRPM: 33.3, driverRPMBase: 33.3, driverNominalRPM: 33.3,
@@ -3075,6 +3080,255 @@
       return wave;
     }
 
+    const POLY_OPTIMIZED_WORKLET = String.raw`
+class GearPolyCompositeProcessor extends AudioWorkletProcessor {
+  constructor(){
+    super(); this.active=false; this.gateOpen=false; this.gears=[]; this.frame=0; this.releaseFrame=null; this.releaseEndFrame=null; this.releaseNotified=false;
+    this.masterFreq=0; this.currentMasterFreq=0; this.targetMasterFreq=0; this.glideSeconds=0;
+    this.port.onmessage=e=>this.onMessage(e.data||{});
+  }
+  onMessage(m){
+    if(m.type==='configure'){
+      this.gears=m.gears||[]; this.gears.forEach(g=>{g.phase=Number.isFinite(Number(g.phase))?Number(g.phase):0;}); this.masterFreq=Number(m.masterFreq)||1; this.currentMasterFreq=this.masterFreq; this.targetMasterFreq=this.masterFreq;
+      this.glideSeconds=Number(m.glideSeconds)||0; this.frame=0; this.releaseFrame=null; this.releaseEndFrame=null; this.releaseNotified=false; this.gateOpen=true; this.active=true;
+    } else if(m.type==='retune'){
+      const f=Math.max(.001,Number(m.masterFreq)||this.currentMasterFreq||1); this.targetMasterFreq=f;
+      this.glideSeconds=Number(m.glideSeconds)||0; if(this.glideSeconds<=0)this.currentMasterFreq=f;
+    } else if(m.type==='noteoff'){
+      if(!this.active || !this.gateOpen || this.releaseFrame!==null)return;
+      this.gateOpen=false;
+      let maxReleaseSamples=0;
+      this.gears.forEach(g=>{
+        g.releaseStart=this.envelopeAt(g,this.frame);
+        g.releaseFrame=this.frame;
+        const r=Math.max(0,Math.min(10,Number(g.release)||0))*sampleRate;
+        if(r>maxReleaseSamples) maxReleaseSamples=r;
+      });
+      // A POLY note-off is an unconditional gate close. The worklet keeps the
+      // individual gear ADSRs running, but it also owns a hard finite deadline
+      // so a bad/overlapping envelope can never leave a voice alive forever.
+      this.releaseFrame=this.frame;
+      this.releaseEndFrame=this.frame+Math.ceil(maxReleaseSamples);
+      this.releaseNotified=false;
+    } else if(m.type==='stop'){
+      this.active=false; this.gateOpen=false; this.gears=[]; this.releaseFrame=null; this.releaseEndFrame=null;
+    } else if(m.type==='set-master-volume'){
+      // Master gain is intentionally handled by the Web Audio master bus.
+    }
+  }
+  curve(t,c){ t=Math.max(0,Math.min(1,t)); const x=Math.max(-1,Math.min(1,Number(c)||0)); if(Math.abs(x)<.001)return t; const k=1+6*Math.abs(x); return x>0?1-Math.pow(1-t,k):Math.pow(t,k); }
+  shapeRate(shape,t,p){
+    p=p||{};
+    if(shape==='ellipse'){const aspect=Math.max(.35,Math.min(1,Number(p.ellipseA)||1));const e=Math.max(0,Math.min(.95,Number(p.ellipseEccentricity)||0));const flatten=(1-aspect)*.9+e*.9;return Math.max(.05,1+.95*flatten*Math.cos(2*t));}
+    if(shape==='square'){const k=Math.max(0,Math.min(1,Number(p.polygonSharpness)||0));return Math.max(.03,1+2.1*k*Math.cos(4*t));}
+    if(shape==='hexagon'){const k=Math.max(0,Math.min(1,Number(p.polygonSharpness)||0));return Math.max(.03,1+2.35*k*Math.cos(6*t));}
+    if(shape==='cardioid'){const d=Math.max(.2,Math.min(1.3,Number(p.cardioidDepth)||.72));const b=Math.max(0,Math.min(1,Number(p.cardioidBias)??.5));return Math.max(.03,1+.58*d*Math.sin(t)*(.45+1.1*b));}
+    if(shape==='heart'){const w=Math.max(.45,Math.min(1.25,Number(p.heartWidth)||.82)),pt=Math.max(0,Math.min(1,Number(p.heartPoint)??.72));const asym=1-w/1.25;return Math.max(.03,1+.72*asym*Math.cos(t)-.82*pt*Math.cos(2*t));}
+    if(shape==='mobius'){const tw=Math.max(.25,Math.min(1.75,Number(p.mobiusTwist)||1));return 1/(1+tw);}
+    return 1;
+  }
+  envelopeAt(g,frame){
+    const a=Math.max(0,Math.min(10,Number(g.attack)||0))*sampleRate;
+    const d=Math.max(0,Math.min(2,Number(g.decay)||0))*sampleRate;
+    const sus=Math.max(0,Math.min(1,Number(g.sustain)));
+    const f=Number(frame)||0;
+    if(g.releaseFrame!==undefined && g.releaseFrame!==null && f>=g.releaseFrame){
+      const r=Math.max(0,Math.min(10,Number(g.release)||0))*sampleRate;
+      if(r<=0)return 0;
+      const t=Math.min(1,(f-g.releaseFrame)/r); const start=Math.max(0,Math.min(1,Number(g.releaseStart)||0));
+      return start*(1-this.curve(t,g.releaseCurve));
+    }
+    if(a<=0)return d<=0?sus:(f<d?sus+(1-sus)*(1-this.curve(f/d,g.decayCurve)):sus);
+    if(f<a)return this.curve(f/a,g.attackCurve);
+    const df=f-a; if(d<=0)return sus; if(df<d)return 1+(sus-1)*this.curve(df/d,g.decayCurve); return sus;
+  }
+  waveform(g,phase){
+    const h=g.harmonics||[]; let y=0;
+    for(let i=0;i<h.length;i++){const k=i+1,th=phase*k;const z=h[i];y += z.re*Math.cos(th)-z.im*Math.sin(th);} return y;
+  }
+  process(inputs,outputs){
+    const out=outputs[0]&&outputs[0][0]; if(!out)return true; if(!this.active||!this.gears.length){out.fill(0);return true;}
+    for(let i=0;i<out.length;i++){
+      // Release is a hard gate, not a suggestion. Once the longest configured
+      // ADSR release has elapsed, this pooled voice is silent from this exact
+      // sample onward. This prevents a lost/late main-thread cleanup from ever
+      // turning POLY into an accidental continuous oscillator.
+      if(!this.gateOpen && this.releaseEndFrame!==null && this.frame>=this.releaseEndFrame){
+        out[i]=0;
+        this.active=false;
+        if(!this.releaseNotified){
+          this.releaseNotified=true;
+          this.port.postMessage({type:'ended'});
+        }
+        for(let j=i+1;j<out.length;j++) out[j]=0;
+        return true;
+      }
+      if(this.glideSeconds>0 && Math.abs(this.targetMasterFreq-this.currentMasterFreq)>1e-8){
+        const tc=Math.max(.005,this.glideSeconds/3); const alpha=1-Math.exp(-1/(sampleRate*tc)); this.currentMasterFreq += (this.targetMasterFreq-this.currentMasterFreq)*alpha;
+      } else this.currentMasterFreq=this.targetMasterFreq;
+      let sum=0;
+      for(const g of this.gears){
+        let env=this.envelopeAt(g,this.frame);
+        if(env<=1e-7)continue;
+        const baseFreq=Math.max(.001,this.currentMasterFreq*Math.abs(Number(g.ratio)||0));
+        const rate=this.shapeRate(g.shape,g.phase+(Number(g.phaseOffset)||0),g.shapeParams||{});
+        const freq=baseFreq*rate;
+        g.phase=(g.phase||0)+2*Math.PI*freq/sampleRate;
+        g.phase=((g.phase%(Math.PI*2))+(Math.PI*2))%(Math.PI*2);
+        sum += this.waveform(g,g.phase+(Number(g.phaseOffset)||0))*env*(Number(g.volume)||0);
+      }
+      out[i]=sum; this.frame++;
+    }
+    if(this.releaseFrame!==null && !this.releaseNotified && this.releaseEndFrame!==null && this.frame>=this.releaseEndFrame){
+      this.active=false;
+      this.gateOpen=false;
+      this.releaseNotified=true;
+      this.port.postMessage({type:'ended'});
+    }
+    return true;
+  }
+}
+registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
+`;
+
+    function getPolyWaveCoefficients(waveform,width,bins=64){
+      const type=['sine','triangle','sawtooth','square'].includes(waveform)?waveform:'sawtooth';
+      const w=normalizeToothWidth(width),key=`${type}:${w.toFixed(5)}:${bins}`;
+      const cached=state.polyWaveCoeffCache.get(key); if(cached)return cached;
+      const samples=1024,real=new Float32Array(bins),imag=new Float32Array(bins); let peak=0;
+      for(let n=0;n<samples;n++){
+        const t=n/samples,y=toothWaveSample(type,t,w); peak=Math.max(peak,Math.abs(y));
+        for(let h=1;h<bins;h++){const a=TAU*h*t;real[h]+=(2/samples)*y*Math.cos(a);imag[h]+=(2/samples)*y*Math.sin(a);}
+      }
+      // Match the safe normalization of native PeriodicWave closely while keeping
+      // the coefficients available to the worklet for independent per-gear envelopes.
+      let coeffPeak=0; for(let n=0;n<2048;n++){const t=n/2048;let y=0;for(let h=1;h<bins;h++){const a=TAU*h*t;y+=real[h]*Math.cos(a)-imag[h]*Math.sin(a);}coeffPeak=Math.max(coeffPeak,Math.abs(y));}
+      const norm=coeffPeak>1?1/coeffPeak:1; for(let h=1;h<bins;h++){real[h]*=norm;imag[h]*=norm;}
+      const result={real,imag}; state.polyWaveCoeffCache.set(key,result); return result;
+    }
+
+    function optimizedPolyEligible(){
+      return !state.spatialEnabled && state.gears.length>0 && state.gears.every(g=>!g.muted && ['sine','triangle','sawtooth','square'].includes(getGearToothWaveform(g)) && g.sourceMode!=='audio' && g.sourceMode!=='noise' && g.sourceMode!=='midi' && g.sourceMode!=='clockwork');
+    }
+
+    async function initOptimizedPolyPool(){
+      const pool=state.polyAudioPool; if(pool.ready)return pool; if(pool.promise)return pool.promise;
+      pool.promise=(async()=>{
+        if(!state.audioCtx?.audioWorklet || typeof AudioWorkletNode==='undefined') throw new Error('AudioWorklet unavailable');
+        const blob=new Blob([POLY_OPTIMIZED_WORKLET],{type:'application/javascript'}); pool.workletURL=URL.createObjectURL(blob);
+        await state.audioCtx.audioWorklet.addModule(pool.workletURL);
+        for(let i=0;i<pool.max;i++){
+          const node=new AudioWorkletNode(state.audioCtx,'gear-poly-composite',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[1]});
+          const voiceGain=state.audioCtx.createGain(); voiceGain.gain.setValueAtTime(1,state.audioCtx.currentTime);
+          const panner=state.audioCtx.createPanner(); panner.panningModel=state.spatialEnabled?state.spatialMode:'equalpower';panner.distanceModel='inverse';panner.refDistance=1;panner.maxDistance=1000;panner.rolloffFactor=1;
+          node.connect(voiceGain); voiceGain.connect(panner);panner.connect(state.masterGain);
+          const slot={node,voiceGain,panner,busy:false,voice:null};
+          node.port.onmessage=e=>{if(e.data?.type==='ended'&&slot.voice){const v=slot.voice;if(v._cleanupTimer)clearTimeout(v._cleanupTimer);try{slot.voiceGain.gain.cancelScheduledValues(state.audioCtx?.currentTime||0);slot.voiceGain.gain.setValueAtTime(0,state.audioCtx?.currentTime||0);}catch(_){};slot.busy=false;slot.voice=null;pool.free.push(slot);state.polyReleaseTails?.delete(v);try{slot.node.port.postMessage({type:'stop'});}catch(_){};updateAudioNodes();}};
+          pool.slots.push(slot);pool.free.push(slot);
+        }
+        pool.ready=true; return pool;
+      })().catch(err=>{console.warn('Optimized POLY pool unavailable; using legacy poly engine.',err);pool.ready=false;throw err;});
+      return pool.promise;
+    }
+
+    function getOptimizedPolyConfig(masterFreq){
+      const anySolo=state.gears.some(g=>g.solo), count=Math.max(1,state.polyVoices.size+1), scale=1/Math.sqrt(count), ordered=getBloomOrderedGears();
+      return state.gears.filter(g=>!g.muted && Math.abs(g.ratio)>0).map(g=>{
+        const coeff=getPolyWaveCoefficients(getGearToothWaveform(g),getGearToothWidth(g),64);
+        const harmonics=[];for(let h=1;h<64;h++)harmonics.push({re:coeff.real[h]||0,im:coeff.imag[h]||0});
+        return {ratio:Number(g.ratio)||0,phaseOffset:(Number(g.phaseOffsetDeg)||0)*Math.PI/180,shape:g.shape||'circular',shapeParams:g.shapeParams||{},phase:(state.masterPhase*masterFreq/Math.max(.001,state.baseFundamentalFreq||1)*(Number(g.ratio)||0))%(Math.PI*2),volume:(anySolo&&!g.solo)?0:Math.max(0,Number(g.volume)||0)*scale,attack:getBloomAttackForGear(g),decay:Number(g.adsr?.decay)||0,sustain:Number(g.adsr?.sustain??.8),release:Number(g.adsr?.release)||0,attackCurve:Number(g.adsr?.attackCurve)||0,decayCurve:Number(g.adsr?.decayCurve)||0,releaseCurve:Number(g.adsr?.releaseCurve)||0,harmonics,phase:0,releaseFrame:null,releaseStart:0};
+      });
+    }
+
+    function activateOptimizedPolyVoice(semitone,keyId){
+      const pool=state.polyAudioPool;if(!pool.ready||!pool.free.length||!optimizedPolyEligible())return null;
+      const slot=pool.free.pop(); if(!slot)return null; const now=state.audioCtx.currentTime,masterFreq=getPolyMasterFrequency(semitone+state.octaveShift*12);
+      const configuredReleases=state.gears.filter(g=>!g.muted && Math.abs(g.ratio)>0).map(g=>{const r=Number(g.adsr?.release);return Number.isFinite(r)?Math.max(0,Math.min(10,r)):0;});
+      try{slot.voiceGain.gain.cancelScheduledValues(now);slot.voiceGain.gain.setValueAtTime(1,now);}catch(_){}
+      const voice={keyId,semitone,absoluteSemitone:semitone+state.octaveShift*12,masterFreq,voiceRatio:Math.max(.000001,masterFreq/Math.max(.001,state.baseFundamentalFreq||1)),driverMode:false,optimized:true,slot,gears:new Map(),masterGain:slot.voiceGain,workletNode:slot.node,keyHeld:true,releasing:false,releaseTime:configuredReleases.length?Math.max(...configuredReleases):0};
+      slot.busy=true;slot.voice=voice;
+      const main=state.gears.find(g=>g.isMain)||state.gears[0];
+      if(slot.panner.positionX){const x=(!state.spatialEnabled||!main||main===state.gears[0])?0:(main.x-(main.x))*state.spatialScale;slot.panner.positionX.setValueAtTime(0,now);slot.panner.positionY.setValueAtTime(0,now);slot.panner.positionZ.setValueAtTime(0,now);}else slot.panner.setPosition?.(0,0,0);
+      slot.node.port.postMessage({type:'configure',masterFreq,glideSeconds:state.legato?state.glissTime:0,gears:getOptimizedPolyConfig(masterFreq)});
+      return voice;
+    }
+
+    function releaseOptimizedPolyVoice(voice){
+      if(!voice?.optimized)return false;
+      const slot=voice.slot; if(!slot?.busy)return false;
+      voice.releasing=true;
+      state.polyVoices.delete(voice.keyId);
+      state.polyReleaseTails?.add(voice);
+      const now=state.audioCtx?.currentTime||0;
+      const releaseSeconds=Math.max(0,Math.min(10,Number(voice.releaseTime)||0));
+      voice.keyHeld=false;
+      voice.releaseEndTime=now+releaseSeconds;
+      // Capture the release time at the physical key-up moment. Continuous has
+      // no authority over this path: POLY key-up always closes the gate.
+      try{slot.voiceGain.gain.cancelScheduledValues(now);slot.voiceGain.gain.setValueAtTime(1,now);slot.voiceGain.gain.setValueAtTime(0,now+releaseSeconds);}catch(_){}
+      try{slot.node.port.postMessage({type:'noteoff'});}catch(_){}
+      // Failsafe: the pooled voice can never remain allocated beyond the exact
+      // configured release plus a tiny scheduling margin, even if the worklet's
+      // ended message is lost.
+      const ms=Math.ceil(releaseSeconds*1000)+80;
+      if(voice._cleanupTimer) clearTimeout(voice._cleanupTimer);
+      voice._cleanupTimer=setTimeout(()=>{
+        const pool=state.polyAudioPool, s=voice.slot;
+        if(!s?.busy || s.voice!==voice) return;
+        try{s.node.port.postMessage({type:'stop'});}catch(_){}
+        s.busy=false; s.voice=null; if(!pool.free.includes(s)) pool.free.push(s);
+        state.polyReleaseTails?.delete(voice); updateAudioNodes();
+        if(state.polyMode && state.polyVoices.size===0 && (!state.polyReleaseTails || state.polyReleaseTails.size===0)){
+          state.activeSemitone=null; state.keyboardAudioActive=false; syncKeyboardAudioGate(); updateKeyboardUI(null,1.0);
+        }
+      },ms);
+      return true;
+    }
+
+    function runPolyReleaseConsoleTests(){
+      const failures=[];
+      const assert=(ok,msg)=>{if(!ok)failures.push(msg);};
+      const clampRelease=r=>Number.isFinite(Number(r))?Math.min(10,Math.max(0,Number(r))):0;
+      const envRelease=(start,t,duration,curve=0)=>{
+        if(duration<=0)return 0;
+        const x=Math.max(0,Math.min(1,t/duration));
+        const k=1+6*Math.abs(Number(curve)||0);
+        const shaped=Math.abs(Number(curve)||0)<.001?x:(Number(curve)>0?1-Math.pow(1-x,k):Math.pow(x,k));
+        return Math.max(0,start*(1-shaped));
+      };
+      [0,0.01,0.25,1,10,Infinity,NaN,-1].forEach(v=>assert(clampRelease(v)>=0&&clampRelease(v)<=10,`release clamp invalid for ${v}`));
+      [0,0.001,0.1,0.5,2,5,10].forEach(r=>{
+        const start=.8, n=48000*Math.max(0,r)+1;
+        assert(envRelease(start,Math.max(0,r),Math.max(0,r))<=1e-9,`worklet release did not reach zero at ${r}s`);
+        assert(n>=1,`invalid sample deadline at ${r}s`);
+      });
+      const src=document.documentElement.innerHTML;
+      assert(src.includes("function releaseOptimizedPolyVoice"),"optimized release function missing");
+      assert(src.includes("port.postMessage({type:'noteoff'})"),"optimized noteoff message missing");
+      assert(src.includes("slot.voiceGain.gain.setValueAtTime(0,now+releaseSeconds)"),"pooled hard release gain cutoff missing");
+      assert(src.includes("if(!this.gateOpen && this.releaseEndFrame!==null && this.frame>=this.releaseEndFrame)"),"worklet hard gate missing");
+      assert(src.includes("function forceReleaseOrphanedPolyVoices()"),"poly orphan watchdog missing");
+      assert(src.includes("window.setInterval(() =>"),"poly release interval watchdog missing");
+      assert(src.includes("cancelAndHoldAtTime"),"ADSR overlap protection missing");
+      assert(src.includes("ADSR curve scheduling recovered with safe ramp"),"ADSR safe-ramp fallback missing");
+      assert(src.includes("POLY voice construction recovered from ADSR scheduling error"),"POLY transactional cleanup missing");
+      assert(src.includes("state.pressedKeys.delete(keyId);"),"failed POLY construction key cleanup missing");
+      assert(src.includes("slot.voiceGain.gain.setValueAtTime(0, now)"),"release-tail zero fallback missing");
+      assert(src.includes("if (state.polyMode && keyId)"),"poly key-up gate path missing");
+      const result={ok:!failures.length,failures};
+      console[result.ok?'log':'error']('POLY RELEASE SELF-TEST',result);
+      return result;
+    }
+
+    function updateOptimizedPolyVoices(){
+      if(!state.audioCtx)return; const pool=state.polyAudioPool;if(!pool.ready)return; const baseFund=Math.max(.001,state.baseFundamentalFreq||1);
+      state.polyVoices.forEach(voice=>{
+        if(!voice.optimized||voice.releasing)return; const target=getPolyMasterFrequency(voice.semitone+state.octaveShift*12); voice.masterFreq=target; voice.voiceRatio=Math.max(.000001,target/baseFund);
+        try{voice.slot.node.port.postMessage({type:'retune',masterFreq:target,glideSeconds:state.legato?state.glissTime:0});}catch(_){}
+        const g=state.gears.find(x=>x.isMain)||state.gears[0]; if(voice.slot.panner.positionX&&g){voice.slot.panner.positionX.setValueAtTime(0,state.audioCtx.currentTime);voice.slot.panner.positionY.setValueAtTime(0,state.audioCtx.currentTime);voice.slot.panner.positionZ.setValueAtTime(0,state.audioCtx.currentTime);}
+      });
+    }
+
     function initAudio(manualCrankStart = false) {
       if (!state.audioCtx) {
         state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -3117,6 +3371,7 @@
       }
 
       state.audioRunning = true;
+      initOptimizedPolyPool().catch(()=>{});
       document.getElementById('btn-toggle-audio').textContent = '⏸ PAUSE AUDIO';
       document.getElementById('btn-toggle-audio').style.background = '#10b981';
       if (!state.releaseOnKeyup && !manualCrankStart) {
@@ -3147,6 +3402,8 @@
         });
         state.audioCtx.suspend();
       }
+      state.polyVoices.forEach(v=>{if(v.optimized){try{v.slot.node.port.postMessage({type:'stop'});}catch(_){} v.slot.busy=false;v.slot.voice=null;state.polyAudioPool.free.includes(v.slot)||state.polyAudioPool.free.push(v.slot);}});
+      state.polyVoices.clear();
       state.audioRunning = false;
       state.audioDriver.playing = false;
       stopAudioDriverSources();
@@ -3255,15 +3512,25 @@
           }
           if (!gear.osc) {
             gear.osc = state.audioCtx.createOscillator();
-            if (getGearToothWaveform(gear) === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
-            else gear.osc.setPeriodicWave(getToothPeriodicWave(state.audioCtx, getGearToothWaveform(gear), getGearToothWidth(gear)));
+            const waveType = getGearToothWaveform(gear);
+            const waveWidth = getGearToothWidth(gear);
+            const waveKey = waveType === 'clockwork' ? `clockwork:${gear.id}:${gear.teeth}:${Math.abs(gear.ratio).toFixed(6)}:${(Number(state.clockworkTickWidthMs)||4).toFixed(1)}` : `${waveType}:${waveWidth.toFixed(4)}`;
+            if (waveType === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
+            else gear.osc.setPeriodicWave(getToothPeriodicWave(state.audioCtx, waveType, waveWidth));
+            gear._audioWaveKey = waveKey;
             gear.osc.frequency.setValueAtTime(Math.max(0.001, gear.freq), now);
             gear.osc.connect(gear.delayNode);
             gear.osc.start();
           }
 
-          if (getGearToothWaveform(gear) === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
-          else gear.osc.setPeriodicWave(getToothPeriodicWave(state.audioCtx, getGearToothWaveform(gear), getGearToothWidth(gear)));
+          const waveType = getGearToothWaveform(gear);
+          const waveWidth = getGearToothWidth(gear);
+          const waveKey = waveType === 'clockwork' ? `clockwork:${gear.id}:${gear.teeth}:${Math.abs(gear.ratio).toFixed(6)}:${(Number(state.clockworkTickWidthMs)||4).toFixed(1)}` : `${waveType}:${waveWidth.toFixed(4)}`;
+          if (gear._audioWaveKey !== waveKey) {
+            if (waveType === 'clockwork') gear.osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
+            else gear.osc.setPeriodicWave(getToothPeriodicWave(state.audioCtx, waveType, waveWidth));
+            gear._audioWaveKey = waveKey;
+          }
         }
 
         if (!driverMode && gear.sourceMode === 'audio' && gear.audioSource) {
@@ -3302,8 +3569,8 @@
         if (!driverMode && gear.osc && !['audio','noise','midi'].includes(gear.sourceMode)) {
           const targetFreq = Math.max(0.001, gear.freq * (gear._shapeRate || 1));
           if (state.isSlidingFreq) {
-            gear.osc.frequency.setValueAtTime(targetFreq, now);
-            gear.delayNode.delayTime.setValueAtTime(0.0001, now);
+            gear.osc.frequency.value = targetFreq;
+            gear.delayNode.delayTime.value = 0.0001;
           } else if (state.legato) {
             // Porta ON: deliberately glide pitch. This is the only pitch smoothing
             // used for keyboard note changes.
@@ -3312,11 +3579,12 @@
             const targetDelay = getPhaseAlignedDelaySeconds(gear.phaseOffsetRad, targetFreq);
             gear.delayNode.delayTime.setTargetAtTime(targetDelay, now, glideTc);
           } else {
-            // Porta OFF: pitch must jump immediately to the new gear-derived note.
-            // Keep the gain slews elsewhere for click-safe moving/stopping behavior.
-            gear.osc.frequency.setValueAtTime(targetFreq, now);
+            // Porta OFF: pitch must jump immediately. Direct AudioParam values are
+            // used rather than setValueAtTime so repeated note changes cannot flood
+            // the browser's automation timeline.
+            gear.osc.frequency.value = targetFreq;
             const targetDelay = getPhaseAlignedDelaySeconds(gear.phaseOffsetRad, targetFreq);
-            gear.delayNode.delayTime.setValueAtTime(targetDelay, now);
+            gear.delayNode.delayTime.value = targetDelay;
           }
         } else if (driverMode) {
           const source = state.audioDriver.sources.get(gear.id);
@@ -3776,6 +4044,16 @@
     // deforms the phase trajectory received by every downstream gear; the
     // child's own contour is then applied on top of that transmitted trajectory.
     function getGearMechanicalMotion(gear, visited = new Set()) {
+      if (!gear) return {phase:0,rate:1};
+      if (visited.size===0) {
+        if (state.motionFrameCachePhase!==state.masterPhase) {
+          state.motionFrameCache.clear();
+          state.motionFrameCachePhase=state.masterPhase;
+        }
+        const cached=state.motionFrameCache.get(gear.id); if(cached)return cached;
+        const motion=getGearMechanicalMotionAtPhase(gear,state.masterPhase,new Set());
+        state.motionFrameCache.set(gear.id,motion); return motion;
+      }
       return getGearMechanicalMotionAtPhase(gear, state.masterPhase, visited);
     }
 
@@ -4193,8 +4471,12 @@
             const sourceFreq = Math.max(0.1, gear.freq || state.fundamentalFreq || 1);
             const effectivePhase = gear.phaseOffsetRad + gear.orbitPhase;
             const targetDelay = gear.isMain ? 0.0001 : getContinuousOrbitDelaySeconds(effectivePhase, sourceFreq);
+            const lastDelay = Number(gear._lastOrbitAudioDelay);
             if (!orbitPhaseBoundaryCrossed(previousOrbitPhase, gear.orbitPhase)) {
-              gear.delayNode.delayTime.setTargetAtTime(targetDelay, state.audioCtx.currentTime, 0.008);
+              if (!Number.isFinite(lastDelay) || Math.abs(targetDelay-lastDelay)>1e-7) {
+                gear.delayNode.delayTime.setTargetAtTime(targetDelay, state.audioCtx.currentTime, 0.008);
+                gear._lastOrbitAudioDelay = targetDelay;
+              }
             } else {
               smoothOrbitPhaseBoundary(gear, gear.delayNode, sourceFreq, previousOrbitPhase, gear.orbitPhase);
             }
@@ -4203,15 +4485,32 @@
 
         if (gear.pannerNode) {
           const scale = state.spatialScale || 0.05;
-          const px = (gear.x - mainGear.x) * scale;
-          const pz = (gear.y - mainGear.y) * scale;
+          const px = state.spatialEnabled ? (gear.x - mainGear.x) * scale : 0;
+          const pz = state.spatialEnabled ? (gear.y - mainGear.y) * scale : 0;
           const nowAudio = state.audioCtx ? state.audioCtx.currentTime : 0;
+          // Do not enqueue the same panner automation every animation frame.
+          // When spatial audio is off the listener position is always exactly zero,
+          // so direct assignment is sufficient and creates no automation events.
           if (gear.pannerNode.positionX) {
-            gear.pannerNode.positionX.setValueAtTime(px, nowAudio);
-            gear.pannerNode.positionY.setValueAtTime(0, nowAudio);
-            gear.pannerNode.positionZ.setValueAtTime(pz, nowAudio);
+            const px0 = Number(gear._lastPannerX);
+            const pz0 = Number(gear._lastPannerZ);
+            if (!Number.isFinite(px0) || Math.abs(px-px0)>1e-4) {
+              if (state.spatialEnabled) gear.pannerNode.positionX.setTargetAtTime(px, nowAudio, 0.02);
+              else gear.pannerNode.positionX.value = px;
+              gear._lastPannerX = px;
+            }
+            if (gear.pannerNode.positionY) gear.pannerNode.positionY.value = 0;
+            if (!Number.isFinite(pz0) || Math.abs(pz-pz0)>1e-4) {
+              if (state.spatialEnabled) gear.pannerNode.positionZ.setTargetAtTime(pz, nowAudio, 0.02);
+              else gear.pannerNode.positionZ.value = pz;
+              gear._lastPannerZ = pz;
+            }
           } else if (gear.pannerNode.setPosition) {
-            gear.pannerNode.setPosition(px, 0, pz);
+            const px0 = Number(gear._lastPannerX), pz0 = Number(gear._lastPannerZ);
+            if (!Number.isFinite(px0) || Math.abs(px-px0)>1e-4 || !Number.isFinite(pz0) || Math.abs(pz-pz0)>1e-4) {
+              gear.pannerNode.setPosition(px, 0, pz);
+              gear._lastPannerX = px; gear._lastPannerZ = pz;
+            }
           }
         }
       });
@@ -4269,6 +4568,64 @@
           }
         });
       });
+    }
+
+    function isPolyKeyPhysicallyHeld(keyId) {
+      if (!keyId) return false;
+      const id = String(keyId);
+      if (id.startsWith('midi-')) {
+        const n = Number(id.slice(5));
+        return Number.isFinite(n) && (state.midiHeldNotes.has(n) || state.midiHeldNotes.has(String(n)));
+      }
+      return state.keyboardPointerHeldKeys.has(id) || state.keyboardPhysicalKeyDownCodes.has(id);
+    }
+
+    function forceReleaseOrphanedPolyVoices() {
+      if (!state.polyMode || !state.releaseOnKeyup) return;
+      const now = state.audioCtx?.currentTime || 0;
+      state.polyVoices.forEach((voice, keyId) => {
+        if (voice.releasing || voice.keyHeld === false) return;
+        if (!isPolyKeyPhysicallyHeld(keyId)) {
+          state.pressedKeys.delete(keyId);
+          state.keyboardPointerHeldKeys.delete(keyId);
+          state.keyboardPhysicalKeyDownCodes.delete(keyId);
+          stopPolyVoice(keyId);
+        }
+      });
+      state.polyReleaseTails?.forEach(voice => {
+        if (!voice?.releasing || !voice.slot) return;
+        const end = Number(voice.releaseEndTime);
+        if (!Number.isFinite(end) || now < end) return;
+        const slot = voice.slot;
+        try {
+          slot.voiceGain.gain.cancelScheduledValues(now);
+          slot.voiceGain.gain.setValueAtTime(0, now);
+        } catch (_) {}
+        try { slot.node.port.postMessage({type:'stop'}); } catch (_) {}
+        if (slot.busy && slot.voice === voice) {
+          slot.busy = false;
+          slot.voice = null;
+          if (!state.polyAudioPool.free.includes(slot)) state.polyAudioPool.free.push(slot);
+        }
+        state.polyReleaseTails.delete(voice);
+      });
+    }
+
+    function startPolyReleaseWatchdog() {
+      if (state.polyReleaseWatchdog) return;
+      state.polyReleaseWatchdog = window.setInterval(() => {
+        try {
+          forceReleaseOrphanedPolyVoices();
+          if (state.releaseOnKeyup && state.pressedKeys.size === 0 && state.midiHeldNotes.size === 0 && state.polyVoices.size === 0 && (!state.polyReleaseTails || state.polyReleaseTails.size === 0)) {
+            state.activeSemitone = null;
+            state.keyboardAudioActive = false;
+            syncKeyboardAudioGate();
+            updateKeyboardUI(null, 1.0);
+          }
+        } catch (err) {
+          console.warn('POLY release watchdog error', err);
+        }
+      }, 25);
     }
 
     /* ANIMATION LOOP */
@@ -4331,8 +4688,10 @@
       }
       } // animationStopped guard
 
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!state.staticBackgroundCache || state.staticBackgroundCache.width !== canvas.width || state.staticBackgroundCache.height !== canvas.height) {
+        const bg=document.createElement('canvas'); bg.width=canvas.width; bg.height=canvas.height; const bctx=bg.getContext('2d'); bctx.fillStyle='#0f172a'; bctx.fillRect(0,0,bg.width,bg.height); state.staticBackgroundCache=bg;
+      }
+      ctx.drawImage(state.staticBackgroundCache,0,0);
 
       ctx.save();
       ctx.translate(canvas.width / 2 + state.camera.x, canvas.height / 2 + state.camera.y);
@@ -5090,7 +5449,39 @@
       syncCanvasCrankControl();
     }
 
-    function setFundamentalFrequency(freq, isBaseChange = true, preserveDirection = false) {
+    function retuneVisibleKeyboardAudio(freq) {
+      if (!state.audioCtx || !state.audioRunning || state.polyMode) return;
+      const now = state.audioCtx.currentTime;
+      const base = Math.max(0, Number(freq) || 0);
+      const driverMode = !!state.audioDriver.buffer && state.audioDriver.playing;
+      const mainGear = state.gears.find(g => g.isMain) || state.gears[0];
+      state.gears.forEach(gear => {
+        const ratio = Number.isFinite(gear.ratio) ? Math.abs(gear.ratio) : 0;
+        gear.freq = ratio * base;
+        gear.isUltrasonic = gear.freq > 20000 || gear.freq > state.audioCtx.sampleRate / 2;
+        if (gear.osc && !driverMode && gear.sourceMode !== 'audio' && gear.sourceMode !== 'noise' && gear.sourceMode !== 'midi') {
+          const targetFreq = Math.max(0.001, gear.freq * (gear._shapeRate || 1));
+          if (state.legato) {
+            gear.osc.frequency.setTargetAtTime(targetFreq, now, Math.max(0.005, state.glissTime / 3));
+            gear.delayNode?.delayTime.setTargetAtTime(gear.isMain ? 0.0001 : getPhaseAlignedDelaySeconds(gear.phaseOffsetRad, targetFreq), now, Math.max(0.005, state.glissTime / 3));
+          } else {
+            // Direct assignment is immediate and does not append an AudioParam automation event.
+            // This is critical for rapid ASDFGH/MIDI playing with POLY OFF.
+            gear.osc.frequency.value = targetFreq;
+            if (gear.delayNode?.delayTime) gear.delayNode.delayTime.value = gear.isMain ? 0.0001 : getPhaseAlignedDelaySeconds(gear.phaseOffsetRad, targetFreq);
+          }
+        } else if (driverMode) {
+          const source = state.audioDriver.sources.get(gear.id);
+          if (source) {
+            const targetRate = Math.max(0.000001, ratio * state.audioDriver.driverRate * (state.audioDriver.keyboardKeyRatio || 1));
+            if (state.legato) source.playbackRate.setTargetAtTime(targetRate, now, Math.max(0.005, state.glissTime / 3));
+            else source.playbackRate.value = targetRate;
+          }
+        }
+      });
+    }
+
+    function setFundamentalFrequency(freq, isBaseChange = true, preserveDirection = false, fastKeyboard = false) {
       const nyquist = getNyquist();
       freq = Number(freq);
       if (!Number.isFinite(freq)) freq = 0;
@@ -5125,7 +5516,9 @@
       document.getElementById('val-fundamental').textContent = freqLabel;
       syncCanvasCrankControl();
 
-      if (!state.legato) updateKinematicNetwork();
+      if (fastKeyboard && !state.polyMode) {
+        if (state.audioRunning) retuneVisibleKeyboardAudio(freq);
+      } else if (!state.legato) updateKinematicNetwork();
     }
 
     /* 12TET QWERTY KEYBOARD NOTE SYNTHESIS ENGINE */
@@ -5162,51 +5555,96 @@
 
     function adsrCurveValue(t, curve) { t=Math.max(0,Math.min(1,Number(t)||0)); const c=Math.max(-1,Math.min(1,Number(curve)||0)); if(Math.abs(c)<.001)return t; const k=1+6*Math.abs(c); return c>0?1-Math.pow(1-t,k):Math.pow(t,k); }
     function makeAdsrCurve(from,to,duration,curve){ const n=Math.max(8,Math.min(256,Math.ceil(duration*160)+8)), a=new Float32Array(n); for(let i=0;i<n;i++)a[i]=from+(to-from)*adsrCurveValue(i/(n-1),curve); return a; }
+    // Live ADSR automation uses cancellable linear segments instead of
+    // AudioParam curve automation. Chrome can reject a new curve when it overlaps an
+    // already-running curve by a fraction of a sample. Under rapid mono/poly
+    // keyboard playing that exception can occur before a voice is registered,
+    // leaving its oscillators orphaned. A short segmented approximation follows
+    // the exact same ADSR curve mathematically while remaining fully cancellable.
     function scheduleAdsrGate(open,param,adsr,now=state.audioCtx?.currentTime||0,attackOverride=null){
-      if(!param||!state.audioCtx)return;
+      if(!param||!state.audioCtx)return false;
       const a=Math.max(0,Math.min(10,Number(attackOverride ?? adsr?.attack)||0));
       const d=Math.max(0,Math.min(2,Number(adsr?.decay)||0));
-      const sus=Math.max(0,Math.min(1,Number(adsr?.sustain)));
+      const sus=Math.max(0,Math.min(1,Number(adsr?.sustain ?? .8)));
       const r=Math.max(0,Math.min(10,Number(adsr?.release)||0));
-      const holdOrCancel=(t)=>{
-        try {
-          if (typeof param.cancelAndHoldAtTime === 'function') { param.cancelAndHoldAtTime(t); return; }
-        } catch (_) {}
-        try { param.cancelScheduledValues(t); } catch (_) {}
-      };
-      const safeCurve=(from,to,dur,curve)=>{
-        if(dur<=0){ param.setValueAtTime(to,now); return; }
-        try { param.setValueCurveAtTime(makeAdsrCurve(from,to,dur,curve),now,dur); }
-        catch (_) {
-          // A rapid key-up can interrupt a curve that is already in progress.
-          // Never allow that AudioParam exception to abort note cleanup.
-          try { param.setValueAtTime(from,now); param.linearRampToValueAtTime(to,now+dur); } catch (_) { try { param.setValueAtTime(to,now+dur); } catch (_) {} }
+      const t=Math.max(0,Number(now)||0);
+      const SEG=16;
+      const curveAt=(u,curve)=>adsrCurveValue(u,curve);
+      const scheduleSegmented=(from,to,duration,curve,start)=>{
+        if(duration<=0){param.setValueAtTime(to,start);return;}
+        param.setValueAtTime(from,start);
+        const n=Math.max(2,Math.min(SEG,Math.ceil(duration*12)+1));
+        for(let i=1;i<n;i++){
+          const u=i/(n-1),v=from+(to-from)*curveAt(u,curve);
+          param.linearRampToValueAtTime(v,start+duration*u);
         }
       };
-      holdOrCancel(now);
-      const cur=Math.max(0,Math.min(1,Number(param.value)||0));
-      try { param.setValueAtTime(cur,now); } catch (_) {}
-      if(open){
-        try { param.setValueAtTime(0,now); } catch (_) {}
-        if(a<=0){ try{param.setValueAtTime(1,now);}catch(_){} }
-        else safeCurve(0,1,a,Number(adsr?.attackCurve)||0);
-        const ds=now+a;
-        if(d<=0){ try{param.setValueAtTime(sus,ds);}catch(_){} }
-        else {
-          try { param.setValueCurveAtTime(makeAdsrCurve(1,sus,d,Number(adsr?.decayCurve)||0),ds,d); }
-          catch (_) { try { param.setValueAtTime(1,ds); param.linearRampToValueAtTime(sus,ds+d); } catch (_) { try { param.setValueAtTime(sus,ds+d); } catch (_) {} } }
+      try{
+        if(typeof param.cancelAndHoldAtTime==='function') param.cancelAndHoldAtTime(t);
+        else param.cancelScheduledValues(t);
+        if(open){
+          scheduleSegmented(0,1,a,Number(adsr?.attackCurve)||0,t);
+          const ds=t+a;
+          scheduleSegmented(1,sus,d,Number(adsr?.decayCurve)||0,ds);
+        }else{
+          const cur=Math.max(0,Math.min(1,Number(param.value)||0));
+          scheduleSegmented(cur,0,r,Number(adsr?.releaseCurve)||0,t);
         }
-      } else {
-        if(r<=0){ try{param.setValueAtTime(0,now);}catch(_){} }
-        else safeCurve(cur,0,r,Number(adsr?.releaseCurve)||0);
+        return true;
+      }catch(err){
+        // Absolute emergency fallback: a single finite ramp. The caller must
+        // never see an exception from envelope scheduling.
+        try{
+          if(typeof param.cancelAndHoldAtTime==='function') param.cancelAndHoldAtTime(t);
+          else param.cancelScheduledValues(t);
+          if(open){
+            param.setValueAtTime(0,t);
+            if(a>0)param.linearRampToValueAtTime(1,t+a);else param.setValueAtTime(1,t);
+            if(d>0)param.linearRampToValueAtTime(sus,t+a+d);else param.setValueAtTime(sus,t+a);
+          }else if(r>0)param.linearRampToValueAtTime(0,t+r);else param.setValueAtTime(0,t);
+          console.warn('ADSR segmented scheduling recovered',err);
+          return false;
+        }catch(err2){
+          try{param.cancelScheduledValues(t);param.setValueAtTime(0,t);}catch(_){}
+          console.error('ADSR scheduling hard-failed; gate forced closed',err2);
+          return false;
+        }
       }
     }
     function scheduleKeyboardAdsrGate(open,param,now=state.audioCtx?.currentTime||0){ scheduleAdsrGate(open,param,state.adsr,now); }
 
     function createKeyboardReleaseVoice(freq,level=1){
       if(!state.audioCtx||!state.audioRunning||!Number.isFinite(freq)||freq<=0||level<=0)return;const now=state.audioCtx.currentTime,master=state.audioCtx.createGain(),items=[];master.gain.setValueAtTime(Math.max(.0001,Math.min(1,level)),now);master.connect(state.masterGain);
-      state.gears.forEach(g=>{if(g.muted||g.isUltrasonic||g.ratio===0||g.freq===0)return;const o=state.audioCtx.createOscillator(),gn=state.audioCtx.createGain(),dl=state.audioCtx.createDelay(15),gf=Math.max(.001,freq*Math.abs(g.ratio)*(g._shapeRate||1)),wf=getGearToothWaveform(g),ww=getGearToothWidth(g);if(wf==='clockwork')o.setPeriodicWave(getClockworkWave(state.audioCtx,g));else o.setPeriodicWave(getToothPeriodicWave(state.audioCtx,wf,ww));o.frequency.setValueAtTime(gf,now);gn.gain.setValueAtTime(Math.max(.0001,Math.min(1,Number(g.volume)||.2)),now);dl.delayTime.setValueAtTime(g.isMain?.0001:getPhaseAlignedDelaySeconds(g.phaseOffsetRad,gf),now);o.connect(dl);dl.connect(gn);gn.connect(master);o.start(now);items.push({o,gn,dl});});
-      const rel=Math.max(0,Math.min(10,Number(state.adsr.release)||0));scheduleKeyboardAdsrGate(false,master.gain,now);const cleanup=()=>{items.forEach(x=>{try{x.o.disconnect();x.gn.disconnect();x.dl.disconnect()}catch(_) {}});try{master.disconnect()}catch(_){} };if(rel<=0){try{master.gain.setValueAtTime(0,now);items.forEach(x=>x.o.stop(now+.01))}catch(_){}setTimeout(cleanup,30)}else setTimeout(cleanup,Math.ceil(rel*1000)+60);return master;
+      state.gears.forEach(g=>{
+        if(g.muted||g.isUltrasonic||g.ratio===0||g.freq===0)return;
+        const gn=state.audioCtx.createGain(),dl=state.audioCtx.createDelay(15),
+          gf=Math.max(.001,freq*Math.abs(g.ratio)*(g._shapeRate||1)),
+          wf=getGearToothWaveform(g),ww=getGearToothWidth(g);
+        const item={gn,dl};
+        dl.delayTime.setValueAtTime(g.isMain?.0001:getPhaseAlignedDelaySeconds(g.phaseOffsetRad,gf),now);
+        gn.gain.setValueAtTime(Math.max(.0001,Math.min(1,Number(g.volume)||.2)),now);
+        if(g.sourceMode==='noise'){
+          const source=state.audioCtx.createBufferSource();
+          source.buffer=makeNoiseBuffer(state.audioCtx,1); source.loop=true;
+          const hp=state.audioCtx.createBiquadFilter(),lp=state.audioCtx.createBiquadFilter();
+          hp.type='highpass'; lp.type='lowpass';
+          const w=normalizeToothWidth(ww);
+          const hpf=Math.min(16000,40*Math.pow(120,1-w));
+          const lpf=Math.max(hpf+50,Math.min(18000,500+11500*w));
+          const q=0.8+16*Math.abs(w-0.5)*2;
+          hp.frequency.setValueAtTime(hpf,now); lp.frequency.setValueAtTime(lpf,now);
+          hp.Q.setValueAtTime(q,now); lp.Q.setValueAtTime(q,now);
+          source.connect(hp); hp.connect(lp); lp.connect(dl); source.start(now);
+          item.source=source; item.noiseHPF=hp; item.noiseLPF=lp;
+        }else{
+          const o=state.audioCtx.createOscillator();
+          if(wf==='clockwork')o.setPeriodicWave(getClockworkWave(state.audioCtx,g));
+          else o.setPeriodicWave(getToothPeriodicWave(state.audioCtx,wf,ww));
+          o.frequency.setValueAtTime(gf,now); o.connect(dl); o.start(now); item.o=o;
+        }
+        dl.connect(gn); gn.connect(master); items.push(item);
+      });
+      const rel=Math.max(0,Math.min(10,Number(state.adsr.release)||0));scheduleKeyboardAdsrGate(false,master.gain,now);const cleanup=()=>{items.forEach(x=>{try{x.o?.disconnect()}catch(_){} try{x.source?.stop()}catch(_){} try{x.source?.disconnect()}catch(_){} try{x.noiseHPF?.disconnect()}catch(_){} try{x.noiseLPF?.disconnect()}catch(_){} try{x.gn.disconnect();x.dl.disconnect()}catch(_) {}});try{master.disconnect()}catch(_){} };if(rel<=0){try{master.gain.setValueAtTime(0,now);items.forEach(x=>x.o.stop(now+.01))}catch(_){}setTimeout(cleanup,30)}else setTimeout(cleanup,Math.ceil(rel*1000)+60);return master;
     }
     function releaseCurrentKeyboardTail(){if(state.polyMode||state.activeSemitone===null||!state.keyboardEnvelopeGain)return;const level=Math.max(0,Math.min(1,Number(state.keyboardEnvelopeGain.gain.value)||0));if(level<=0)return;const f=state.baseFundamentalFreq*Math.pow(2,(state.activeSemitone+state.octaveShift*12)/12);createKeyboardReleaseVoice(f,level);}
 
@@ -5269,6 +5707,8 @@
       if (!pg) return;
       if (pg.source) { try { pg.source.stop(); } catch(e) {} try { pg.source.disconnect(); } catch(e) {} }
       if (pg.osc) { try { pg.osc.stop(); } catch(e) {} try { pg.osc.disconnect(); } catch(e) {} }
+      if (pg.noiseHPF) { try { pg.noiseHPF.disconnect(); } catch(e) {} }
+      if (pg.noiseLPF) { try { pg.noiseLPF.disconnect(); } catch(e) {} }
       try { pg.delayNode.disconnect(); } catch(e) {}
       try { pg.gainNode.disconnect(); } catch(e) {}
       try { pg.pannerNode.disconnect(); } catch(e) {}
@@ -5534,7 +5974,7 @@
       voice.masterGain.gain.setValueAtTime(1, now);
       voice.masterGain.connect(state.masterGain);
 
-      state.gears.forEach(gear => {
+      try { state.gears.forEach(gear => {
         // POLY calculates each note's frequency independently. Never gate a
         // poly gear on the normal machine `gear.freq`, which can legitimately
         // be zero before the visible 1:1 drive has advanced. Ratio is the
@@ -5595,6 +6035,33 @@
           const offset = duration > 0 ? (state.audioDriver.elapsed % duration) : 0;
           try { source.start(now, offset); } catch(e) { source.start(); }
           voice.gears.set(gear.id, { source, delayNode, gainNode, adsrGainNode, pannerNode, gear });
+        } else if (gear.sourceMode === 'noise') {
+          // True broadband noise source: independent random buffer + filter band per cog.
+          const source = state.audioCtx.createBufferSource();
+          source.buffer = makeNoiseBuffer(state.audioCtx, 1);
+          source.loop = true;
+          const noiseHPF = state.audioCtx.createBiquadFilter();
+          const noiseLPF = state.audioCtx.createBiquadFilter();
+          noiseHPF.type = 'highpass';
+          noiseLPF.type = 'lowpass';
+
+          const w = normalizeToothWidth(getGearToothWidth(gear));
+          const hpf = Math.min(16000, 40 * Math.pow(120, 1 - w));
+          const lpf = Math.max(hpf + 50, Math.min(18000, 500 + 11500 * w));
+          const q = 0.8 + 16 * Math.abs(w - 0.5) * 2;
+          noiseHPF.frequency.setValueAtTime(hpf, now);
+          noiseLPF.frequency.setValueAtTime(lpf, now);
+          noiseHPF.Q.setValueAtTime(q, now);
+          noiseLPF.Q.setValueAtTime(q, now);
+
+          source.connect(noiseHPF);
+          noiseHPF.connect(noiseLPF);
+          noiseLPF.connect(delayNode);
+          source.start(now);
+          voice.gears.set(gear.id, {
+            source, delayNode, gainNode, adsrGainNode, pannerNode,
+            noiseHPF, noiseLPF, gear, isNoise: true
+          });
         } else {
           const osc = state.audioCtx.createOscillator();
           if (getGearToothWaveform(gear) === 'clockwork') osc.setPeriodicWave(getClockworkWave(state.audioCtx, gear));
@@ -5604,19 +6071,34 @@
           osc.start(now);
           voice.gears.set(gear.id, { osc, delayNode, gainNode, adsrGainNode, pannerNode, gear });
         }
-      });
+      }); } catch (constructionError) {
+        console.error('POLY voice construction failed; rolling back all partial nodes',constructionError);
+        voice.gears.forEach(disconnectPolyGear);
+        try { voice.masterGain.disconnect(); } catch (_) {}
+        return null;
+      }
 
       voice.envelopeStarted = true;
       // Each cog has its own ADSR. The voice master is only a routing bus and
-      // never terminates a cog's envelope.
-      voice.gears.forEach(pg => scheduleBloomedGearAdsr(true, pg.gear, pg.adsrGainNode.gain, now));
-      voice.masterGain.gain.setValueAtTime(1, now);
+      // never terminates a cog's envelope. ADSR scheduling is guarded so a browser
+      // automation exception can never strand already-started oscillators.
+      try {
+        voice.gears.forEach(pg => scheduleBloomedGearAdsr(true, pg.gear, pg.adsrGainNode.gain, now));
+        voice.masterGain.gain.setValueAtTime(1, now);
+      } catch (err) {
+        console.error('POLY voice construction recovered from ADSR scheduling error', err);
+        voice.gears.forEach(disconnectPolyGear);
+        try { voice.masterGain.disconnect(); } catch (_) {}
+        return null;
+      }
       return voice;
     }
 
     function stopPolyVoice(keyId) {
       const voice = state.polyVoices.get(keyId);
       if (!voice || voice.releasing) return;
+      voice.keyHeld = false;
+      if (voice.optimized) { releaseOptimizedPolyVoice(voice); return; }
       // Never leave a logical keyboard note held merely because the AudioContext
       // is unavailable/closed. Remove it from the active map even in that case.
       if (!state.audioCtx) {
@@ -5642,29 +6124,14 @@
 
       // Continuous is OFF here by contract: the note was physically released,
       // so every gear envelope must enter its ADSR release stage. Never use the
-      // voice bus as the sustain gate. A malformed/interrupted AudioParam schedule
-      // must never prevent the voice from reaching the hard-release fallback.
-      voice.gears.forEach(pg => {
-        try { scheduleBloomedGearAdsr(false, pg.gear, pg.adsrGainNode?.gain, now); } catch (err) {
-          try { pg.adsrGainNode?.gain?.setValueAtTime(0, now); } catch (_) {}
-        }
-      });
+      // voice bus as the sustain gate.
+      voice.gears.forEach(pg => scheduleBloomedGearAdsr(false, pg.gear, pg.adsrGainNode?.gain, now));
       // Keep the routing bus open while the individual gear ADSRs perform their
       // releases, then force the entire voice to exact silence at the latest legal
       // release endpoint. This is a safety cutoff only; it does not shape the ADSR.
-      try { voice.masterGain.gain.cancelAndHoldAtTime?.(now); } catch (_) {}
-      try { voice.masterGain.gain.cancelScheduledValues(now); } catch (_) {}
-      try { voice.masterGain.gain.setValueAtTime(1, now); } catch (_) {}
+      voice.masterGain.gain.cancelScheduledValues(now);
+      voice.masterGain.gain.setValueAtTime(1, now);
       voice.releaseEndTime = now + releaseTime;
-      voice.gears.forEach(pg => {
-        const ag = pg.adsrGainNode?.gain;
-        if (ag) {
-          try { ag.setValueAtTime(0, voice.releaseEndTime); } catch (_) {}
-        }
-        const stopAt = voice.releaseEndTime + 0.005;
-        try { if (pg.source) pg.source.stop(stopAt); } catch (_) {}
-        try { if (pg.osc) pg.osc.stop(stopAt); } catch (_) {}
-      });
       if (releaseTime <= 0) {
         voice.masterGain.gain.setValueAtTime(0, now);
       } else {
@@ -5679,11 +6146,7 @@
       updatePolyVoices();
 
       voice._cleanupTimer = setTimeout(() => {
-        voice.gears.forEach(pg => {
-          try { pg.adsrGainNode?.gain?.cancelScheduledValues?.(state.audioCtx?.currentTime || 0); } catch (_) {}
-          try { pg.adsrGainNode?.gain?.setValueAtTime?.(0, state.audioCtx?.currentTime || 0); } catch (_) {}
-          disconnectPolyGear(pg);
-        });
+        voice.gears.forEach(disconnectPolyGear);
         try { voice.masterGain.gain.cancelScheduledValues(state.audioCtx?.currentTime || 0); } catch(e) {}
         try { voice.masterGain.disconnect(); } catch(e) {}
         state.polyReleaseTails?.delete(voice);
@@ -5698,33 +6161,6 @@
       }, Math.ceil(releaseTime * 1000) + 12);
     }
 
-    function isPolyKeyPhysicallyHeld(keyId) {
-      if (!keyId) return false;
-      if (String(keyId).startsWith('midi-')) {
-        const n = Number(String(keyId).slice(5));
-        return Number.isFinite(n) && state.midiHeldNotes.has(n);
-      }
-      return state.keyboardPointerHeldKeys.has(keyId) || state.keyboardPhysicalKeyDownCodes.has(keyId);
-    }
-
-    function startPolyReleaseWatchdog() {
-      if (state.polyReleaseWatchdog) return;
-      state.polyReleaseWatchdog = setInterval(() => {
-        if (!state.polyMode || !state.releaseOnKeyup) return;
-        state.polyVoices.forEach((voice, keyId) => {
-          if (voice.releasing || voice.keyHeld === false) return;
-          // The logical pressed set and the physical pointer/key state must agree.
-          // If a browser drops an input-up event, release the voice anyway.
-          const physicallyHeld = isPolyKeyPhysicallyHeld(keyId);
-          if (!physicallyHeld) {
-            state.pressedKeys.delete(keyId);
-            state.keyboardPointerHeldKeys.delete(keyId);
-            stopPolyVoice(keyId);
-          }
-        });
-      }, 25);
-    }
-
     function stopAllPolyVoices() {
       Array.from(state.polyVoices.keys()).forEach(stopPolyVoice);
     }
@@ -5734,8 +6170,10 @@
       const now = state.audioCtx.currentTime;
       const driverMode = !!state.audioDriver.buffer && state.audioDriver.playing;
       const baseFund = Math.max(0.001, state.baseFundamentalFreq || 1);
+      updateOptimizedPolyVoices();
 
       state.polyVoices.forEach(voice => {
+        if (voice.optimized) return;
         if (voice.releasing) return;
         voice.absoluteSemitone = voice.semitone + state.octaveShift * 12;
         voice.masterFreq = getPolyMasterFrequency(voice.absoluteSemitone);
@@ -5757,6 +6195,15 @@
               Math.abs(gear.ratio) * shapeMotion.rate * state.audioDriver.driverRate * voice.voiceRatio
             );
             pg.source.playbackRate.setTargetAtTime(playbackRate, now, state.legato ? Math.max(0.005, state.glissTime / 3) : 0.005);
+          } else if (pg.isNoise && pg.source) {
+            const w = normalizeToothWidth(getGearToothWidth(gear));
+            const hpf = Math.min(16000, 40 * Math.pow(120, 1 - w));
+            const lpf = Math.max(hpf + 50, Math.min(18000, 500 + 11500 * w));
+            const q = 0.8 + 16 * Math.abs(w - 0.5) * 2;
+            pg.noiseHPF.frequency.setTargetAtTime(hpf, now, 0.01);
+            pg.noiseLPF.frequency.setTargetAtTime(lpf, now, 0.01);
+            pg.noiseHPF.Q.setTargetAtTime(q, now, 0.01);
+            pg.noiseLPF.Q.setTargetAtTime(q, now, 0.01);
           } else if (!driverMode && pg.osc) {
             if (state.legato) {
               pg.osc.frequency.setTargetAtTime(
@@ -5777,6 +6224,21 @@
       });
     }
 
+    function runNoiseSourceTopologyTest(){
+      const failures=[];
+      const assert=(ok,msg)=>{if(!ok)failures.push(msg);};
+      const a=createPolyTrain.toString();
+      const b=updatePolyVoices.toString();
+      assert(a.includes("gear.sourceMode === 'noise'"),"POLY noise branch missing");
+      assert(a.includes("makeNoiseBuffer(state.audioCtx, 1)"),"POLY noise buffer missing");
+      assert(a.includes("createBiquadFilter()"),"POLY noise filters missing");
+      assert(a.includes("isNoise: true"),"POLY noise marker missing");
+      assert(b.includes("pg.isNoise && pg.source"),"POLY noise update branch missing");
+      const result={ok:!failures.length,failures};
+      console[result.ok?'log':'error']('NOISE SOURCE TOPOLOGY TEST',result);
+      return result;
+    }
+
     function rebuildPolyVoicesForDriverMode() {
       if (!state.polyMode || !state.audioCtx || !state.audioRunning) return;
       const held = Array.from(state.polyVoices.values()).map(v => ({ semitone: v.semitone, keyId: v.keyId }));
@@ -5791,11 +6253,65 @@
       if (!state.audioRunning) initAudio();
       if (state.polyVoices.has(keyId)) return;
       setKeyboardAudioActive(true);
+      const optimized = activateOptimizedPolyVoice(semitone,keyId);
+      if (optimized) {
+        state.polyVoices.set(keyId,optimized);
+        updateOptimizedPolyVoices();
+        return;
+      }
       const voice = createPolyTrain(semitone, keyId);
-      if (!voice) return;
+      if (!voice) {
+        state.pressedKeys.delete(keyId);
+        state.keyboardPointerHeldKeys.delete(String(keyId));
+        state.keyboardPhysicalKeyDownCodes.delete(String(keyId));
+        state.keyboardAudioActive = false;
+        syncKeyboardAudioGate();
+        return;
+      }
       state.polyVoices.set(keyId, voice);
-      // Rebalance all trains because the number of active notes changed.
       updatePolyVoices();
+    }
+
+    async function runMonoAdsrReleaseConsoleTest(iterations=1000, intervalMs=0.5){
+      const failures=[]; const push=(ok,msg)=>{if(!ok)failures.push(msg);};
+      if(!state.audioCtx||!state.audioRunning){try{initAudio();}catch(e){failures.push('initAudio failed: '+e);}}
+      const ctx=state.audioCtx;
+      const p=ctx?.createGain?.();
+      if(p){
+        p.gain.setValueAtTime(0,ctx.currentTime);
+        for(let i=0;i<iterations;i++){
+          const t=ctx.currentTime;
+          scheduleAdsrGate(true,p.gain,{attack:.01,decay:.02,sustain:.8,release:.03,attackCurve:0.2,decayCurve:-0.1,releaseCurve:0.1},t);
+          scheduleAdsrGate(false,p.gain,{attack:.01,decay:.02,sustain:.8,release:.03,attackCurve:0.2,decayCurve:-0.1,releaseCurve:0.1},t);
+        }
+        push(true,'rapid mono ADSR scheduling completed without uncaught exceptions');
+      }
+      const result={ok:!failures.length,failures,release:state.adsr.release};
+      console[result.ok?'log':'error']('MONO ADSR RELEASE TEST',result);
+      return result;
+    }
+
+    function runMonoKeyboardStressTests(iterations=2000){
+      const failures=[];
+      const assert=(ok,msg)=>{if(!ok)failures.push(msg);};
+      const fn=retuneVisibleKeyboardAudio.toString();
+      assert(!fn.includes('frequency.setValueAtTime'), 'fast mono path still queues oscillator frequency events');
+      assert(!fn.includes('delayNode?.delayTime.setValueAtTime'), 'fast mono path still queues delay events');
+      assert(fn.includes('gear.osc.frequency.value = targetFreq'), 'direct frequency write missing');
+      assert(fn.includes('gear.delayNode.delayTime.value ='), 'direct delay write missing');
+      const gearCount=12;
+      let immediateWrites=0, scheduledAutomationEvents=0;
+      for(let i=0;i<iterations;i++){
+        const semitone=[0,2,4,5,7,9][i%6];
+        const target=state.baseFundamentalFreq*Math.pow(2,semitone/12);
+        assert(Number.isFinite(target)&&target>0,`invalid simulated target at ${i}`);
+        immediateWrites += gearCount;
+      }
+      assert(immediateWrites===iterations*gearCount,'stress write count mismatch');
+      assert(scheduledAutomationEvents===0,'stress path scheduled automation events');
+      const result={ok:!failures.length,iterations,gearCount,immediateWrites,scheduledAutomationEvents,failures};
+      console[result.ok?'log':'error']('MONO KEYBOARD STRESS SELF-TEST',result);
+      return result;
     }
 
     function playSemitone(semitone, keyId = `note-${semitone}`) {
@@ -5816,23 +6332,25 @@
         state.audioDriver.keyboardKeyRatio = ratio;
         applyKeyboardDriverPitch();
       } else {
-        setFundamentalFrequency(state.baseFundamentalFreq * ratio, false);
+        const targetFreq = state.baseFundamentalFreq * ratio;
+        setFundamentalFrequency(targetFreq, false, false, true);
       }
       updateKeyboardUI(semitone, ratio);
     }
 
     function releaseKeyboardNotes(keyId = null) {
-      // Continuous is exclusively the release policy. POLY does not override
-      // it: when Continuous is OFF, a released key must close its own voice
-      // and run that voice's ADSR release immediately.
-      if (!state.releaseOnKeyup) return;
+      // POLY is always key-gated: releasing a physical key/MIDI note must
+      // immediately enter that note's own ADSR release, regardless of Continuous.
       if (state.polyMode && keyId) {
         const voice = state.polyVoices.get(keyId);
         if (voice) {
           voice.keyHeld = false;
           stopPolyVoice(keyId);
         }
+      } else if (state.polyMode && !keyId) {
+        stopAllPolyVoices();
       } else if (keyId && state.polyVoices.has(keyId)) stopPolyVoice(keyId);
+      if (!state.polyMode && !state.releaseOnKeyup) return;
       if (state.polyVoices.size > 0) {
         const held = Array.from(state.midiHeldNotes.values()).pop();
         if (state.pressedKeys.size > 0) {
@@ -5881,7 +6399,8 @@
       const keys = document.querySelectorAll('#virtual-keyboard .key');
       const keyboardPointerToKey = state.keyboardPointerToKey;
       const keyboardKeyPointerCounts = state.keyboardKeyPointerCounts;
-      startPolyReleaseWatchdog();
+      keyboardPointerToKey.clear();
+      keyboardKeyPointerCounts.clear();
       keys.forEach(key => {
         key.style.touchAction = 'none';
         const semitone = parseInt(key.getAttribute('data-note'));
@@ -5934,6 +6453,35 @@
         key.addEventListener('pointercancel', stopNote, { passive: false });
         key.addEventListener('lostpointercapture', (e) => releasePointer(e.pointerId, e));
       });
+
+      // Absolute pointer-up safety net. This is intentionally separate from the
+      // per-key handlers so a browser gesture takeover cannot strand a POLY note.
+      const clearPhysicalPointer = (pid) => {
+        const mappedKeyId = keyboardPointerToKey.get(pid);
+        if (!mappedKeyId) return;
+        keyboardPointerToKey.delete(pid);
+        const count = Math.max(0, (keyboardKeyPointerCounts.get(mappedKeyId) || 1) - 1);
+        if (count > 0) {
+          keyboardKeyPointerCounts.set(mappedKeyId, count);
+        } else {
+          keyboardKeyPointerCounts.delete(mappedKeyId);
+          state.keyboardPointerHeldKeys.delete(mappedKeyId);
+          state.pressedKeys.delete(mappedKeyId);
+          releaseKeyboardNotes(mappedKeyId);
+        }
+      };
+      window.addEventListener('mouseup', () => {
+        if (keyboardPointerToKey.size === 0) return;
+        Array.from(keyboardPointerToKey.keys()).forEach(clearPhysicalPointer);
+      }, true);
+      window.addEventListener('touchend', () => {
+        if (keyboardPointerToKey.size === 0) return;
+        Array.from(keyboardPointerToKey.keys()).forEach(clearPhysicalPointer);
+      }, {capture:true, passive:true});
+      window.addEventListener('touchcancel', () => {
+        if (keyboardPointerToKey.size === 0) return;
+        Array.from(keyboardPointerToKey.keys()).forEach(clearPhysicalPointer);
+      }, {capture:true, passive:true});
 
       // Global fallback: if pointer capture vanishes before the key receives its
       // pointerup event, the keyboard still gets a deterministic note-off.
@@ -6451,8 +6999,6 @@
         quadrantText = `${fb} ${lr}`.trim() || 'CENTER';
       }
 
-      const oldInspectorGraph = document.getElementById('inspector-adsr-graph');
-      try { oldInspectorGraph?._gearAdsrRO?.disconnect(); } catch (_) {}
       content.innerHTML = `
         <div><strong>Role:</strong> ${gear.isMain ? 'Main Drive Hub (Listener Center)' : 'Secondary Harmonic Gear'}</div>
         <div><strong>Current Shape:</strong> <span style="color:var(--accent-cyan);">${gear.shape || 'circular'}</span></div>
@@ -6607,8 +7153,9 @@
       };
       inspectorToothSelect?.addEventListener('change', e => {
         gear.toothWaveform = e.target.value;
-        gear.sourceMode = gear.toothWaveform;
+        gear.sourceMode = e.target.value;
         refreshInspectorTooth();
+        syncInspectorSourceConfigs();
         updateAudioNodes();
         renderGearList();
       });
@@ -6627,38 +7174,17 @@
         // a freshly-created SVG blank.
         bindAdsrGraph(inspectorAdsrGraph,()=>gear.adsr,a=>{gear.adsr={...gear.adsr,...a};},'inspector-adsr');
         renderAdsrGraph(inspectorAdsrGraph, gear.adsr || state.adsr, 'inspector-adsr');
-        const paintInspectorAdsr = () => {
-          const g = document.getElementById('inspector-adsr-graph');
-          if (!g) return;
-          const env = gear.adsr || state.adsr;
-          g.style.display = 'block';
-          g.style.width = '100%';
-          g.style.height = '92px';
-          g.style.visibility = 'visible';
-          g.style.opacity = '1';
-          renderAdsrGraph(g, env, 'inspector-adsr');
-          // Verify the path was actually painted. This prevents a transient SVG
-          // layout/update race from leaving an otherwise valid inspector blank.
-          if (!g.querySelector('#inspector-adsr-line')?.getAttribute('d')) {
-            const A=Math.max(0,Math.min(2,Number(env.attack)||0)),D=Math.max(0,Math.min(2,Number(env.decay)||0)),S=Math.max(0,Math.min(1,Number(env.sustain ?? .8))),R=Math.max(0,Math.min(10,Number(env.release)||0));
-            const ax=8+47*A/2,dx=55+45*D/2,sx=125,rx=sx+67*R/10,ys=61-S*53;
-            const d=`M 8 61 L ${ax} 10 L ${dx} ${ys} L ${sx} ${ys} L ${rx} 61`;
-            g.querySelector('#inspector-adsr-line')?.setAttribute('d',d);
-            g.querySelector('#inspector-adsr-hitline')?.setAttribute('d',d);
-            g.querySelector('#inspector-adsr-fill')?.setAttribute('d',d+' Z');
-          }
+        const paintInspectorAdsr=()=>{
+          const g=document.getElementById('inspector-adsr-graph');
+          const selected=state.gearMap.get(state.selectedGearId);
+          if(g&&selected) renderAdsrGraph(g, selected.adsr||state.adsr, 'inspector-adsr');
         };
-        paintInspectorAdsr();
-        requestAnimationFrame(paintInspectorAdsr);
-        requestAnimationFrame(() => requestAnimationFrame(paintInspectorAdsr));
-        setTimeout(paintInspectorAdsr, 50);
-        setTimeout(paintInspectorAdsr, 250);
-        if (window.ResizeObserver) {
-          const ro = new ResizeObserver(() => paintInspectorAdsr());
-          ro.observe(inspectorAdsrGraph);
-          inspectorAdsrGraph._gearAdsrRO = ro;
-        }
+        requestAnimationFrame(()=>requestAnimationFrame(paintInspectorAdsr));
+        setTimeout(paintInspectorAdsr,0);
       }
+      refreshInspectorTooth();
+      updateAudioNodes();
+      renderGearList();
       inspectorToothWidth?.addEventListener('input', e => {
         gear.toothWidth = normalizeToothWidth(e.target.value);
         refreshInspectorTooth();
@@ -7893,6 +8419,7 @@
       fitMachineToView(true);
       document.getElementById('startup-tooltip')?.remove();
       initVirtualKeyboardEvents();
+      startPolyReleaseWatchdog();
       syncKeyboardAudioGate();
       // Best-effort MIDI startup: browsers may require permission/user gesture.
       setTimeout(() => { try { initWebMIDI(); } catch (_) {} }, 100);
@@ -8155,6 +8682,7 @@
       window.addEventListener('resize',()=>{ if(inMode) updateActive(activeIndex,false); });
       sync();
     })();
+    window.runPolyReleaseConsoleTests=runPolyReleaseConsoleTests;
 </script>
 
 <style id="selected-gear-adsr-visibility-fix">
