@@ -1745,6 +1745,29 @@
 
     #ratio-palette-modal .floating-title::after{content:" · EDITS ACTIVE GEAR";font-size:.58rem;color:#8fc7a0;letter-spacing:.4px;}
 </style>
+<style id="neon-visual-mode-css">
+body.neon-visual-mode,
+#app-container.neon-visual-mode,
+#app-container.neon-visual-mode #canvas-container,
+#app-container.neon-visual-mode #canvas-container canvas{background:#000!important;}
+body.neon-visual-mode #fundamental-topbar{background:#000!important;border-color:#111!important;}
+#app-container.neon-visual-mode #canvas-container{border:0!important;border-radius:0!important;}
+#app-container.neon-visual-mode #canvas-container canvas{border-radius:0!important;}
+#app-container.neon-visual-mode #hud-top-right,
+#app-container.neon-visual-mode #hud-bottom-left,
+#app-container.neon-visual-mode #canvas-crank-control,
+#app-container.neon-visual-mode #startup-tooltip{display:none!important;}
+#app-container.neon-visual-mode #mobile-keyboard-dock{background:#000!important;border-top-color:#111!important;}
+#app-container.neon-visual-mode #mobile-one-screen-drawer{background:#050505!important;border-color:#161616!important;}
+#app-container.neon-visual-mode #mobile-one-screen-drawer .mobile-one-screen-drawer-head{border-bottom-color:#181818!important;}
+#mobile-visual-mode-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;margin-bottom:6px;border:1px solid #5f4324;border-radius:7px;background:rgba(55,38,21,.34);}
+#mobile-visual-mode-row label{margin:0;color:#f1d184;font-weight:800;font-size:.7rem;}
+#mobile-visual-mode-row label span{display:inline-flex;align-items:center;gap:7px;}
+#mobile-visual-mode-row input{accent-color:#22ffff;}
+#app-container.neon-visual-mode #mobile-visual-mode-row{border-color:#174949;background:rgba(0,255,255,.06);}
+#app-container.neon-visual-mode #mobile-visual-mode-row label{color:#7df9ff;}
+</style>
+
 </head>
 <body>
 
@@ -2315,7 +2338,9 @@
       pressedKeys: new Set(),    // Active playing piano keys
       activeSemitone: null,      // Active playing semitone
       releaseOnKeyup: false,     // Continuous is the default startup mode
-      keyboardAudioActive: true, // Continuous starts active; C is heard when audio starts
+      keyboardAudioActive: false, // Gate state is established by initAudio() or an actual note-on.
+      audioRoutingWatchdog: null,
+      audioRoutingWatchdogBusy: false,
       midiHeldNotes: new Map(),
       legato: false,             // Legato/glissando smoothing for active pitch changes and POLY voice retuning
       glissTime: 0.20,           // Glissando glide duration in seconds
@@ -2379,6 +2404,9 @@
       motionFrameCache: new Map(),
       motionFrameCachePhase: NaN,
       staticBackgroundCache: null,
+      visualMode: 'default',
+      neonPalette: new Map(),
+      neonColorOrder: null,
       midi: { access: null, enabled: false, input: null, output: null },
       audioDriver: {
         buffer: null, rawBuffer: null, fileName: '', playing: false, elapsed: 0, detectedFreq: 1, visualShape: 'sine', driverRate: 1, driverRPM: 33.3, driverRPMBase: 33.3, driverNominalRPM: 33.3,
@@ -2700,10 +2728,130 @@
       });
     }
 
-    function resetMachineViewAndPhase() {
+    function snapNearbyUnpoweredGearsToMachine(thresholdPx = 10) {
+      // A background double-tap/double-click is an explicit "power the machine"
+      // command. Every disconnected/unpowered gear is brought onto the existing
+      // powered train. The 10px threshold remains useful as the first-choice
+      // snap tolerance, but it is NOT a requirement: distant loose gears are also
+      // placed at the nearest collision-free mesh position so the gesture always
+      // powers the whole visible machine.
+      const zoom = Math.max(0.0001, Number(state.camera.zoom) || 1);
+      const thresholdWorld = Math.max(0, Number(thresholdPx) || 0) / zoom;
+      let snappedCount = 0;
+      const maxPasses = Math.max(1, state.gears.length * 2);
+      const FULL_CIRCLE = Math.PI * 2;
+      const ANGLE_STEP = FULL_CIRCLE / 360;
+
+      const getPowered = () => state.gears.filter(g =>
+        g.isMain || Math.abs(Number(g.ratio) || 0) > 0
+      );
+
+      function nearestValidPlacement(gear, powered) {
+        let best = null;
+        let bestMove = Infinity;
+        const originalX = Number(gear.x) || 0;
+        const originalY = Number(gear.y) || 0;
+
+        for (const parent of powered) {
+          if (!parent || parent.id === gear.id) continue;
+          const targetDist = Number(gear.pitchRadius) + Number(parent.pitchRadius);
+          if (!Number.isFinite(targetDist) || targetDist <= 0) continue;
+
+          const dx = originalX - parent.x;
+          const dy = originalY - parent.y;
+          const currentDist = Math.hypot(dx, dy);
+          let directAngle = Math.atan2(dy, dx);
+          if (!Number.isFinite(directAngle)) directAngle = -Math.PI / 2;
+
+          // Prefer the exact nearest point on the parent's pitch circle when the
+          // gear is already within the requested 10px snap tolerance.
+          const directX = parent.x + Math.cos(directAngle) * targetDist;
+          const directY = parent.y + Math.sin(directAngle) * targetDist;
+          const directGap = Math.abs(currentDist - targetDist);
+          if (directGap <= thresholdWorld &&
+              !checkOverlap(gear, directX, directY, [parent.id])) {
+            const move = Math.hypot(directX - originalX, directY - originalY);
+            if (move < bestMove) {
+              bestMove = move;
+              best = { parent, x: directX, y: directY, angle: directAngle };
+            }
+          }
+
+          // Otherwise search the entire pitch circle for the nearest free opening.
+          // This makes "power all" deterministic even when the loose gear is far
+          // away from the machine or its nearest point is occupied by another gear.
+          for (let i = 0; i < 360; i++) {
+            const angle = directAngle + i * ANGLE_STEP;
+            const x = parent.x + Math.cos(angle) * targetDist;
+            const y = parent.y + Math.sin(angle) * targetDist;
+            if (checkOverlap(gear, x, y, [parent.id])) continue;
+            const move = Math.hypot(x - originalX, y - originalY);
+            if (move < bestMove) {
+              bestMove = move;
+              best = { parent, x, y, angle };
+            }
+          }
+        }
+        return best;
+      }
+
+      // Attach the nearest loose gears first. Newly attached wheels become powered
+      // anchors, so a disconnected cluster can be pulled into the machine as one
+      // coherent network on subsequent passes.
+      for (let pass = 0; pass < maxPasses; pass++) {
+        const powered = getPowered();
+        if (!powered.length) break;
+
+        const loose = state.gears
+          .filter(g => !g.isMain && Math.abs(Number(g.ratio) || 0) <= 0)
+          .map(g => ({
+            gear: g,
+            distance: Math.min(...powered.map(p => Math.hypot(g.x - p.x, g.y - p.y)))
+          }))
+          .sort((a, b) => a.distance - b.distance);
+
+        if (!loose.length) break;
+        let attachedThisPass = false;
+
+        for (const item of loose) {
+          const gear = item.gear;
+          if (gear.isMain || Math.abs(Number(gear.ratio) || 0) > 0) continue;
+
+          const placement = nearestValidPlacement(gear, getPowered());
+          if (!placement) continue;
+
+          gear.x = placement.x;
+          gear.y = placement.y;
+          gear.neighbors.add(placement.parent.id);
+          placement.parent.neighbors.add(gear.id);
+
+          // Re-solve immediately so this gear is powered and can serve as an anchor
+          // for another disconnected wheel during the same double activation.
+          updateKinematicNetwork();
+
+          if (Math.abs(Number(gear.ratio) || 0) > 0) {
+            alignGearPhaseToParent(placement.parent, gear);
+            forceGearMod0Sync('double-tap-power-all');
+            snappedCount++;
+            attachedThisPass = true;
+          }
+        }
+
+        if (!attachedThisPass) break;
+      }
+
+      if (snappedCount > 0) {
+        updateKinematicNetwork();
+        forceGearMod0Sync('double-tap-power-all-final');
+      }
+      return snappedCount;
+    }
+
+    function resetMachineViewAndPhase({ snapLooseGears = false } = {}) {
       // Visual/mechanical Mod-0 reset must work even when audio is stopped.
       // When audio is running, the existing hard sync additionally rebuilds
       // audible sources on the same audio clock so sound and animation agree.
+      if (snapLooseGears) snapNearbyUnpoweredGearsToMachine(10);
       state.masterPhase = 0;
       state.gears.forEach(g => {
         g.setPhaseOffsetDeg(0);
@@ -3389,6 +3537,8 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       }
 
       state.audioRunning = true;
+      state.masterOutputConnected = true;
+      startAudioRoutingWatchdog();
       initOptimizedPolyPool().catch(()=>{});
       document.getElementById('btn-toggle-audio').textContent = '⏸ PAUSE AUDIO';
       document.getElementById('btn-toggle-audio').style.background = '#10b981';
@@ -3396,6 +3546,7 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
         state.keyboardAudioActive = true;
         playSemitone(0, 'startup-c');
       } else {
+        state.gears.forEach(g=>{g._neonEnvelope=null;});
         updateAudioNodes();
       }
     }
@@ -3423,6 +3574,7 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       state.polyVoices.forEach(v=>{if(v.optimized){try{v.slot.node.port.postMessage({type:'stop'});}catch(_){} v.slot.busy=false;v.slot.voice=null;state.polyAudioPool.free.includes(v.slot)||state.polyAudioPool.free.push(v.slot);}});
       state.polyVoices.clear();
       state.audioRunning = false;
+      if (state.audioRoutingWatchdog) { window.clearInterval(state.audioRoutingWatchdog); state.audioRoutingWatchdog = null; }
       state.audioDriver.playing = false;
       stopAudioDriverSources();
       const driverBtn = document.getElementById('btn-driver-play');
@@ -4342,6 +4494,281 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       ctx.restore();
     }
 
+    /* FUTURISTIC NEON VISUAL MODE */
+    const NEON_COLORS=['#00ffff','#39ff14','#ff2bd6','#ff7a00','#7df9ff','#b6ff00','#ff3b6b','#9b6cff','#00ff9d','#ffe600'];
+
+    function getNeonColor(gear,index){
+      if(state.neonPalette.has(gear.id)) return state.neonPalette.get(gear.id);
+      if(!Array.isArray(state.neonColorOrder) || state.neonColorOrder.length!==NEON_COLORS.length){
+        state.neonColorOrder=[...NEON_COLORS];
+        for(let i=state.neonColorOrder.length-1;i>0;i--){
+          const j=Math.floor(Math.random()*(i+1));
+          [state.neonColorOrder[i],state.neonColorOrder[j]]=[state.neonColorOrder[j],state.neonColorOrder[i]];
+        }
+      }
+      const color=state.neonColorOrder[index%state.neonColorOrder.length];
+      state.neonPalette.set(gear.id,color);
+      return color;
+    }
+
+    // Reduce a real mechanical tooth count to the smallest practical visual
+    // tooth count while preserving the ratios between all gears. The minimum
+    // displayed gear has three teeth, so 120:60:30 becomes 12:6:3.
+    function getNeonToothCounts(){
+      const teeth=state.gears.map(g=>Math.max(1,Math.round(Number(g.teeth)||1)));
+      if(!teeth.length)return new Map();
+      const minTeeth=Math.min(...teeth);
+      const divisor=Math.max(1,Math.floor(minTeeth/3));
+      const map=new Map();
+      state.gears.forEach((g,i)=>{
+        let n=Math.max(3,Math.round(teeth[i]/divisor));
+        // Preserve obvious even/ratio relationships when possible.
+        if(teeth[i]===minTeeth) n=3;
+        map.set(g.id,n);
+      });
+      return map;
+    }
+
+    // Neon geometry mirrors the same waveform-width and shape functions used by
+    // the actual synth. The low-frequency mechanical tooth count is reduced for
+    // legibility, but the ratio/phase relationship is preserved.
+    function neonProfile(gear,phase){
+      const wf=String(gear?.toothWaveform||gear?.sourceMode||state.waveform||'sine').toLowerCase();
+      return toothWaveSample(['sine','triangle','sawtooth','square'].includes(wf)?wf:'sine', ((phase%TAU)+TAU)%TAU/TAU, normalizeToothWidth(gear?.toothWidth));
+    }
+
+    function neonShapeRadius(gear,theta,baseRadius){
+      const shape=gear?.shape||'circular';
+      if(shape==='mobius'){
+        // Keep the Möbius contour readable while preserving its characteristic twist.
+        const p=normalizedShapeParams(gear?.shapeParams||{});
+        return shapeRadius(shape,theta,baseRadius,p);
+      }
+      return shapeRadius(shape,theta,baseRadius,gear?.shapeParams||{});
+    }
+
+    function neonGearPoint(gear,theta,toothCount){
+      const pitch=Math.max(12,Number(gear?.pitchRadius)||40);
+      const base=Math.max(8,neonShapeRadius(gear,theta,pitch));
+      const toothAngle=TAU/Math.max(3,toothCount);
+      const toothPhase=((theta/toothAngle)+0.5)%1;
+      const width=normalizeToothWidth(gear?.toothWidth);
+      const wf=String(gear?.toothWaveform||gear?.sourceMode||state.waveform||'sine').toLowerCase();
+
+      // Evaluate the SAME waveform that drives the tooth oscillator. Width therefore
+      // changes the visible tooth duty/rounding in exactly the same direction as audio.
+      let profile=neonProfile(gear,toothPhase*TAU);
+
+      // The visual tooth amplitude is deliberately modest: the underlying contour
+      // remains visible, so e.g. a hexagon with square teeth still reads as a hexagon.
+      // Wider gears get a slightly deeper visual cut while retaining interlocking pitch.
+      const shape=gear?.shape||'circular';
+      const shapeDepth = shape==='circular' ? 1 : 0.82;
+      const amplitude=Math.max(2.2,Math.min(pitch*.17,pitch/toothCount*1.15))*shapeDepth;
+
+      // Explicit width-dependent edge shaping for square/saw teeth. This keeps very
+      // narrow square pulses narrow on screen and makes wide saw settings visibly round.
+      if(wf==='square'){
+        const duty=Math.max(.02,Math.min(.98,.5+(width-.5)*1.80));
+        const d=Math.min(toothPhase,1-toothPhase);
+        const edge=Math.max(.012,Math.min(.30,duty*.5));
+        const sharp=Math.max(.015,Math.min(1,edge*.85));
+        if(d < edge) {
+          const k=Math.max(0,Math.min(1,(duty*.5-d)/Math.max(.001,sharp)));
+          profile = 1 - k*k*1.8;
+          if(profile< -1) profile=-1;
+        }
+      } else if(wf==='sawtooth') {
+        // The audio saw becomes progressively rounded at larger width values.
+        const rounded=width>.5 ? (width-.5)*2 : 0;
+        if(rounded>0) profile = profile*(1-rounded) + Math.sin(Math.PI*(toothPhase*2-.5))*rounded;
+      }
+
+      const r=base + profile*amplitude;
+      return {x:Math.cos(theta)*r,y:Math.sin(theta)*r};
+    }
+
+    // Neon brightness is driven by the same per-gear ADSR/bloom timing used by audio.
+    // Continuous mode is intentionally always fully lit; non-continuous mode is black
+    // when no gate/voice is active, then follows attack/decay/sustain/release exactly.
+    function neonEnvelopeValue(env, now){
+      if(!env || !Number.isFinite(now)) return 0;
+      if(env.forceFull) return 1;
+      const t=Math.max(0,now-(Number(env.start)||0));
+      const a=Math.max(0,Number(env.attack)||0);
+      const d=Math.max(0,Number(env.decay)||0);
+      const sus=Math.max(0,Math.min(1,Number(env.sustain ?? .8)));
+      const ac=Number(env.attackCurve)||0, dc=Number(env.decayCurve)||0, rc=Number(env.releaseCurve)||0;
+      let level=0;
+      if(env.releaseStart!=null){
+        const rt=Math.max(0,now-(Number(env.releaseStart)||0));
+        const r=Math.max(0,Number(env.release)||0);
+        const from=Math.max(0,Math.min(1,Number(env.releaseFrom)||0));
+        if(r<=0) return 0;
+        return Math.max(0,from*(1-adsrCurveValue(Math.min(1,rt/r),rc)));
+      }
+      if(a>0 && t<a) level=adsrCurveValue(t/a,ac);
+      else if(d>0 && t<a+d) level=1+(sus-1)*adsrCurveValue((t-a)/d,dc);
+      else level=sus;
+      return Math.max(0,Math.min(1,level));
+    }
+
+    function neonScheduleEnvelope(target, open, gear, now){
+      if(!target || !gear) return;
+      if(state.releaseOnKeyup===false){
+        target._neonEnvelope={forceFull:true,start:now};
+        return;
+      }
+      const adsr=gear.adsr||state.adsr||{};
+      if(open){
+        target._neonEnvelope={
+          forceFull:false,start:now,attack:getBloomAttackForGear(gear),
+          decay:Math.max(0,Number(adsr.decay)||0),sustain:Math.max(0,Math.min(1,Number(adsr.sustain ?? .8))),
+          attackCurve:Number(adsr.attackCurve)||0,decayCurve:Number(adsr.decayCurve)||0,release:Math.max(0,Number(adsr.release)||0),releaseCurve:Number(adsr.releaseCurve)||0
+        };
+      }else{
+        const prev=target._neonEnvelope;
+        const from=neonEnvelopeValue(prev,now);
+        target._neonEnvelope={...(prev||{}),forceFull:false,releaseStart:now,releaseFrom:from,release:Math.max(0,Number(adsr.release)||0),releaseCurve:Number(adsr.releaseCurve)||0};
+      }
+    }
+
+    function getNeonGearEnvelopeLevel(gear,now){
+      if(state.releaseOnKeyup===false) return 1;
+      if(state.polyMode){
+        let sum=0;
+        const addVoice=v=>{
+          const pg=v.gears?.get(gear.id);
+          if(pg){
+            const env=neonEnvelopeValue(pg._neonEnvelope,now);
+            sum += Math.max(0,Math.min(1,getPolyGearVolume(gear, v.driverMode)))*env;
+          }
+        };
+        state.polyVoices.forEach(addVoice);
+        state.polyReleaseTails?.forEach(addVoice);
+        return Math.max(0,Math.min(1,sum));
+      }
+      return neonEnvelopeValue(gear._neonEnvelope,now);
+    }
+
+    function getNeonGearBrightness(gear,now){
+      if(!gear || gear.muted || gear.isUltrasonic || Math.abs(Number(gear.ratio)||0)===0) return 0;
+      const master=Math.max(0,Math.min(1,Number(state.masterVolume)||0));
+      if(state.polyMode){
+        return Math.max(0,Math.min(1,getNeonGearEnvelopeLevel(gear,now)*master));
+      }
+      const volume=Math.max(0,Math.min(1,Number(gear.volume)||0));
+      return Math.max(0,Math.min(1,volume*getNeonGearEnvelopeLevel(gear,now)*master));
+    }
+
+    function drawNeonGear(gear,index,toothCounts){
+      const toothCount=Math.max(3,toothCounts.get(gear.id)||12);
+      const color=getNeonColor(gear,index);
+      const now=state.audioCtx?.currentTime ?? performance.now()/1000;
+      const intensity=getNeonGearBrightness(gear,now);
+      if(intensity<=0.0005) return;
+      const pitch=Math.max(12,Number(gear.pitchRadius)||40);
+      const rotation=Number(gear.angle)||0;
+      const samples=Math.min(960,Math.max(180,toothCount*24));
+      const points=[];
+      for(let i=0;i<=samples;i++){
+        const a=TAU*i/samples;
+        const q=neonGearPoint(gear,a,toothCount);
+        const c=Math.cos(rotation),s=Math.sin(rotation);
+        points.push({x:q.x*c-q.y*s,y:q.x*s+q.y*c});
+      }
+      const trace=(lineWidth,alpha,blur,offsetX=0,offsetY=0)=>{
+        ctx.save();
+        ctx.translate(offsetX,offsetY);
+        ctx.globalCompositeOperation='lighter';
+        ctx.globalAlpha=Math.max(0,alpha);
+        ctx.strokeStyle=color;
+        ctx.shadowColor=color;
+        ctx.shadowBlur=blur;
+        ctx.lineWidth=lineWidth;
+        ctx.lineJoin='round';ctx.lineCap='round';
+        ctx.beginPath();
+        points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+        ctx.stroke();
+        ctx.restore();
+      };
+      ctx.save();
+      ctx.translate(gear.x,gear.y);
+      // Extremely soft aura first, then a tight bright tube.
+      trace(Math.max(11,pitch*.15),intensity*.10,pitch*4.8);
+      trace(Math.max(8,pitch*.115),intensity*.14,pitch*3.6);
+      trace(Math.max(5,pitch*.075),intensity*.22,pitch*2.2);
+      trace(Math.max(3,pitch*.045),intensity*.34,pitch*1.15);
+      trace(Math.max(1.8,pitch*.022),intensity*.70,pitch*.48);
+      trace(Math.max(1,pitch*.010),Math.min(1,intensity),pitch*.18);
+      // Minimal glowing axle - deliberately not a mechanical hub.
+      ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha=Math.min(1,intensity*.22);
+      ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=pitch*.8;
+      ctx.beginPath();ctx.arc(0,0,Math.max(1.2,pitch*.018),0,TAU);ctx.fill();
+      ctx.restore();
+    }
+
+    function drawNeonMachine(){
+      ctx.save();
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.translate(canvas.width/2 + state.camera.x,canvas.height/2 + state.camera.y);
+      ctx.scale(state.camera.zoom,state.camera.zoom);
+      const toothCounts=getNeonToothCounts();
+      state.gears.forEach((gear,i)=>drawNeonGear(gear,i,toothCounts));
+      ctx.restore();
+    }
+
+    function runNeonEnvelopeVisualTest(){
+      const failures=[]; const assert=(ok,msg)=>{if(!ok)failures.push(msg);};
+      const now=10;
+      const fake={adsr:{attack:.5,decay:.5,sustain:.8,release:1,attackCurve:0,decayCurve:0,releaseCurve:0}};
+      const target={};
+      const prevReleaseOnKeyup=state.releaseOnKeyup;
+      try{
+        state.releaseOnKeyup=true;
+        neonScheduleEnvelope(target,true,fake,now);
+        assert(neonEnvelopeValue(target._neonEnvelope,now)===0,'attack must begin at black');
+        assert(neonEnvelopeValue(target._neonEnvelope,now+.25)>0 && neonEnvelopeValue(target._neonEnvelope,now+.25)<1,'attack must rise from black');
+        assert(Math.abs(neonEnvelopeValue(target._neonEnvelope,now+1)-.8)<1e-6,'sustain level mismatch');
+        neonScheduleEnvelope(target,false,fake,now+1);
+        assert(neonEnvelopeValue(target._neonEnvelope,now+2)<=1e-9,'release must end black');
+        state.releaseOnKeyup=false;
+        neonScheduleEnvelope(target,true,fake,now);
+        assert(neonEnvelopeValue(target._neonEnvelope,now+0.01)===1,'continuous mode must stay fully lit');
+      }finally{state.releaseOnKeyup=prevReleaseOnKeyup;}
+      const result={ok:!failures.length,failures};
+      console[result.ok?'log':'error']('NEON ADSR VISUAL TEST',result);
+      return result;
+    }
+
+    function runNeonVisualModeConsoleTest(){
+      const counts=getNeonToothCounts();
+      const result={
+        ok:true,
+        gearCount:state.gears.length,
+        allHaveCounts:state.gears.every(g=>Number.isInteger(counts.get(g.id))&&counts.get(g.id)>=3),
+        colors:state.gears.map((g,i)=>getNeonColor(g,i)),
+        ratioCheck:true,
+        examples:[]
+      };
+      const main=state.gears.find(g=>g.isMain)||state.gears[0];
+      if(main){
+        state.gears.forEach(g=>{
+          const expected=Math.abs(Number(g.ratio)||1);
+          const actual=counts.get(g.id)||0;
+          const mainN=counts.get(main.id)||0;
+          if(g.ratio && Math.abs((mainN/Math.max(1,actual))-expected)>Math.max(.08,expected*.20)) result.ratioCheck=false;
+        });
+      }
+      result.ok=result.allHaveCounts && result.ratioCheck;
+      result.examples=state.gears.slice(0,3).map(g=>({id:g.id,teeth:g.teeth,neonTeeth:counts.get(g.id)}));
+      console[result.ok?'log':'error']('NEON VISUAL MODE TEST',result);
+      return result;
+    }
+
     function drawGear(gear) {
       const rPitch = gear.pitchRadius;
       const teeth = gear.teeth;
@@ -4706,10 +5133,13 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       }
       } // animationStopped guard
 
-      if (!state.staticBackgroundCache || state.staticBackgroundCache.width !== canvas.width || state.staticBackgroundCache.height !== canvas.height) {
-        const bg=document.createElement('canvas'); bg.width=canvas.width; bg.height=canvas.height; const bctx=bg.getContext('2d'); bctx.fillStyle='#0f172a'; bctx.fillRect(0,0,bg.width,bg.height); state.staticBackgroundCache=bg;
-      }
-      ctx.drawImage(state.staticBackgroundCache,0,0);
+      if(state.visualMode==='neon') {
+        drawNeonMachine();
+      } else {
+        if (!state.staticBackgroundCache || state.staticBackgroundCache.width !== canvas.width || state.staticBackgroundCache.height !== canvas.height) {
+          const bg=document.createElement('canvas'); bg.width=canvas.width; bg.height=canvas.height; const bctx=bg.getContext('2d'); bctx.fillStyle='#0f172a'; bctx.fillRect(0,0,bg.width,bg.height); state.staticBackgroundCache=bg;
+        }
+        ctx.drawImage(state.staticBackgroundCache,0,0);
 
       ctx.save();
       ctx.translate(canvas.width / 2 + state.camera.x, canvas.height / 2 + state.camera.y);
@@ -4878,6 +5308,7 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       }
 
       ctx.restore();
+      }
       positionCanvasCrankControl();
 
       requestAnimationFrame(renderLoop);
@@ -5022,24 +5453,16 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
 
       if (clickedGear) {
         // Selection is deferred until pointerup. A real drag moves the gear and must
-        // never open the Selected Gear Detail inspector.
+        // never open the Selected Gear Detail inspector. Do not detach a non-main
+        // gear on pointerdown: a second tap/click must remain non-destructive so the
+        // double-tap fundamental gesture can preserve its existing gear mesh.
         state.selectedGearId = null;
         const moveBranch = clickedGear.isMain || e.shiftKey;
         const branch = moveBranch ? getBranchGears(clickedGear) : [clickedGear];
-        if (!moveBranch) {
-          // Preserve the gear's exact hand/tooth-1 angle while disconnected.
-          clickedGear.dragStartAngle = clickedGear.angle;
-          clickedGear.neighbors.forEach(nid => {
-            const neighbor = state.gearMap.get(nid);
-            if (neighbor) neighbor.neighbors.delete(clickedGear.id);
-          });
-          clickedGear.neighbors.clear();
-          updateKinematicNetwork();
-          clickedGear.angle = clickedGear.dragStartAngle;
-        }
         state.dragState = {
           mode: 'gear', gear: clickedGear, branch, moveBranch, startX: mouse.x, startY: mouse.y,
           pointerStartClientX: e.clientX, pointerStartClientY: e.clientY, moved: false,
+          needsDetach: !moveBranch && clickedGear.neighbors.size > 0, detached: false,
           snapTarget: null, pointerId: e.pointerId,
           phaseAngles: new Map(branch.map(g => [g.id, g.angle])),
           phaseOffsets: new Map(branch.map(g => [g.id, g.phaseOffsetDeg])),
@@ -5116,6 +5539,22 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
         const clientDy = e.clientY - state.dragState.pointerStartClientY;
         if (Math.hypot(clientDx, clientDy) >= 6) state.dragState.moved = true;
         const gear = state.dragState.gear;
+        if (!state.dragState.moved) {
+          // Only a genuine drag detaches the gear. This preserves the mesh through
+          // taps/clicks and lets the double-activation handler make it fundamental.
+          state.dragState.moved = Math.hypot(clientDx, clientDy) >= 6;
+          if (state.dragState.moved && state.dragState.needsDetach && !state.dragState.detached) {
+            gear.dragStartAngle = gear.angle;
+            gear.neighbors.forEach(nid => {
+              const neighbor = state.gearMap.get(nid);
+              if (neighbor) neighbor.neighbors.delete(gear.id);
+            });
+            gear.neighbors.clear();
+            updateKinematicNetwork();
+            gear.angle = gear.dragStartAngle;
+            state.dragState.detached = true;
+          }
+        }
         state.dragState.branch.forEach(g => {
           if (g._dragHeldRatio == null) g._dragHeldRatio = state.dragState.heldRatios.get(g.id) || g.ratio;
           if (g._dragHeldFreq == null) g._dragHeldFreq = state.dragState.heldFreqs.get(g.id) || g.freq;
@@ -5235,26 +5674,51 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
     window.addEventListener('pointerup', finishPointerDrag);
 
     // Touch fallback: some mobile browsers do not synthesize dblclick reliably.
-    // A close pair of taps on the canvas performs the same full reset, while a
-    // normal single tap continues to use the existing pointer interaction.
+    // A close pair of taps on the canvas performs the same full reset and power-up,
+    // while a normal single tap continues to use the existing pointer interaction.
     let lastCanvasTapTime = 0;
     let lastCanvasTapX = 0;
     let lastCanvasTapY = 0;
     let lastCanvasTouchResetTime = 0;
+
+    function handleCanvasDoubleActivation(e) {
+      const rect = canvas.getBoundingClientRect();
+      const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const gear = getGearAtPosition(world.x, world.y);
+      document.getElementById('startup-tooltip')?.remove();
+
+      if (gear) {
+        // Same operation as dragging the steampunk belt onto a gear: make the
+        // tapped wheel the new 1:1 fundamental and re-solve the entire network.
+        makeGearFundamental(gear);
+        state.selectedGearId = gear.id;
+        updateInspector?.();
+        renderGearList?.();
+        return;
+      }
+
+      // Empty-background double activation resets Mod-0 and powers every
+      // currently unconnected gear by moving it to the nearest free mesh position.
+      try { resetMachineViewAndPhase({ snapLooseGears: true }); } catch (err) { console.error('Background double-tap power-up failed:', err); }
+    }
+
     canvas.addEventListener('pointerup', (e) => {
       if (e.pointerType !== 'touch') return;
-      if (state.dragState) return;
+      // This listener runs in the capture phase, before finishPointerDrag clears
+      // state.dragState. Do not reject the gesture merely because the normal
+      // pointer interaction is still winding down. Reject only an actual drag.
+      if (state.dragState?.mode === 'gear' && state.dragState.moved) return;
+      if (state.dragState?.mode === 'crank' || state.dragState?.mode === 'crank-position' || state.dragState?.mode === 'belt') return;
       const now = performance.now();
       const dx = e.clientX - lastCanvasTapX, dy = e.clientY - lastCanvasTapY;
-      const isDoubleTap = now - lastCanvasTapTime > 80 && now - lastCanvasTapTime < 420 && Math.hypot(dx, dy) < 28;
+      const isDoubleTap = now - lastCanvasTapTime > 80 && now - lastCanvasTapTime < 1200 && Math.hypot(dx, dy) < 28;
       lastCanvasTapTime = now; lastCanvasTapX = e.clientX; lastCanvasTapY = e.clientY;
       if (isDoubleTap) {
         e.preventDefault();
         e.stopPropagation();
         lastCanvasTapTime = 0;
         lastCanvasTouchResetTime = now;
-        document.getElementById('startup-tooltip')?.remove();
-        try { resetMachineViewAndPhase(); } catch (_) {}
+        handleCanvasDoubleActivation(e);
       }
     }, {capture:true, passive:false});
 
@@ -5265,16 +5729,14 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       state.camera.zoom = Math.min(Math.max(0.1, state.camera.zoom * zoomFactor), 5.0);
     });
 
-    // Double click to create new gear at mouse location
-    // Double-click / double-tap is a reset gesture, never gear creation.
+    // Double-click / double-tap is a context-sensitive gesture, never gear creation:
+    // a gear becomes the new fundamental; empty background performs the Mod-0 reset
+    // and 10px loose-gear auto-snap.
     canvas.addEventListener('dblclick', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (e.pointerType === 'touch' && performance.now() - lastCanvasTouchResetTime < 500) return;
-      document.getElementById('startup-tooltip')?.remove();
-      // Sync all visible/audio phases to Mod-0 (12 o'clock), then fit the
-      // complete machine and crank into the viewport.
-      try { resetMachineViewAndPhase(); } catch (_) {}
+      if (e.pointerType === 'touch' && performance.now() - lastCanvasTouchResetTime < 1400) return;
+      handleCanvasDoubleActivation(e);
     });
 
     /* SYNTHESIZER CORE & PRESETS */
@@ -5703,6 +6165,11 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       state.gears.forEach(g=>{ if(g.adsrGainNode?.gain) scheduleBloomedGearAdsr(open,g,g.adsrGainNode.gain,now); });
     }
 
+    function gearHasLiveNeonEnvelope(){
+      if(state.releaseOnKeyup===false) return true;
+      return state.gears.some(g=>g.adsrGainNode?.gain && g._neonEnvelope && g._neonEnvelope.releaseStart==null && Math.abs(Number(g.ratio)||0)>0);
+    }
+
     function setKeyboardAudioActive(active) {
       const wasActive = !!state.keyboardAudioActive;
       state.keyboardAudioActive = !!active;
@@ -5711,6 +6178,9 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       // Each visible gear owns its own ADSR. Open only on a true gate transition;
       // this preserves a sustained envelope while notes change in Continuous/Porta mode.
       if (!state.polyMode && state.keyboardAudioActive !== wasActive) scheduleVisibleGearAdsr(state.keyboardAudioActive, now);
+      // A defensive mono retrigger path: whenever a real key becomes active, make
+      // sure the visual envelope exists even if the logical gate was already true.
+      if (!state.polyMode && state.keyboardAudioActive && !gearHasLiveNeonEnvelope()) scheduleVisibleGearAdsr(true, now);
       // In POLY, the visible machine is muted; the virtual gear trains are the sound source.
       // Continuous NEVER gates a POLY voice bus. Each gear's own ADSR gain node
       // is the only envelope authority for that note. The voice bus remains at 1
@@ -5734,6 +6204,110 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       const held = state.pressedKeys.size > 0 || state.midiHeldNotes.size > 0;
       setKeyboardAudioActive(state.releaseOnKeyup ? held : true);
     }
+
+    function ensureAudioRoutingFallback(reason = '') {
+      if (!state.audioRunning || !state.audioCtx || state.audioCtx.state === 'closed') return false;
+      if (state.audioRoutingWatchdogBusy) return true;
+      state.audioRoutingWatchdogBusy = true;
+      try {
+        if (state.audioCtx.state === 'suspended') {
+          const r = state.audioCtx.resume();
+          if (r?.catch) r.catch(() => {});
+        }
+        if (!state.masterGain) return false;
+        // The master output is connected exactly once during normal init. Keep a
+        // guard flag so this recovery path never creates duplicate output paths.
+        if (!state.masterOutputConnected) {
+          try { state.masterGain.connect(state.audioCtx.destination); state.masterOutputConnected = true; } catch (_) {}
+        }
+        // Always rebuild/repair the source-side routing graph after activation.
+        // This is intentionally harmless when the graph is already healthy.
+        updateAudioNodes();
+
+        if (!state.polyMode) {
+          const noteActive = state.activeSemitone !== null &&
+            (state.pressedKeys.size > 0 || state.midiHeldNotes.size > 0 || !state.releaseOnKeyup);
+          if (noteActive) {
+            // A mono note-on must always open each visible gear's own envelope.
+            // This repair is also used immediately from playSemitone(), so the
+            // watchdog is a safety net rather than the normal gate trigger.
+            const gateTime = state._monoGateRequestedAt || 0;
+            const lastRepair = state._monoGateLastRepairAt || 0;
+            if (gateTime && gateTime !== lastRepair) {
+              scheduleVisibleGearAdsr(true, state.audioCtx.currentTime);
+              state._monoGateLastRepairAt = gateTime;
+            }
+          }
+        } else if (state.polyVoices.size) {
+          // POLY's dedicated voices own their envelopes, but the routing bus must
+          // remain open for every live voice and release tail.
+          state.polyVoices.forEach(voice => {
+            if (voice.masterGain?.gain) {
+              try { voice.masterGain.gain.setTargetAtTime(1, state.audioCtx.currentTime, 0.005); } catch (_) {}
+            }
+          });
+        }
+        return true;
+      } finally {
+        state.audioRoutingWatchdogBusy = false;
+      }
+    }
+
+    function startAudioRoutingWatchdog() {
+      if (state.audioRoutingWatchdog) return;
+      state.audioRoutingWatchdog = window.setInterval(() => {
+        try { ensureAudioRoutingFallback('watchdog'); } catch (err) { console.warn('Audio routing watchdog error', err); }
+      }, 150);
+    }
+
+    function runAudioCombinationFallbackTests() {
+      const failures = [];
+      const assert = (ok, msg) => { if (!ok) failures.push(msg); };
+      const combinations = [];
+      for (const poly of [false, true]) {
+        for (const continuous of [false, true]) {
+          for (const porta of [false, true]) {
+            for (const ji of [false, true]) {
+              combinations.push({ poly, continuous, porta, ji });
+            }
+          }
+        }
+      }
+      assert(combinations.length === 16, 'expected 16 POLY/Continuous/Porta/JI combinations');
+      const src = document.documentElement.innerHTML;
+      assert(src.includes('function ensureAudioRoutingFallback'), 'audio routing fallback missing');
+      assert(src.includes('startAudioRoutingWatchdog'), 'audio routing watchdog missing');
+      assert(src.includes('state.masterGain.connect(state.audioCtx.destination)'), 'master output recovery missing');
+      assert(src.includes('scheduleVisibleGearAdsr(true, state.audioCtx.currentTime)'), 'mono gate recovery missing');
+      assert(src.includes('voice.masterGain.gain.setTargetAtTime(1'), 'poly bus recovery missing');
+      combinations.forEach(c => {
+        // The mode tuple must remain representable without any combination-specific
+        // shortcut silently removing an audio path.
+        assert(typeof c.poly === 'boolean' && typeof c.continuous === 'boolean' && typeof c.porta === 'boolean' && typeof c.ji === 'boolean', `invalid combo ${JSON.stringify(c)}`);
+      });
+      const result = { ok: !failures.length, combinations: combinations.length, failures };
+      console[result.ok ? 'log' : 'error']('AUDIO COMBINATION FALLBACK TEST', result);
+      return result;
+    }
+
+    // Test/diagnostic surface is intentionally declared before the optional mobile
+    // carousel initialization below, so a browser-specific sessionStorage restriction
+    // cannot prevent the audio fallback test from being exposed.
+    window.getAudioRoutingDiagnostics=()=>({
+      audioRunning:!!state.audioRunning,
+      audioContextState:state.audioCtx?.state||null,
+      masterOutputConnected:!!state.masterOutputConnected,
+      masterGain:!!state.masterGain,
+      gearCount:state.gears.length,
+      sourceCount:state.gears.filter(g=>g.osc||g.audioSource||g.noiseSource||g.driverSource).length,
+      activeGearSourceCount:state.gears.filter(g=>Math.abs(g.ratio)>0 && !g.isUltrasonic && (g.osc||g.audioSource||g.noiseSource||g.driverSource)).length,
+      polyMode:!!state.polyMode,
+      polyVoiceCount:state.polyVoices.size,
+      polyReleaseTailCount:state.polyReleaseTails?.size||0,
+      keyboardAudioActive:!!state.keyboardAudioActive,
+      activeSemitone:state.activeSemitone,
+      pressedKeyCount:state.pressedKeys.size
+    });
 
     function getPolyGearVolume(gear, driverMode = false) {
       // POLY has its own note-frequency calculation. The visible mechanical
@@ -5993,9 +6567,11 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       const added=Math.min(5,Math.abs(amount))*(amount<0?1-t:t);
       return Math.min(10,base+added);
     }
-    function scheduleBloomedGearAdsr(open,gear,param,now){
+    function scheduleBloomedGearAdsr(open,gear,param,now,visualTarget=null){
       if(!param||!state.audioCtx)return;
       const base=gear?.adsr||state.adsr;
+      const target=visualTarget||gear;
+      neonScheduleEnvelope(target,open,gear,now);
       if(!open){
         // Bloom is an attack-only control. Release remains the gear's own ADSR.
         schedulePerGearAdsr(false,gear,param,now);
@@ -6168,7 +6744,7 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       // never terminates a cog's envelope. ADSR scheduling is guarded so a browser
       // automation exception can never strand already-started oscillators.
       try {
-        voice.gears.forEach(pg => scheduleBloomedGearAdsr(true, pg.gear, pg.adsrGainNode.gain, now));
+        voice.gears.forEach(pg => scheduleBloomedGearAdsr(true, pg.gear, pg.adsrGainNode.gain, now, pg));
         voice.masterGain.gain.setValueAtTime(1, now);
       } catch (err) {
         console.error('POLY voice construction recovered from ADSR scheduling error', err);
@@ -6210,7 +6786,7 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       // Continuous is OFF here by contract: the note was physically released,
       // so every gear envelope must enter its ADSR release stage. Never use the
       // voice bus as the sustain gate.
-      voice.gears.forEach(pg => scheduleBloomedGearAdsr(false, pg.gear, pg.adsrGainNode?.gain, now));
+      voice.gears.forEach(pg => scheduleBloomedGearAdsr(false, pg.gear, pg.adsrGainNode?.gain, now, pg));
       // Keep the routing bus open while the individual gear ADSRs perform their
       // releases, then force the entire voice to exact silence at the latest legal
       // release endpoint. This is a safety cutoff only; it does not shape the ADSR.
@@ -6436,13 +7012,25 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
         scheduleVisibleGearAdsr(true, state.audioCtx.currentTime);
       }
       if (state.polyMode) {
+        state._polyVoiceRequestedAt = performance.now();
         startPolyVoice(semitone, keyId);
+        ensureAudioRoutingFallback('poly-note-on');
       } else if (state.audioDriver.buffer && state.audioDriver.playing) {
         state.audioDriver.keyboardKeyRatio = ratio;
         applyKeyboardDriverPitch();
+        updateAudioNodes();
+        ensureAudioRoutingFallback('driver-note-on');
       } else {
         const targetFreq = state.baseFundamentalFreq * ratio;
         setFundamentalFrequency(targetFreq, false, false, true);
+        // Continuous OFF + Porta OFF can arrive here after updateAudioNodes()
+        // has legitimately muted a 0-Hz idle gear. Retune alone does not change
+        // that gain, so explicitly repair the mono routing path on note-on.
+        state._monoGateRequestedAt = performance.now();
+        updateAudioNodes();
+        scheduleVisibleGearAdsr(true, state.audioCtx?.currentTime || 0);
+        state._monoGateLastRepairAt = state._monoGateRequestedAt;
+        ensureAudioRoutingFallback('mono-note-on');
       }
       updateKeyboardUI(semitone, ratio);
     }
@@ -8792,6 +9380,8 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
       sync();
     })();
     window.runPolyReleaseConsoleTests=runPolyReleaseConsoleTests;
+    window.runNeonVisualModeConsoleTest=runNeonVisualModeConsoleTest;
+    window.runAudioCombinationFallbackTests=runAudioCombinationFallbackTests;
 </script>
 
 <style id="selected-gear-adsr-visibility-fix">
@@ -8969,7 +9559,23 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
     const head=document.createElement('div');head.className='mobile-one-screen-drawer-head';head.innerHTML='<span>CONTROLS</span>';
     const close=document.createElement('button');close.type='button';close.textContent='×';close.title='Close controls';close.setAttribute('aria-label','Close controls');close.addEventListener('click',()=>setDrawer(false));head.appendChild(close);
     drawer.appendChild(head);
-    drawerScroll=document.createElement('div');drawerScroll.id='mobile-one-screen-scroll';drawer.appendChild(drawerScroll);app.appendChild(drawer);
+
+    const visualRow=document.createElement('div');
+    visualRow.id='mobile-visual-mode-row';
+    visualRow.innerHTML='<label><span><input id="chk-visual-mode" type="checkbox"> VISUAL MODE - NEON</span></label>';
+    const visualChk=visualRow.querySelector('#chk-visual-mode');
+    visualChk.checked=state.visualMode==='neon';
+    visualChk.addEventListener('change',()=>{
+      state.visualMode=visualChk.checked?'neon':'default';
+      app.classList.toggle('neon-visual-mode',state.visualMode==='neon');
+      document.body.classList.toggle('neon-visual-mode',state.visualMode==='neon');
+      state.neonPalette.clear();
+      state.neonColorOrder=null;
+      state.staticBackgroundCache=null;
+      try{fitMachineToView(true);}catch(_){ }
+    });
+
+    drawerScroll=document.createElement('div');drawerScroll.id='mobile-one-screen-scroll';drawerScroll.appendChild(visualRow);drawer.appendChild(drawerScroll);app.appendChild(drawer);
 
     // Pull only the octave/performance controls out of the keyboard card. The keyboard itself stays docked.
     const kbChildren=Array.from(keyboardPanel.children);
@@ -9035,6 +9641,8 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
     createShell();
     inMode=true;
     app.classList.add('mobile-one-screen-mode');
+    app.classList.toggle('neon-visual-mode',state.visualMode==='neon');
+    document.body.classList.toggle('neon-visual-mode',state.visualMode==='neon');
     // The old mobile carousel may have moved these nodes into slides already. They now belong in this drawer.
     [nodes.master,nodes.midi,nodes.spatial,nodes.audioDriver].filter(Boolean).forEach(n=>drawerScroll.appendChild(n));
     if(nodes.ratioModal)drawerScroll.appendChild(nodes.ratioModal);
@@ -9067,6 +9675,8 @@ registerProcessor('gear-poly-composite',GearPolyCompositeProcessor);
   window.addEventListener('resize',()=>{if(mq.matches&&!inMode)enter();});
   sync();
 })();
+
+    window.runNeonEnvelopeVisualTest = runNeonEnvelopeVisualTest;
 </script>
 
 </body>
